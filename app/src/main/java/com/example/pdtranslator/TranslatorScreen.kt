@@ -42,6 +42,7 @@ import com.example.pdtranslator.ui.theme.PDTranslatorTheme
 @Composable
 fun TranslatorScreen(
     viewModel: TranslatorViewModel,
+    onSelectSingleFile: () -> Unit,
     onSelectLanguageGroup: () -> Unit,
     onSave: () -> Unit,
     modifier: Modifier = Modifier
@@ -73,7 +74,10 @@ fun TranslatorScreen(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Button(onClick = onSelectLanguageGroup) { Text("导入语言组") }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(onClick = onSelectSingleFile) { Text("导入单个语言") }
+                Button(onClick = onSelectLanguageGroup) { Text("导入语言组") }
+            }
             if (targetLanguage != null) {
                 Button(onClick = onSave, enabled = targetLanguage?.isModified == true) { Text("保存") }
             }
@@ -269,7 +273,7 @@ fun TranslatorScreenPreviewLarge() {
     // This is a preview, so we don't need real file loading logic.
     // We can simulate the state after a language group is selected.
     PDTranslatorTheme {
-        TranslatorScreen(viewModel, onSelectLanguageGroup = {}, onSave = {})
+        TranslatorScreen(viewModel, onSelectSingleFile = {}, onSelectLanguageGroup = {}, onSave = {})
     }
 }
 
@@ -280,6 +284,6 @@ fun TranslatorScreenPreviewSmall() {
     // This is a preview, so we don't need real file loading logic.
     // We can simulate the state after a language group is selected.
     PDTranslatorTheme {
-        TranslatorScreen(viewModel, onSelectLanguageGroup = {}, onSave = {})
+        TranslatorScreen(viewModel, onSelectSingleFile = {}, onSelectLanguageGroup = {}, onSave = {})
     }
 }
