@@ -1,6 +1,9 @@
 package com.example.pdtranslator
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -9,10 +12,17 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -20,6 +30,9 @@ import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
@@ -29,8 +42,8 @@ import com.example.pdtranslator.ui.theme.PDTranslatorTheme
 @Composable
 fun TranslatorScreen(
     viewModel: TranslatorViewModel,
-    onSelectOriginal: () -> Unit,
-    onSelectTranslated: () -> Unit,
+    onSelectLanguageGroup: () -> Unit,
+    onSave: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val translationProgress by viewModel.translationProgress
@@ -38,15 +51,56 @@ fun TranslatorScreen(
     val filterOption by viewModel.filterOption
     val filteredItems by viewModel.filteredItems
 
+    val sourceLanguage by viewModel.sourceLanguage
+    val targetLanguage by viewModel.targetLanguage
+    val availableSourceLanguages by viewModel.availableSourceLanguages
+    val availableTargetLanguages by viewModel.availableTargetLanguages
+
+
     Column(
         modifier = modifier
             .fillMaxSize()
             .padding(16.dp)
     ) {
+
+        // --- Header: Language Selection & Save --- 
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Button(onClick = onSelectLanguageGroup) { Text("导入语言组") }
+            if (targetLanguage != null) {
+                Button(onClick = onSave, enabled = targetLanguage?.isModified == true) { Text("保存") }
+            }
+        }
+        Spacer(modifier = Modifier.height(16.dp))
+
+        if (availableSourceLanguages.isNotEmpty()) {
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                LanguageSelector(
+                    label = "源语言",
+                    selectedLanguage = sourceLanguage,
+                    languages = availableSourceLanguages,
+                    onLanguageSelected = { viewModel.setSourceLanguage(it.langCode) },
+                    modifier = Modifier.weight(1f)
+                )
+                LanguageSelector(
+                    label = "目标语言",
+                    selectedLanguage = targetLanguage,
+                    languages = availableTargetLanguages,
+                    onLanguageSelected = { viewModel.setTargetLanguage(it.langCode) },
+                    modifier = Modifier.weight(1f)
+                )
+            }
+            Spacer(modifier = Modifier.height(16.dp))
+        }
+
+        // --- Search and Filter --- 
         OutlinedTextField(
             value = searchQuery,
             onValueChange = { viewModel.onSearchQueryChange(it) },
-            label = { Text("搜索 (Key)") },
+            label = { Text("搜索 (Key或原文)") },
             modifier = Modifier.fillMaxWidth()
         )
         Spacer(modifier = Modifier.height(8.dp))
@@ -58,6 +112,7 @@ fun TranslatorScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
+        // --- Progress Bar --- 
         if (filteredItems.isNotEmpty()) {
             Row(
                 modifier = Modifier
@@ -65,8 +120,8 @@ fun TranslatorScreen(
                     .padding(bottom = 8.dp),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Text(text = "翻译进度")
-                Text(text = "${(translationProgress * 100).toInt()}%")
+                Text(text = "翻译进度", style = MaterialTheme.typography.labelMedium)
+                Text(text = "${(translationProgress * 100).toInt()}%", style = MaterialTheme.typography.labelMedium)
             }
             LinearProgressIndicator(
                 progress = translationProgress,
@@ -76,70 +131,51 @@ fun TranslatorScreen(
             )
         }
 
+        // --- Translation Items List --- 
         BoxWithConstraints {
             if (maxWidth > 600.dp) { // Large screen: Side-by-side card layout
-                Column {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        Button(onClick = onSelectOriginal, modifier = Modifier.weight(1f)) { Text("导入原文文件") }
-                        Button(onClick = onSelectTranslated, modifier = Modifier.weight(1f)) { Text("导入译文文件") }
-                    }
-                    Spacer(modifier = Modifier.height(16.dp))
-                    LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        itemsIndexed(filteredItems) { index, item ->
-                            Card(modifier = Modifier.fillMaxWidth()) {
-                                Row(
-                                    modifier = Modifier.padding(16.dp).fillMaxWidth(),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(16.dp)
-                                ) {
-                                    Text(
-                                        text = "$index - ${item.key}",
-                                        modifier = Modifier.weight(1f),
-                                        style = MaterialTheme.typography.bodyMedium
-                                    )
-                                    OutlinedTextField(
-                                        value = item.translation,
-                                        onValueChange = { viewModel.updateTranslation(item.key, it) },
-                                        label = { Text("Value") },
-                                        modifier = Modifier.weight(1f)
-                                    )
+                LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    itemsIndexed(filteredItems, key = { _, item -> item.key }) { _, item ->
+                        Card(modifier = Modifier.fillMaxWidth()) {
+                            Row(
+                                modifier = Modifier
+                                    .padding(16.dp)
+                                    .fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(16.dp)
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(text = item.key, style = MaterialTheme.typography.titleSmall)
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(text = item.original, style = MaterialTheme.typography.bodyMedium)
                                 }
+                                OutlinedTextField(
+                                    value = item.translation,
+                                    onValueChange = { viewModel.updateTranslation(item.key, it) },
+                                    label = { Text("译文") },
+                                    modifier = Modifier.weight(1f)
+                                )
                             }
                         }
                     }
                 }
             } else { // Small screen: Vertical card layout
-                Column {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceAround
-                    ) {
-                        Button(onClick = onSelectOriginal) { Text("选择原文文件") }
-                        Button(onClick = onSelectTranslated) { Text("选择译文文件") }
-                    }
-                    Spacer(modifier = Modifier.height(16.dp))
-                    if (filteredItems.isNotEmpty()) {
-                        LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            itemsIndexed(filteredItems) { index, item ->
-                                Card(modifier = Modifier.fillMaxWidth()) {
-                                    Column(modifier = Modifier.padding(16.dp)) {
-                                        Text(text = "${index + 1}. ${item.key}", style = MaterialTheme.typography.titleMedium)
-                                        Spacer(modifier = Modifier.height(8.dp))
-                                        Text(text = "原文: ${item.original}", style = MaterialTheme.typography.bodyMedium)
-                                        Spacer(modifier = Modifier.height(8.dp))
-                                        OutlinedTextField(
-                                            value = item.translation,
-                                            onValueChange = { newTranslation ->
-                                                viewModel.updateTranslation(item.key, newTranslation)
-                                            },
-                                            label = { Text("译文") },
-                                            modifier = Modifier.fillMaxWidth()
-                                        )
-                                    }
-                                }
+                LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    itemsIndexed(filteredItems, key = { _, item -> item.key }) { _, item ->
+                        Card(modifier = Modifier.fillMaxWidth()) {
+                            Column(modifier = Modifier.padding(16.dp)) {
+                                Text(text = item.key, style = MaterialTheme.typography.titleMedium)
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(text = "原文: ${item.original}", style = MaterialTheme.typography.bodyMedium)
+                                Spacer(modifier = Modifier.height(8.dp))
+                                OutlinedTextField(
+                                    value = item.translation,
+                                    onValueChange = { newTranslation ->
+                                        viewModel.updateTranslation(item.key, newTranslation)
+                                    },
+                                    label = { Text("译文") },
+                                    modifier = Modifier.fillMaxWidth()
+                                )
                             }
                         }
                     }
@@ -150,13 +186,52 @@ fun TranslatorScreen(
 }
 
 @Composable
+fun LanguageSelector(
+    label: String,
+    selectedLanguage: LanguageFile?,
+    languages: List<LanguageFile>,
+    onLanguageSelected: (LanguageFile) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    var expanded by remember { mutableStateOf(false) }
+
+    Box(modifier = modifier.wrapContentSize(Alignment.TopStart)) {
+        OutlinedTextField(
+            value = selectedLanguage?.langCode?.uppercase() ?: "请选择",
+            onValueChange = {},
+            readOnly = true,
+            label = { Text(label) },
+            trailingIcon = { Icon(Icons.Filled.ArrowDropDown, "Dropdown", modifier = Modifier.clickable { expanded = true }) },
+            modifier = Modifier.fillMaxWidth()
+        )
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            languages.forEach { language ->
+                DropdownMenuItem(
+                    text = { Text(language.langCode.uppercase()) },
+                    onClick = {
+                        onLanguageSelected(language)
+                        expanded = false
+                    }
+                )
+            }
+        }
+    }
+}
+
+
+@Composable
 fun FilterChip(text: String, selected: Boolean, onClick: () -> Unit) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
+    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.clickable(onClick = onClick)) {
         RadioButton(
             selected = selected,
             onClick = onClick
         )
-        Text(text = text, style = MaterialTheme.typography.bodySmall)
+        Spacer(modifier = Modifier.width(4.dp))
+        Text(text = text, style = MaterialTheme.typography.bodyMedium)
     }
 }
 
@@ -164,11 +239,14 @@ fun FilterChip(text: String, selected: Boolean, onClick: () -> Unit) {
 @Composable
 fun TranslatorScreenPreviewLarge() {
     val viewModel = TranslatorViewModel()
-    val originalContent = "key1=Hello\nkey2=World\nkey3=Another long key for testing purposes to see how it wraps"
-    val translatedContent = "key1=你好\nkey2="
-    viewModel.loadTranslations(originalContent, translatedContent)
+    val files = mapOf(
+        "path/to/actor_zh.properties" to "key1=你好\nkey2=世界",
+        "path/to/actor_en.properties" to "key1=Hello\nkey2=World\nkey3=Extra",
+        "path/to/actor_jp.properties" to "key1=こんにちは"
+    )
+    viewModel.loadLanguageGroup(files)
     PDTranslatorTheme {
-        TranslatorScreen(viewModel, onSelectOriginal = {}, onSelectTranslated = {})
+        TranslatorScreen(viewModel, onSelectLanguageGroup = {}, onSave = {})
     }
 }
 
@@ -176,10 +254,12 @@ fun TranslatorScreenPreviewLarge() {
 @Composable
 fun TranslatorScreenPreviewSmall() {
     val viewModel = TranslatorViewModel()
-    val originalContent = "key1=Hello\nkey2=World"
-    val translatedContent = "key1=你好\nkey2="
-    viewModel.loadTranslations(originalContent, translatedContent)
+    val files = mapOf(
+        "path/to/actor_zh.properties" to "key1=你好\nkey2=世界",
+        "path/to/actor_en.properties" to "key1=Hello\nkey2=World"
+    )
+    viewModel.loadLanguageGroup(files)
     PDTranslatorTheme {
-        TranslatorScreen(viewModel, onSelectOriginal = {}, onSelectTranslated = {})
+        TranslatorScreen(viewModel, onSelectLanguageGroup = {}, onSave = {})
     }
 }
