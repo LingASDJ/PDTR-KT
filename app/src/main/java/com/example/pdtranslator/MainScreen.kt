@@ -28,7 +28,7 @@ fun MainScreen(
     val pagerState = rememberPagerState()
     val coroutineScope = rememberCoroutineScope()
     val items = listOf("翻译", "设置")
-    val icons = listOf<ImageVector>(Icons.Filled.Description, Icons.Filled.Settings)
+    val icons = listOf(Icons.Filled.Description, Icons.Filled.Settings)
 
     Scaffold(
         bottomBar = {

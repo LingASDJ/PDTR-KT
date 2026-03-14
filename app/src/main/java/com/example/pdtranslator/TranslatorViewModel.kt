@@ -1,11 +1,17 @@
 package com.example.pdtranslator
 
+import android.content.ContentResolver
+import android.net.Uri
 import androidx.compose.runtime.State
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.io.BufferedReader
+import java.io.InputStreamReader
 import java.io.StringWriter
 import java.util.Properties
 import kotlin.math.ceil
@@ -51,6 +57,7 @@ class TranslatorViewModel : ViewModel() {
     }
 
     private val _languageFiles = mutableStateOf<List<LanguageFile>>(emptyList())
+    private val _allLanguageFiles = mutableStateOf<Map<String, List<LanguageFile>>>(emptyMap())
 
     private val _sourceLanguage = mutableStateOf<LanguageFile?>(null)
     val sourceLanguage: State<LanguageFile?> = _sourceLanguage
@@ -63,6 +70,10 @@ class TranslatorViewModel : ViewModel() {
     }
     val availableTargetLanguages: State<List<LanguageFile>> = derivedStateOf {
         _languageFiles.value.filter { it.langCode != _sourceLanguage.value?.langCode }
+    }
+    
+    val languageGroupNames: State<List<String>> = derivedStateOf {
+        _allLanguageFiles.value.keys.toList().sorted()
     }
 
     private val _items = mutableStateOf<List<TranslationItem>>(emptyList())
@@ -140,21 +151,43 @@ class TranslatorViewModel : ViewModel() {
         }
     }
 
-    fun loadLanguageGroup(fileContents: Map<String, String>) {
-        val langFiles = fileContents.mapNotNull { (path, content) ->
-            val fileName = path.substringAfterLast('/')
-            val langCode = extractLangCode(fileName)
-            val displayName = getLanguageDisplayName(langCode)
-            val props = Properties().apply { load(content.reader()) }
-            LanguageFile(fileName, langCode, displayName, content, props)
-        }
-        _languageFiles.value = langFiles.sortedBy { it.langCode }
-        _currentPage.value = 1 // Reset to first page
+    fun loadLanguageFiles(contentResolver: ContentResolver, uris: List<Uri>) {
+        viewModelScope.launch {
+            val fileGroups = mutableMapOf<String, MutableList<LanguageFile>>()
+            withContext(Dispatchers.IO) {
+                uris.forEach { uri ->
+                    try {
+                        val fileName = uri.path?.substringAfterLast('/') ?: "unknown"
+                        val groupName = fileName.substringBeforeLast('_')
+                        val langCode = extractLangCode(fileName)
+                        val displayName = getLanguageDisplayName(langCode)
 
+                        val content = contentResolver.openInputStream(uri)?.use { inputStream ->
+                            BufferedReader(InputStreamReader(inputStream)).readText()
+                        } ?: ""
+
+                        val props = Properties().apply { load(content.reader()) }
+                        val langFile = LanguageFile(fileName, langCode, displayName, content, props)
+
+                        fileGroups.getOrPut(groupName) { mutableListOf() }.add(langFile)
+
+                    } catch (e: Exception) {
+                        // Handle exceptions, e.g., logging
+                    }
+                }
+            }
+            _allLanguageFiles.value = fileGroups
+        }
+    }
+
+    fun selectLanguageGroup(groupName: String) {
+        val groupFiles = _allLanguageFiles.value[groupName] ?: emptyList()
+        _languageFiles.value = groupFiles.sortedBy { it.langCode }
+        _currentPage.value = 1
 
         // Set default source and target languages
-        _sourceLanguage.value = langFiles.firstOrNull { it.langCode == "zh" } ?: langFiles.firstOrNull()
-        _targetLanguage.value = langFiles.firstOrNull { it.langCode != _sourceLanguage.value?.langCode }
+        _sourceLanguage.value = groupFiles.firstOrNull { it.langCode == "zh" } ?: groupFiles.firstOrNull()
+        _targetLanguage.value = groupFiles.firstOrNull { it.langCode != _sourceLanguage.value?.langCode }
 
         regenerateItems()
     }
