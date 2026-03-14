@@ -9,7 +9,7 @@ import androidx.activity.viewModels
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.navigation.compose.NavHost
@@ -32,34 +32,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             PDTranslatorTheme {
                 Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-                    val navController = rememberNavController()
-
-                    val openLanguageFilesLauncher = registerForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
-                        if (uris.isNotEmpty()) {
-                            viewModel.loadLanguageFiles(contentResolver, uris)
-                            navController.navigate("languageGroupSelector")
-                        }
-                    }
-
-                    NavHost(navController = navController, startDestination = "main") {
-                        composable("main") {
-                            MainScreen(
-                                viewModel = viewModel,
-                                onSelectLanguageGroup = {
-                                    // Let user select multiple .properties files
-                                    openLanguageFilesLauncher.launch(arrayOf("*/*"))
-                                },
-                                onSave = { onSave() }
-                            )
-                        }
-                        composable("languageGroupSelector") {
-                            LanguageGroupScreen(
-                                viewModel = viewModel,
-                                onGroupSelected = { navController.popBackStack() },
-                                onNavigateBack = { navController.popBackStack() }
-                            )
-                        }
-                    }
+                    AppNavigation(viewModel = viewModel, onSave = { onSave() })
                 }
             }
         }
@@ -81,6 +54,40 @@ class MainActivity : ComponentActivity() {
             }
         } catch (e: Exception) {
             // Handle exceptions
+        }
+    }
+}
+
+@Composable
+fun AppNavigation(viewModel: TranslatorViewModel, onSave: () -> Unit) {
+    val navController = rememberNavController()
+
+    val openLanguageFilesLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenMultipleDocuments(),
+        onResult = { uris ->
+            if (uris.isNotEmpty()) {
+                viewModel.loadLanguageFiles(navController.context.contentResolver, uris)
+                navController.navigate("languageGroupSelector")
+            }
+        }
+    )
+
+    NavHost(navController = navController, startDestination = "main") {
+        composable("main") {
+            MainScreen(
+                viewModel = viewModel,
+                onSelectLanguageGroup = {
+                    openLanguageFilesLauncher.launch(arrayOf("*/*"))
+                },
+                onSave = onSave
+            )
+        }
+        composable("languageGroupSelector") {
+            LanguageGroupScreen(
+                viewModel = viewModel,
+                onGroupSelected = { navController.popBackStack() },
+                onNavigateBack = { navController.popBackStack() }
+            )
         }
     }
 }

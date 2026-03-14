@@ -164,7 +164,7 @@ fun TranslatorScreen(
                     }
                 }
             } else { // Small screen: Vertical card layout
-                LazyColumn(verticalArrangements = Arrangement.spacedBy(8.dp)) {
+                LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     itemsIndexed(paginatedItems, key = { _, item -> item.key }) { _, item ->
                         Card(modifier = Modifier.fillMaxWidth()) {
                             Column(modifier = Modifier.padding(16.dp)) {
