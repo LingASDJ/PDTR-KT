@@ -56,6 +56,9 @@ android {
 }
 
 dependencies {
+    // Crash Reporting
+    implementation("cat.ereza:customactivityoncrash:2.4.0")
+
     // Ktor
     implementation("io.ktor:ktor-client-core:2.3.8")
     implementation("io.ktor:ktor-client-cio:2.3.8")
