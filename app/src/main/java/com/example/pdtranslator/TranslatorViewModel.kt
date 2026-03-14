@@ -1,47 +1,52 @@
 package com.example.pdtranslator
 
+import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
-import java.io.StringReader
 import java.util.Properties
 
-data class TranslationItem(
-    val key: String,
-    val original: String,
-    val translation: String,
-    val isTranslated: Boolean
-)
+data class TranslationItem(val key: String, val original: String, val translation: String)
 
 class TranslatorViewModel : ViewModel() {
 
-    val translationItems = mutableStateOf<List<TranslationItem>>(emptyList())
-    val translationProgress = mutableStateOf(0f)
+    private val _translationItems = mutableStateOf<List<TranslationItem>>(emptyList())
+    val translationItems: State<List<TranslationItem>> = _translationItems
+
+    private val _translationProgress = mutableStateOf(0f)
+    val translationProgress: State<Float> = _translationProgress
+
+    private val _originalContent = mutableStateOf("")
+    val originalContent: State<String> = _originalContent
+
+    private val _translatedContent = mutableStateOf("")
+    val translatedContent: State<String> = _translatedContent
 
     fun loadTranslations(originalContent: String, translatedContent: String) {
-        val originalProps = Properties()
-        originalProps.load(StringReader(originalContent))
+        _originalContent.value = originalContent
+        _translatedContent.value = translatedContent
 
-        val translatedProps = Properties()
-        translatedProps.load(StringReader(translatedContent))
-
-        val items = mutableListOf<TranslationItem>()
-        var translatedCount = 0
-
-        originalProps.stringPropertyNames().forEach { key ->
-            val originalValue = originalProps.getProperty(key) ?: ""
-            val translatedValue = translatedProps.getProperty(key) ?: ""
-            val isTranslated = translatedValue.isNotEmpty() && translatedValue != originalValue
-
-            if (isTranslated) {
-                translatedCount++
-            }
-
-            items.add(TranslationItem(key, originalValue, translatedValue, isTranslated))
+        if (originalContent.isBlank()) {
+            _translationItems.value = emptyList()
+            _translationProgress.value = 0f
+            return
         }
 
-        translationItems.value = items
-        if (originalProps.size > 0) {
-            translationProgress.value = translatedCount.toFloat() / originalProps.size
+        val originalProps = Properties().apply { load(originalContent.reader()) }
+        val translatedProps = Properties().apply { load(translatedContent.reader()) }
+
+        val items = originalProps.stringPropertyNames().map {
+            val originalValue = originalProps.getProperty(it) ?: ""
+            val translatedValue = translatedProps.getProperty(it) ?: ""
+            TranslationItem(it, originalValue, translatedValue)
+        }
+
+        _translationItems.value = items
+
+        val translatedCount = items.count { it.translation.isNotBlank() }
+        _translationProgress.value = if (items.isNotEmpty()) {
+            translatedCount.toFloat() / items.size
+        } else {
+            0f
         }
     }
 }
