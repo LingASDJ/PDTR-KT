@@ -1,71 +1,66 @@
 package com.example.pdtranslator
 
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
+import com.example.pdtranslator.ui.theme.PDTranslatorTheme
 
 @Composable
-fun TranslatorScreen(viewModel: TranslatorViewModel) {
-    Column(modifier = Modifier.padding(16.dp)) {
-        Text("Main Language: ${viewModel.mainLanguage.value}")
-        Text("Translation Language: ${viewModel.translationLanguage.value}")
+fun TranslatorScreen(viewModel: TranslatorViewModel, modifier: Modifier = Modifier) {
+    val translationItems = viewModel.translationItems.value
+    val translationProgress = viewModel.translationProgress.value
 
-        Button(onClick = { viewModel.getMissingTranslations() }) {
-            Text("Find Missing Translations")
+    Column(modifier = modifier.padding(16.dp)) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 8.dp),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(text = "翻译进度")
+            Text(text = "${(translationProgress * 100).toInt()}%")
         }
-
-        LazyColumn(modifier = Modifier.weight(1f)) {
-            items(viewModel.missingTranslations.value) {
-                Row(modifier = Modifier.fillMaxWidth()) {
-                    Text(text = it, modifier = Modifier.weight(1f))
-                    Button(onClick = { viewModel.onTranslateClicked(it) }) {
-                        Text("Translate")
-                    }
+        LinearProgressIndicator(
+            progress = translationProgress,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 16.dp)
+        )
+        LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            items(translationItems) { item ->
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(8.dp)
+                ) {
+                    Text(text = "键: ${item.key}", style = MaterialTheme.typography.bodySmall)
+                    Text(text = "原文: ${item.original}", style = MaterialTheme.typography.bodyMedium)
+                    Text(text = "译文: ${item.translation}", style = MaterialTheme.typography.bodyMedium)
                 }
             }
         }
-    }
-
-    if (viewModel.showTranslationDialog.value) {
-        TranslationDialog(
-            translation = viewModel.selectedTranslation.value,
-            onDismiss = viewModel::onDismissDialog
-        )
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@Preview(showBackground = true)
 @Composable
-fun TranslationDialog(translation: String, onDismiss: () -> Unit) {
-    val translatedText = remember { mutableStateOf("") }
-
-    Dialog(onDismissRequest = onDismiss) {
-        Card {
-            Column(modifier = Modifier.padding(16.dp)) {
-                Text("Translate: $translation")
-                TextField(
-                    value = translatedText.value,
-                    onValueChange = { translatedText.value = it },
-                    label = { Text("Translated Text") }
-                )
-                Button(onClick = onDismiss) {
-                    Text("Save")
-                }
-            }
-        }
+fun TranslatorScreenPreview() {
+    val viewModel = TranslatorViewModel()
+    val originalContent = "key1=Hello\nkey2=World"
+    val translatedContent = "key1=你好\nkey2=世界"
+    viewModel.loadTranslations(originalContent, translatedContent)
+    PDTranslatorTheme {
+        TranslatorScreen(viewModel)
     }
 }
