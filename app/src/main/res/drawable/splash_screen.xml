@@ -5,30 +5,4 @@
         android:gravity="center"
         android:width="192dp"
         android:height="192dp"/>
-
-    <item>
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:gravity="center"
-            android:orientation="vertical">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="PD 翻译器"
-                android:textSize="32sp"
-                android:textColor="@android:color/black"
-                android:layout_marginTop="120dp" />
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="GeminiAI制作"
-                android:textSize="16sp"
-                android:textColor="@android:color/darker_gray"
-                android:layout_marginTop="8dp" />
-
-        </LinearLayout>
-    </item>
 </layer-list>
