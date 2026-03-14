@@ -14,7 +14,6 @@ class MyApplication : Application() {
             .showRestartButton(true) //default: true
             .logErrorOnRestart(true) //default: true
             .trackActivities(true) //default: false
-            .minTimeBetweenCrashesInMillis(2000) //default: 3000
             .apply()
     }
 }
