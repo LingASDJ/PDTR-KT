@@ -6,6 +6,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import java.io.StringWriter
 import java.util.Properties
+import kotlin.math.ceil
 
 data class TranslationItem(
     val key: String,
@@ -54,7 +55,27 @@ class TranslatorViewModel : ViewModel() {
     private val _filterOption = mutableStateOf(FilterOption.ALL)
     val filterOption: State<FilterOption> = _filterOption
 
-    val filteredItems: State<List<TranslationItem>> = derivedStateOf {
+    // --- Pagination State ---
+    private val _currentPage = mutableStateOf(1)
+    val currentPage: State<Int> = _currentPage
+
+    private val itemsPerPage = 20 // Display 20 items per page
+
+    val totalPages: State<Int> = derivedStateOf {
+        ceil(filteredItems.value.size.toFloat() / itemsPerPage).toInt()
+    }
+
+    val paginatedItems: State<List<TranslationItem>> = derivedStateOf {
+        val startIndex = (_currentPage.value - 1) * itemsPerPage
+        val endIndex = (startIndex + itemsPerPage).coerceAtMost(filteredItems.value.size)
+        if (startIndex < filteredItems.value.size) {
+            filteredItems.value.subList(startIndex, endIndex)
+        } else {
+            emptyList()
+        }
+    }
+
+    private val filteredItems: State<List<TranslationItem>> = derivedStateOf {
         val query = _searchQuery.value.lowercase()
         val items = _items.value
 
@@ -73,10 +94,25 @@ class TranslatorViewModel : ViewModel() {
 
     fun onSearchQueryChange(query: String) {
         _searchQuery.value = query
+        _currentPage.value = 1 // Reset to first page
     }
 
     fun onFilterChange(filter: FilterOption) {
         _filterOption.value = filter
+        _currentPage.value = 1 // Reset to first page
+    }
+
+    // --- Pagination Actions ---
+    fun nextPage() {
+        if (_currentPage.value < totalPages.value) {
+            _currentPage.value++
+        }
+    }
+
+    fun previousPage() {
+        if (_currentPage.value > 1) {
+            _currentPage.value--
+        }
     }
 
     fun loadLanguageGroup(fileContents: Map<String, String>) {
@@ -87,6 +123,8 @@ class TranslatorViewModel : ViewModel() {
             LanguageFile(fileName, langCode, content, props)
         }
         _languageFiles.value = langFiles.sortedBy { it.langCode }
+        _currentPage.value = 1 // Reset to first page
+
 
         // Set default source and target languages
         _sourceLanguage.value = langFiles.firstOrNull { it.langCode == "zh" } ?: langFiles.firstOrNull()
@@ -108,11 +146,13 @@ class TranslatorViewModel : ViewModel() {
         if (_targetLanguage.value?.langCode == langCode) {
             _targetLanguage.value = _languageFiles.value.firstOrNull { it.langCode != langCode }
         }
+        _currentPage.value = 1 // Reset to first page
         regenerateItems()
     }
 
     fun setTargetLanguage(langCode: String) {
         _targetLanguage.value = _languageFiles.value.find { it.langCode == langCode }
+        _currentPage.value = 1 // Reset to first page
         regenerateItems()
     }
 
@@ -144,7 +184,8 @@ class TranslatorViewModel : ViewModel() {
         _items.value = _items.value.map {
             if (it.key == key) {
                 // Only mark as modified if the text actually changed
-                it.copy(translation = newTranslation, isModified = it.translation != newTranslation)
+                val originalTranslation = it.translation
+                it.copy(translation = newTranslation, isModified = originalTranslation != newTranslation && newTranslation.isNotBlank())
             } else {
                 it
             }

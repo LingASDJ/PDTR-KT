@@ -36,7 +36,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             PDTranslatorTheme {
                 Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-                    TranslatorScreen(
+                    MainScreen(
                         viewModel = viewModel,
                         onSelectLanguageGroup = { selectLanguageGroup() },
                         onSave = { onSave() }

@@ -49,7 +49,11 @@ fun TranslatorScreen(
     val translationProgress by viewModel.translationProgress
     val searchQuery by viewModel.searchQuery
     val filterOption by viewModel.filterOption
-    val filteredItems by viewModel.filteredItems
+
+    // --- Pagination --- 
+    val paginatedItems by viewModel.paginatedItems
+    val currentPage by viewModel.currentPage
+    val totalPages by viewModel.totalPages
 
     val sourceLanguage by viewModel.sourceLanguage
     val targetLanguage by viewModel.targetLanguage
@@ -113,7 +117,7 @@ fun TranslatorScreen(
         Spacer(modifier = Modifier.height(16.dp))
 
         // --- Progress Bar --- 
-        if (filteredItems.isNotEmpty()) {
+        if (paginatedItems.isNotEmpty()) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -131,11 +135,11 @@ fun TranslatorScreen(
             )
         }
 
-        // --- Translation Items List --- 
-        BoxWithConstraints {
+        // --- Translation Items List (Paginated) --- 
+        BoxWithConstraints(modifier = Modifier.weight(1f)) {
             if (maxWidth > 600.dp) { // Large screen: Side-by-side card layout
                 LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    itemsIndexed(filteredItems, key = { _, item -> item.key }) { _, item ->
+                    itemsIndexed(paginatedItems, key = { _, item -> item.key }) { _, item ->
                         Card(modifier = Modifier.fillMaxWidth()) {
                             Row(
                                 modifier = Modifier
@@ -161,7 +165,7 @@ fun TranslatorScreen(
                 }
             } else { // Small screen: Vertical card layout
                 LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    itemsIndexed(filteredItems, key = { _, item -> item.key }) { _, item ->
+                    itemsIndexed(paginatedItems, key = { _, item -> item.key }) { _, item ->
                         Card(modifier = Modifier.fillMaxWidth()) {
                             Column(modifier = Modifier.padding(16.dp)) {
                                 Text(text = item.key, style = MaterialTheme.typography.titleMedium)
@@ -179,6 +183,26 @@ fun TranslatorScreen(
                             }
                         }
                     }
+                }
+            }
+        }
+        
+        // --- Pagination Controls --- 
+        if (totalPages > 1) {
+            Spacer(modifier = Modifier.height(16.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Button(onClick = { viewModel.previousPage() }, enabled = currentPage > 1) {
+                    Text("上一页")
+                }
+                Spacer(modifier = Modifier.width(16.dp))
+                Text(text = "第 $currentPage / $totalPages 页")
+                Spacer(modifier = Modifier.width(16.dp))
+                Button(onClick = { viewModel.nextPage() }, enabled = currentPage < totalPages) {
+                    Text("下一页")
                 }
             }
         }
