@@ -164,7 +164,7 @@ fun TranslatorScreen(
                     }
                 }
             } else { // Small screen: Vertical card layout
-                LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                LazyColumn(verticalArrangements = Arrangement.spacedBy(8.dp)) {
                     itemsIndexed(paginatedItems, key = { _, item -> item.key }) { _, item ->
                         Card(modifier = Modifier.fillMaxWidth()) {
                             Column(modifier = Modifier.padding(16.dp)) {
@@ -266,12 +266,8 @@ fun FilterChip(text: String, selected: Boolean, onClick: () -> Unit) {
 @Composable
 fun TranslatorScreenPreviewLarge() {
     val viewModel = TranslatorViewModel()
-    val files = mapOf(
-        "path/to/actor_zh.properties" to "key1=你好\nkey2=世界",
-        "path/to/actor_en.properties" to "key1=Hello\nkey2=World\nkey3=Extra",
-        "path/to/actor_jp.properties" to "key1=こんにちは"
-    )
-    viewModel.loadLanguageGroup(files)
+    // This is a preview, so we don't need real file loading logic.
+    // We can simulate the state after a language group is selected.
     PDTranslatorTheme {
         TranslatorScreen(viewModel, onSelectLanguageGroup = {}, onSave = {})
     }
@@ -281,11 +277,8 @@ fun TranslatorScreenPreviewLarge() {
 @Composable
 fun TranslatorScreenPreviewSmall() {
     val viewModel = TranslatorViewModel()
-    val files = mapOf(
-        "path/to/actor_zh.properties" to "key1=你好\nkey2=世界",
-        "path/to/actor_en.properties" to "key1=Hello\nkey2=World"
-    )
-    viewModel.loadLanguageGroup(files)
+    // This is a preview, so we don't need real file loading logic.
+    // We can simulate the state after a language group is selected.
     PDTranslatorTheme {
         TranslatorScreen(viewModel, onSelectLanguageGroup = {}, onSave = {})
     }

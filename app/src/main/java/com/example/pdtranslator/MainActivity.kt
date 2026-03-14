@@ -9,21 +9,17 @@ import androidx.activity.viewModels
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
 import com.example.pdtranslator.ui.theme.PDTranslatorTheme
-import java.io.BufferedReader
-import java.io.InputStream
-import java.io.InputStreamReader
 import java.io.OutputStreamWriter
-import java.util.zip.ZipInputStream
 
 class MainActivity : ComponentActivity() {
     private val viewModel: TranslatorViewModel by viewModels()
-
-    private val openLanguageGroupLauncher = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        uri?.let { loadLanguageGroupFromUri(it) }
-    }
 
     private val saveLauncher = registerForActivityResult(ActivityResultContracts.CreateDocument("text/plain")) { uri ->
         uri?.let { saveModifiedContent(it) }
@@ -36,48 +32,38 @@ class MainActivity : ComponentActivity() {
         setContent {
             PDTranslatorTheme {
                 Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-                    MainScreen(
-                        viewModel = viewModel,
-                        onSelectLanguageGroup = { selectLanguageGroup() },
-                        onSave = { onSave() }
-                    )
-                }
-            }
-        }
-    }
+                    val navController = rememberNavController()
 
-    private fun selectLanguageGroup() {
-        openLanguageGroupLauncher.launch(arrayOf("application/zip"))
-    }
-
-    private fun loadLanguageGroupFromUri(uri: Uri) {
-        val fileContents = unzipAndReadProperties(uri)
-        if (fileContents.isNotEmpty()) {
-            viewModel.loadLanguageGroup(fileContents)
-        }
-    }
-
-    private fun unzipAndReadProperties(uri: Uri): Map<String, String> {
-        val fileContents = mutableMapOf<String, String>()
-        try {
-            contentResolver.openInputStream(uri)?.use { inputStream ->
-                ZipInputStream(inputStream).use { zipInputStream ->
-                    var entry = zipInputStream.nextEntry
-                    while (entry != null) {
-                        if (!entry.isDirectory && entry.name.endsWith(".properties")) {
-                            val content = zipInputStream.bufferedReader().readText()
-                            fileContents[entry.name] = content
+                    val openLanguageFilesLauncher = registerForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
+                        if (uris.isNotEmpty()) {
+                            viewModel.loadLanguageFiles(contentResolver, uris)
+                            navController.navigate("languageGroupSelector")
                         }
-                        entry = zipInputStream.nextEntry
+                    }
+
+                    NavHost(navController = navController, startDestination = "main") {
+                        composable("main") {
+                            MainScreen(
+                                viewModel = viewModel,
+                                onSelectLanguageGroup = {
+                                    // Let user select multiple .properties files
+                                    openLanguageFilesLauncher.launch(arrayOf("*/*"))
+                                },
+                                onSave = { onSave() }
+                            )
+                        }
+                        composable("languageGroupSelector") {
+                            LanguageGroupScreen(
+                                viewModel = viewModel,
+                                onGroupSelected = { navController.popBackStack() },
+                                onNavigateBack = { navController.popBackStack() }
+                            )
+                        }
                     }
                 }
             }
-        } catch (e: Exception) {
-            // Handle exceptions, e.g., show a toast to the user
         }
-        return fileContents
     }
-
 
     private fun onSave() {
         val targetLanguage = viewModel.targetLanguage.value ?: return
