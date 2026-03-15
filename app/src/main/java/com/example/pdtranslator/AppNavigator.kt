@@ -2,8 +2,6 @@
 package com.example.pdtranslator
 
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.platform.LocalContext
-import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
@@ -15,10 +13,11 @@ object AppDestinations {
 }
 
 @Composable
-fun AppNavigator() {
+fun AppNavigator(
+    viewModel: TranslatorViewModel,
+    onLanguageSelected: (String) -> Unit
+) {
     val navController = rememberNavController()
-    val viewModel: TranslatorViewModel = viewModel()
-    val context = LocalContext.current
 
     NavHost(navController = navController, startDestination = AppDestinations.MAIN_SCREEN) {
         composable(AppDestinations.MAIN_SCREEN) {
@@ -26,9 +25,7 @@ fun AppNavigator() {
                 viewModel = viewModel,
                 onNavigateToDependencies = { navController.navigate(AppDestinations.DEPENDENCY_SCREEN) },
                 onNavigateToChangelog = { navController.navigate(AppDestinations.CHANGELOG_SCREEN) },
-                onLanguageSelected = { lang ->
-                    (context as? MainActivity)?.setLocale(lang)
-                }
+                onLanguageSelected = onLanguageSelected
             )
         }
         composable(AppDestinations.DEPENDENCY_SCREEN) {

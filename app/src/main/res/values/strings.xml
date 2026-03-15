@@ -76,10 +76,18 @@
     <string name="changelog_content_1_0_0">- Complete basic translation functions.</string>
     <string name="changelog_version_1_0_1">1.0.1 - Internationalization</string>
     <string name="changelog_content_1_0_1">- Added Chinese/English language switching.\n- Optimized settings screen layout.</string>
+    <string name="changelog_version_1_0_2">1.0.2 - Dynamic Themes &amp; UI Polish</string>
+    <string name="changelog_content_1_0_2">- Implemented dynamic theme color functionality, allowing users to choose between Default, M3, Mint Green, and Lavender themes.\n- Refactored the changelog screen for a better visual experience.</string>
 
     <!-- Translation Engines -->
     <string name="translation_engine_youdao">Built-in Youdao</string>
     <string name="translation_engine_baidu">Baidu Translate</string>
+
+    <!-- Theme Names -->
+    <string name="theme_name_default">Default</string>
+    <string name="theme_name_m3">M3 Baseline</string>
+    <string name="theme_name_green">Mint Green</string>
+    <string name="theme_name_lavender">Lavender</string>
 
     <!-- Libraries -->
     <string name="lib_kotlin_name">Kotlin</string>

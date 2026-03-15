@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Info
@@ -22,6 +23,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
@@ -38,7 +40,9 @@ fun SettingsScreen(
 ) {
     val showAboutDialog by viewModel.showAboutDialog.collectAsState()
     val selectedEngine by viewModel.translationEngine.collectAsState()
+    val selectedTheme by viewModel.themeColor.collectAsState()
     var showLanguageDialog by remember { mutableStateOf(false) }
+    var showThemeColorDialog by remember { mutableStateOf(false) }
 
     if (showAboutDialog) {
         AboutDialog(onDismiss = { viewModel.setShowAboutDialog(false) })
@@ -46,11 +50,21 @@ fun SettingsScreen(
     if (showLanguageDialog) {
         LanguageDialog(onDismiss = { showLanguageDialog = false }, onLanguageSelected = onLanguageSelected)
     }
+    if (showThemeColorDialog) {
+        ThemeColorSelectorDialog(
+            currentTheme = selectedTheme,
+            onDismiss = { showThemeColorDialog = false },
+            onThemeSelected = { theme ->
+                viewModel.setThemeColor(theme)
+                showThemeColorDialog = false
+            }
+        )
+    }
 
     LazyColumn(modifier = Modifier.padding(16.dp)) {
         item { SectionTitle(stringResource(R.string.settings_section_general)) }
         item { LanguageSetting { showLanguageDialog = true } }
-        item { ThemeColorSetting() }
+        item { ThemeColorSetting { showThemeColorDialog = true } }
         item { TranslationEngineSetting(selectedEngine) { engine -> viewModel.setTranslationEngine(engine) } }
 
         item { Spacer(modifier = Modifier.padding(vertical = 8.dp)) }
@@ -87,6 +101,54 @@ fun SettingItem(icon: ImageVector, title: String, subtitle: String, onClick: () 
             Text(subtitle, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
+}
+
+@Composable
+fun ThemeColorSelectorDialog(
+    currentTheme: ThemeColor,
+    onDismiss: () -> Unit,
+    onThemeSelected: (ThemeColor) -> Unit
+) {
+    val themes = ThemeColor.values()
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(id = R.string.settings_item_theme_color)) },
+        text = {
+            Column {
+                themes.forEach { theme ->
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .selectable(
+                                selected = (theme == currentTheme),
+                                onClick = { onThemeSelected(theme) },
+                                role = Role.RadioButton
+                            )
+                            .padding(vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        RadioButton(
+                            selected = (theme == currentTheme),
+                            onClick = null // Click is handled by the Row
+                        )
+                        Spacer(Modifier.width(16.dp))
+                        Text(text = when (theme) {
+                            ThemeColor.DEFAULT -> stringResource(id = R.string.theme_name_default)
+                            ThemeColor.M3 -> stringResource(id = R.string.theme_name_m3)
+                            ThemeColor.GREEN -> stringResource(id = R.string.theme_name_green)
+                            ThemeColor.LAVENDER -> stringResource(id = R.string.theme_name_lavender)
+                        })
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(onClick = onDismiss) {
+                Text(stringResource(R.string.dialog_close_button))
+            }
+        }
+    )
 }
 
 @Composable
@@ -134,8 +196,13 @@ fun TranslationEngineSetting(selectedEngine: Int, onEngineSelected: (Int) -> Uni
 }
 
 @Composable
-fun ThemeColorSetting() {
-    SettingItem(Icons.Default.Palette, stringResource(R.string.settings_item_theme_color), stringResource(R.string.settings_item_theme_color_subtitle), onClick = { /* TODO */ })
+fun ThemeColorSetting(onClick: () -> Unit) {
+    SettingItem(
+        Icons.Default.Palette,
+        stringResource(R.string.settings_item_theme_color),
+        stringResource(R.string.settings_item_theme_color_subtitle),
+        onClick = onClick
+    )
 }
 
 @Composable

@@ -1,47 +1,40 @@
 package com.example.pdtranslator.ui.theme
 
-import android.app.Activity
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.dynamicDarkColorScheme
-import androidx.compose.material3.dynamicLightColorScheme
-import androidx.compose.material3.lightColorScheme
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.SideEffect
-import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalView
-import androidx.core.view.WindowCompat
+import com.example.pdtranslator.ThemeColor
 
-private val DarkColorScheme = darkColorScheme(
-    primary = Purple80,
-    secondary = PurpleGrey80,
-    tertiary = Pink80
+private val DarkColorPalette = darkColorScheme(
+    primary = Purple200,
+    secondary = Teal200,
+    background = Color(0xFF121212), // Standard dark background
+    surface = Color(0xFF1E1E1E), // Slightly lighter surface
+    onPrimary = Color.Black,
+    onSecondary = Color.Black,
+    onBackground = Color.White,
+    onSurface = Color.White,
 )
 
-private val LightColorScheme = lightColorScheme(
-    primary = Purple40,
-    secondary = PurpleGrey40,
-    tertiary = Pink40
-
-    /* Other default colors to override
-    background = Color(0xFFFFFBFE),
-    surface = Color(0xFFFFFBFE),
+private val LightColorPalette = lightColorScheme(
+    primary = Purple500,
+    secondary = Teal200,
+    background = Color.White,
+    surface = Color(0xFFF5F5F5), // A slightly off-white surface
     onPrimary = Color.White,
-    onSecondary = Color.White,
-    onTertiary = Color.White,
-    onBackground = Color(0xFF1C1B1F),
-    onSurface = Color(0xFF1C1B1F),
-    */
+    onSecondary = Color.Black,
+    onBackground = Color.Black,
+    onSurface = Color.Black,
 )
 
 @Composable
 fun PDTranslatorTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    // Dynamic color is available on Android 12+
-    dynamicColor: Boolean = true,
+    dynamicColor: Boolean = true, // Dynamic color is available on Android 12+
+    themeColor: ThemeColor = ThemeColor.DEFAULT,
     content: @Composable () -> Unit
 ) {
     val colorScheme = when {
@@ -49,22 +42,24 @@ fun PDTranslatorTheme(
             val context = LocalContext.current
             if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
         }
-
-        darkTheme -> DarkColorScheme
-        else -> LightColorScheme
-    }
-    val view = LocalView.current
-    if (!view.isInEditMode) {
-        SideEffect {
-            val window = (view.context as Activity).window
-            window.statusBarColor = colorScheme.primary.toArgb()
-            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = darkTheme
+        darkTheme -> when (themeColor) {
+            ThemeColor.DEFAULT -> DarkColorPalette
+            ThemeColor.M3 -> DarkColorPalette // Using default for M3 dark for now
+            ThemeColor.GREEN -> GreenThemeColors.darkColorScheme
+            ThemeColor.LAVENDER -> LavenderThemeColors.darkColorScheme
+        }
+        else -> when (themeColor) {
+            ThemeColor.DEFAULT -> LightColorPalette
+            ThemeColor.M3 -> LightColorPalette // Using default for M3 light for now
+            ThemeColor.GREEN -> GreenThemeColors.lightColorScheme
+            ThemeColor.LAVENDER -> LavenderThemeColors.lightColorScheme
         }
     }
 
     MaterialTheme(
         colorScheme = colorScheme,
         typography = Typography,
+        shapes = Shapes,
         content = content
     )
 }

@@ -41,6 +41,10 @@ data class LanguageGroup(
 
 enum class FilterState { ALL, UNTRANSLATED, TRANSLATED, MODIFIED, MISSING }
 
+enum class ThemeColor {
+    DEFAULT, M3, GREEN, LAVENDER
+}
+
 class TranslatorViewModel : ViewModel() {
 
     // --- Internal State ---
@@ -49,6 +53,7 @@ class TranslatorViewModel : ViewModel() {
     private val _modifiedEntries = MutableStateFlow<Map<String, Properties>>(emptyMap()) // Key: langCode, Value: Modified properties
     private val _showAboutDialog = MutableStateFlow(false)
     private val _translationEngine = MutableStateFlow(R.string.translation_engine_youdao)
+    private val _themeColor = MutableStateFlow(ThemeColor.DEFAULT)
 
     // --- UI State Exposed as StateFlows ---
     val languageGroupNames = MutableStateFlow<List<String>>(emptyList())
@@ -70,6 +75,7 @@ class TranslatorViewModel : ViewModel() {
 
     val showAboutDialog = _showAboutDialog.asStateFlow()
     val translationEngine = _translationEngine.asStateFlow()
+    val themeColor = _themeColor.asStateFlow()
 
     init {
         // This coroutine reacts to any state changes and updates the final displayed list.
@@ -117,6 +123,10 @@ class TranslatorViewModel : ViewModel() {
     fun setTranslationEngine(engine: Int) {
         _translationEngine.value = engine
         // Here you might add logic to re-initialize your translation service
+    }
+
+    fun setThemeColor(theme: ThemeColor) {
+        _themeColor.value = theme
     }
 
     fun loadFilesFromZip(resolver: ContentResolver, uri: Uri) {
