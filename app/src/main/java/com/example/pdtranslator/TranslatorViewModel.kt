@@ -176,10 +176,8 @@ class TranslatorViewModel : ViewModel() {
                     val content = resolver.openInputStream(uri)?.use { stream ->
                         BufferedReader(InputStreamReader(stream)).readText()
                     } ?: continue
-
-                    // Fix for crash with malformed \uXXXX encoding.
-                    // This escapes any backslash followed by a 'u' that is not part of a valid Unicode sequence.
-                    val escapedContent = content.replace(Regex("""\u(?![0-9a-fA-F]{4})"""), """\\u""")
+                    
+                    val escapedContent = content.replace("\\u(?![0-9a-fA-F]{4})".toRegex(), "\\\\u")
 
                     val filteredContent = escapedContent.lines().filter {
                         !it.trim().startsWith("#") && !it.trim().startsWith("//")
