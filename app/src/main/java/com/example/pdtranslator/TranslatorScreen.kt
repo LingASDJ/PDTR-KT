@@ -2,9 +2,11 @@ package com.example.pdtranslator
 
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -94,10 +96,12 @@ fun TranslatorScreen(viewModel: TranslatorViewModel) {
             singleLine = true
         )
 
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(12.dp))
 
         // Filter Radio Buttons
         FilterButtons(filterState) { viewModel.setFilter(it) }
+        
+        Spacer(modifier = Modifier.height(4.dp))
 
         // "Complete Missing" Button
         if (filterState == FilterState.MISSING) {
@@ -107,11 +111,12 @@ fun TranslatorScreen(viewModel: TranslatorViewModel) {
             }
         }
 
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(12.dp))
 
         // Progress Indicator
         Column {
             Text("翻译进度")
+            Spacer(modifier = Modifier.height(4.dp))
             LinearProgressIndicator(progress = translationProgress, modifier = Modifier.fillMaxWidth())
             Text("${(translationProgress * 100).toInt()}%", modifier = Modifier.align(Alignment.End))
         }
@@ -202,8 +207,14 @@ fun RowScope.LanguageSelector(label: String, languages: List<String>, selected: 
 
 @Composable
 fun FilterButtons(selectedFilter: FilterState, onFilterSelected: (FilterState) -> Unit) {
-    // Use a scrollable row in case the filter options overflow on smaller screens
-    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Start, verticalAlignment = Alignment.CenterVertically) {
+    val scrollState = rememberScrollState()
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .horizontalScroll(scrollState),
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
         FilterState.values().forEach { filter ->
             val filterName = when (filter) {
                 FilterState.ALL -> "总条目"
@@ -213,10 +224,19 @@ fun FilterButtons(selectedFilter: FilterState, onFilterSelected: (FilterState) -
                 FilterState.MISSING -> "缺失"
             }
             Row(
-                Modifier.selectable(selected = (filter == selectedFilter), onClick = { onFilterSelected(filter) }).padding(horizontal = 4.dp), // Reduced padding
+                Modifier
+                    .selectable(
+                        selected = (filter == selectedFilter), 
+                        onClick = { onFilterSelected(filter) }
+                    )
+                    .padding(horizontal = 8.dp, vertical = 4.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                RadioButton(selected = (filter == selectedFilter), onClick = { onFilterSelected(filter) })
+                RadioButton(
+                    selected = (filter == selectedFilter), 
+                    onClick = { onFilterSelected(filter) }
+                )
+                Spacer(modifier = Modifier.width(4.dp))
                 Text(text = filterName)
             }
         }
