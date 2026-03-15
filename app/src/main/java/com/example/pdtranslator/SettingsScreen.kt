@@ -29,7 +29,10 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 
 @Composable
-fun SettingsScreen(viewModel: TranslatorViewModel) {
+fun SettingsScreen(
+    viewModel: TranslatorViewModel,
+    onNavigateToDependencies: () -> Unit
+) {
     val showAboutDialog by viewModel.showAboutDialog.collectAsState()
     val selectedEngine by viewModel.translationEngine.collectAsState()
 
@@ -45,7 +48,7 @@ fun SettingsScreen(viewModel: TranslatorViewModel) {
         item { Spacer(modifier = Modifier.padding(vertical = 8.dp)) }
 
         item { SectionTitle("关于") }
-        item { LibraryInfoSetting() }
+        item { LibraryInfoSetting(onClick = onNavigateToDependencies) }
         item { AboutUsSetting { viewModel.setShowAboutDialog(true) } }
     }
 }
@@ -114,8 +117,8 @@ fun ThemeColorSetting() {
 }
 
 @Composable
-fun LibraryInfoSetting() {
-    SettingItem(Icons.Default.Info, "程序依赖库使用", "查看应用使用的开源库", onClick = { /* TODO */ })
+fun LibraryInfoSetting(onClick: () -> Unit) {
+    SettingItem(Icons.Default.Info, "程序依赖库使用", "查看应用使用的开源库", onClick = onClick)
 }
 
 @Composable
