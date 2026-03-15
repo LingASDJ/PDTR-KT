@@ -277,7 +277,7 @@ class TranslatorViewModel : ViewModel() {
         val sourceCode = sourceLangCode.value
         val targetCode = targetLangCode.value
         val group = _languageGroups.value.find { it.name == selectedGroupName.value }
-        
+
         if (sourceCode == null || targetCode == null || group == null) {
             _allEntries.value = emptyList()
             return
@@ -288,18 +288,19 @@ class TranslatorViewModel : ViewModel() {
             val targetProps = group.languages[targetCode]?.properties ?: Properties()
             val modifiedProps = _modifiedEntries.value[targetCode]
 
-            val entries = sourceProps.stringPropertyNames().map { key ->
+            val newEntries = mutableListOf<TranslationEntry>()
+            for (key in sourceProps.stringPropertyNames().sorted()) { // Also sorting keys beforehand
                 val sourceValue = sourceProps.getProperty(key, "")
-                
+
                 val isMissing = !targetProps.containsKey(key) && modifiedProps?.containsKey(key) != true
-                
+
                 val originalTargetValue = if (isMissing) "" else targetProps.getProperty(key, "")
                 val isModified = modifiedProps?.containsKey(key) ?: false
                 val finalTargetValue = if (isModified) modifiedProps!!.getProperty(key) else originalTargetValue
-                
+
                 val isUntranslated = !isMissing && (finalTargetValue.isBlank() || (sourceValue == finalTargetValue && !isModified))
 
-                TranslationEntry(
+                val entry = TranslationEntry(
                     key = key,
                     sourceValue = sourceValue,
                     targetValue = finalTargetValue,
@@ -307,12 +308,13 @@ class TranslatorViewModel : ViewModel() {
                     isModified = isModified,
                     isMissing = isMissing
                 )
-            }.sortedBy { entry -> entry.key }
+                newEntries.add(entry)
+            }
 
-            _allEntries.value = entries
-            
-            val translatedCount = entries.count { !it.isUntranslated && !it.isMissing }
-            translationProgress.value = if (entries.isEmpty()) 0f else translatedCount.toFloat() / entries.size
+            _allEntries.value = newEntries
+
+            val translatedCount = newEntries.count { !it.isUntranslated && !it.isMissing }
+            translationProgress.value = if (newEntries.isEmpty()) 0f else translatedCount.toFloat() / newEntries.size
         }
     }
 
