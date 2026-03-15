@@ -6,6 +6,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.viewModels
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Translate
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -44,8 +45,9 @@ class MainActivity : ComponentActivity() {
 }
 
 sealed class Screen(val route: String, val title: String, val icon: ImageVector) {
-    object Translator : Screen("translator", "翻译", Icons.Default.Translate)
-    object Settings : Screen("settings", "设置", Icons.Default.Settings)
+    object Config : Screen("config", "基础配置", Icons.Default.Build)
+    object Translator : Screen("translator", "翻译中心", Icons.Default.Translate)
+    object Settings : Screen("settings", "全局设置", Icons.Default.Settings)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -54,6 +56,7 @@ fun MainApp(viewModel: TranslatorViewModel) {
     val navController = rememberNavController()
 
     val items = listOf(
+        Screen.Config,
         Screen.Translator,
         Screen.Settings
     )
@@ -84,14 +87,17 @@ fun MainApp(viewModel: TranslatorViewModel) {
     ) { innerPadding ->
         NavHost(
             navController, 
-            startDestination = Screen.Translator.route, 
+            startDestination = Screen.Config.route, // Start on the new config screen
             Modifier.padding(innerPadding)
         ) {
+            composable(Screen.Config.route) {
+                 // Create a new ConfigScreen composable for this
+                 ConfigScreen(viewModel = viewModel)
+            }
             composable(Screen.Translator.route) {
                 TranslatorScreen(viewModel = viewModel)
             }
             composable(Screen.Settings.route) {
-                // Correctly pass the ViewModel to SettingsScreen
                 SettingsScreen(viewModel = viewModel)
             }
         }
