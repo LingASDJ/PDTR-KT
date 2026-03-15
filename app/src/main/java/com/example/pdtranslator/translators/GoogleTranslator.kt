@@ -1,6 +1,5 @@
 package com.example.pdtranslator.translators
 
-import com.example.pdtranslator.TranslationService
 import io.ktor.client.*
 import io.ktor.client.engine.android.*
 import io.ktor.client.request.*
@@ -12,12 +11,14 @@ import org.json.JSONArray
 
 class GoogleTranslator : TranslationService {
 
+    override val name: String = "Google Translate"
+
     private val client = HttpClient(Android)
 
-    override suspend fun translate(text: String, from: String, to: String): String {
+    override suspend fun translate(text: String, sourceLang: String, targetLang: String): String {
         if (text.isBlank()) return ""
 
-        val url = "https://translate.google.com/translate_a/single?client=gtx&sl=$from&tl=$to&dt=t&q=${text.encodeURL()}"
+        val url = "https://translate.google.com/translate_a/single?client=gtx&sl=$sourceLang&tl=$targetLang&dt=t&q=${text.encodeURL()}"
 
         return withContext(Dispatchers.IO) {
             try {
