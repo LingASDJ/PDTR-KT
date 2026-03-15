@@ -102,5 +102,6 @@
     <string name="lib_compose_desc">安卓用于构建原生 UI 的现代工具包。</string>
     <string name="lib_accompanist_name">Accompanist</string>
     <string name="lib_accompanist_desc">Jetpack Compose 的扩展库集合。</string>
+    <string name="source_language">源语言</string>
 
 </resources>

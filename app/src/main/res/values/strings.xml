@@ -5,7 +5,7 @@
     <string name="screen_title_config">Configuration</string>
     <string name="screen_title_translator">Translator</string>
     <string name="screen_title_settings">Settings</string>
-
+    <string name="source_language">Soucrce Langs</string>
     <!-- Config Screen -->
     <string name="config_import_files">Import Files</string>
     <string name="config_save">Save</string>
@@ -102,5 +102,4 @@
     <string name="lib_compose_desc">Android’s modern toolkit for building native UI.</string>
     <string name="lib_accompanist_name">Accompanist</string>
     <string name="lib_accompanist_desc">A collection of extension libraries for Jetpack Compose.</string>
-
 </resources>

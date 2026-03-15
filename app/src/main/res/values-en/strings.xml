@@ -45,4 +45,5 @@
     <string name="changelog_content_1_0_0">- First release of the application, including basic translation features.</string>
     <string name="changelog_version_1_0_1">1.0.1 - Internationalization Support</string>
     <string name="changelog_content_1_0_1">- Added language switching between Chinese and English.\n- Optimized the layout of the settings screen.</string>
+    <string name="source_language">Soucrce Langs</string>
 </resources>
