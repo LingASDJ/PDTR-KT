@@ -3,8 +3,6 @@ package com.example.pdtranslator
 import android.content.ContentResolver
 import android.net.Uri
 import android.provider.OpenableColumns
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.snapshotFlow
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Dispatchers
@@ -60,11 +58,11 @@ class TranslatorViewModel : ViewModel() {
     val searchText = MutableStateFlow("")
     val filterState = MutableStateFlow(FilterState.ALL)
 
-    val currentPage = mutableStateOf(1)
+    val currentPage = MutableStateFlow(1)
     val pageSize = 20 // Can be configured in settings later
-    val totalPages = mutableStateOf(1)
-    val translationProgress = mutableStateOf(0f)
-    val isSaveEnabled = mutableStateOf(false)
+    val totalPages = MutableStateFlow(1)
+    val translationProgress = MutableStateFlow(0f)
+    val isSaveEnabled = MutableStateFlow(false)
 
     init {
         // This coroutine reacts to any state changes and updates the final displayed list.
@@ -73,7 +71,7 @@ class TranslatorViewModel : ViewModel() {
                 _allEntries, 
                 searchText, 
                 filterState, 
-                snapshotFlow { currentPage.value }
+                currentPage
             ) { entries, search, filter, page ->
                 // Filtering logic
                 val filtered = entries.filter { entry ->
