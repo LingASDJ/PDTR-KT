@@ -10,9 +10,9 @@
     <string name="settings_section_general">General</string>
     <string name="settings_section_about">About</string>
     <string name="settings_item_language">Language</string>
-    <string name="settings_item_language_subtitle">Change the application\'s display language</string>
+    <string name="settings_item_language_subtitle">Change the application&apos;s display language</string>
     <string name="settings_item_theme_color">Theme Color</string>
-    <string name="settings_item_theme_color_subtitle">Customize the app\'s theme color</string>
+    <string name="settings_item_theme_color_subtitle">Customize the app&apos;s theme color</string>
     <string name="settings_item_translation_engine">Translation Engine</string>
     <string name="settings_item_translation_engine_subtitle">Choose the online service for translation</string>
     <string name="settings_item_source_code_license">Source Code License</string>
@@ -20,7 +20,7 @@
     <string name="settings_item_about_us">About Us</string>
     <string name="settings_item_about_us_subtitle">Learn the story behind this application</string>
     <string name="settings_item_changelog">Changelog</string>
-    <string name="settings_item_changelog_subtitle">View the app\'s version history and updates</string>
+    <string name="settings_item_changelog_subtitle">View the app&apos;s version history and updates</string>
 
     <!-- About Dialog -->
     <string name="about_us_dialog_title">About Us</string>
