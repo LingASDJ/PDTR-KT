@@ -6,10 +6,13 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Translate
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 
@@ -71,7 +74,11 @@ fun TranslatorScreen(viewModel: TranslatorViewModel) {
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             items(displayEntries, key = { it.key }) { entry ->
-                TranslationCard(entry) { newText -> viewModel.updateEntry(entry.key, newText) }
+                TranslationCard(
+                    entry = entry,
+                    onValueChange = { newText -> viewModel.updateEntry(entry.key, newText) },
+                    onAutoTranslate = { viewModel.autoTranslateEntry(entry) }
+                )
             }
         }
 
@@ -79,5 +86,45 @@ fun TranslatorScreen(viewModel: TranslatorViewModel) {
 
         // Pagination
         PaginationControls(currentPage, totalPages, viewModel::previousPage, viewModel::nextPage)
+    }
+}
+
+@Composable
+fun TranslationCard(
+    entry: TranslationEntry,
+    onValueChange: (String) -> Unit,
+    onAutoTranslate: () -> Unit
+) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(entry.key, style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                if (entry.isIdentical) {
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        stringResource(id = R.string.translator_identical_warning),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(entry.sourceValue, style = MaterialTheme.typography.bodyLarge)
+            Divider(modifier = Modifier.padding(vertical = 8.dp))
+            OutlinedTextField(
+                value = entry.targetValue,
+                onValueChange = onValueChange,
+                modifier = Modifier.fillMaxWidth(),
+                label = { Text(stringResource(id = R.string.common_translation)) },
+                trailingIcon = {
+                    IconButton(onClick = onAutoTranslate) {
+                        Icon(
+                            imageVector = Icons.Default.Translate,
+                            contentDescription = stringResource(id = R.string.translator_auto_translate_button)
+                        )
+                    }
+                }
+            )
+        }
     }
 }

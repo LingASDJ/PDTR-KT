@@ -29,7 +29,8 @@ data class TranslationEntry(
     var targetValue: String,
     val isUntranslated: Boolean,
     var isModified: Boolean = false,
-    val isMissing: Boolean = false
+    val isMissing: Boolean = false,
+    val isIdentical: Boolean = false
 )
 
 data class LanguageData(val fileName: String, val properties: Properties)
@@ -52,7 +53,7 @@ class TranslatorViewModel : ViewModel() {
     private val _allEntries = MutableStateFlow<List<TranslationEntry>>(emptyList())
     private val _modifiedEntries = MutableStateFlow<Map<String, Properties>>(emptyMap()) // Key: langCode, Value: Modified properties
     private val _showAboutDialog = MutableStateFlow(false)
-    private val _translationEngine = MutableStateFlow(R.string.translation_engine_youdao)
+    private val _translationEngine = MutableStateFlow(R.string.translation_engine_google)
     private val _themeColor = MutableStateFlow(ThemeColor.DEFAULT)
 
     // --- UI State Exposed as StateFlows ---
@@ -122,11 +123,20 @@ class TranslatorViewModel : ViewModel() {
 
     fun setTranslationEngine(engine: Int) {
         _translationEngine.value = engine
-        // Here you might add logic to re-initialize your translation service
     }
 
     fun setThemeColor(theme: ThemeColor) {
         _themeColor.value = theme
+    }
+
+    fun autoTranslateEntry(entry: TranslationEntry) {
+        viewModelScope.launch {
+            val source = sourceLangCode.value ?: return@launch
+            val target = targetLangCode.value ?: return@launch
+            val service = getTranslationService(_translationEngine.value)
+            val translatedText = service.translate(entry.sourceValue, source, target)
+            updateEntry(entry.key, translatedText)
+        }
     }
 
     fun loadFilesFromZip(resolver: ContentResolver, uri: Uri) {
@@ -195,7 +205,6 @@ class TranslatorViewModel : ViewModel() {
                     }
                 }
             }
-            // Reset modified state for the saved group
             _modifiedEntries.update { currentMods ->
                 val newMods = currentMods.toMutableMap()
                 group.languages.keys.forEach { langCode -> newMods.remove(langCode) }
@@ -232,7 +241,6 @@ class TranslatorViewModel : ViewModel() {
     fun updateEntry(key: String, newTargetValue: String) {
         val langCode = targetLangCode.value ?: return
 
-        // Update modification cache
         _modifiedEntries.update { currentMods ->
             val newMods = currentMods.toMutableMap()
             val langProps = newMods.getOrPut(langCode) { Properties() }
@@ -240,13 +248,16 @@ class TranslatorViewModel : ViewModel() {
             newMods
         }
 
-        // Update live entry for immediate UI feedback
         _allEntries.update { currentEntries ->
             currentEntries.map { entry -> 
-                if (entry.key == key) entry.copy(targetValue = newTargetValue, isModified = true) else entry
+                if (entry.key == key) {
+                    val isIdentical = entry.sourceValue == newTargetValue && newTargetValue.isNotBlank()
+                    entry.copy(targetValue = newTargetValue, isModified = true, isUntranslated = newTargetValue.isBlank() || isIdentical, isIdentical = isIdentical)
+                } else entry
             }
         }
         isSaveEnabled.value = true
+        recalculateProgress()
     }
 
     fun completeMissingEntries() {
@@ -254,12 +265,10 @@ class TranslatorViewModel : ViewModel() {
         val missingEntries = _allEntries.value.filter { it.isMissing }
         if (missingEntries.isEmpty()) return
 
-        // Update modification cache
         _modifiedEntries.update { currentMods ->
             val newMods = currentMods.toMutableMap()
             val langProps = newMods.getOrPut(langCode) { Properties() }
             missingEntries.forEach { entry ->
-                // Add with an empty string, it will become an "untranslated" entry
                 if (!langProps.containsKey(entry.key)) {
                     langProps.setProperty(entry.key, "")
                 }
@@ -267,23 +276,30 @@ class TranslatorViewModel : ViewModel() {
             newMods
         }
 
-        // Update live entries for immediate UI feedback
         _allEntries.update { currentEntries ->
             currentEntries.map { entry ->
                 if (entry.isMissing) {
-                    // No longer missing, now it is untranslated and modified (because we added it)
                     entry.copy(targetValue = "", isMissing = false, isUntranslated = true, isModified = true)
                 } else {
                     entry
                 }
-            }
+            }.filter { !it.isMissing } // This will remove the completed entries from the UI if the filter is MISSING
         }
         isSaveEnabled.value = true
-        // After completing, switch filter to UNTRANSLATED to show the newly added entries
-        filterState.value = FilterState.UNTRANSLATED
+        recalculateProgress()
+        // If the current filter is MISSING, the list will become empty, we can switch to UNTRANSLATED
+        if (filterState.value == FilterState.MISSING) {
+            filterState.value = FilterState.UNTRANSLATED
+        }
     }
 
     // --- Private Helper Functions ---
+
+    private fun recalculateProgress() {
+        val entries = _allEntries.value
+        val translatedCount = entries.count { !it.isUntranslated && !it.isMissing }
+        translationProgress.value = if (entries.isEmpty()) 0f else translatedCount.toFloat() / entries.size
+    }
 
     private fun processLoadedGroups(groups: Map<String, Map<String, LanguageData>>) {
         _languageGroups.value = groups.map { (name, languages) -> LanguageGroup(name, languages) }
@@ -293,7 +309,7 @@ class TranslatorViewModel : ViewModel() {
         selectedGroupName.value = null
         sourceLangCode.value = null
         targetLangCode.value = null
-        availableLanguages.value = emptyList() // Clear the list of available languages
+        availableLanguages.value = emptyList()
         _allEntries.value = emptyList()
         _modifiedEntries.value = emptyMap()
         isSaveEnabled.value = false
@@ -318,14 +334,12 @@ class TranslatorViewModel : ViewModel() {
 
             val newEntries = sortedKeys.map { key ->
                 val sourceValue = sourceProps.getProperty(key, "")
-                
                 val isMissing = !targetProps.containsKey(key) && modifiedProps?.containsKey(key) != true
-                
                 val originalTargetValue = if (isMissing) "" else targetProps.getProperty(key, "")
                 val isModified = modifiedProps?.containsKey(key) ?: false
                 val finalTargetValue = if (isModified) modifiedProps!!.getProperty(key) else originalTargetValue
-                
-                val isUntranslated = !isMissing && (finalTargetValue.isBlank() || (sourceValue == finalTargetValue && !isModified))
+                val isIdentical = sourceValue == finalTargetValue && finalTargetValue.isNotBlank()
+                val isUntranslated = !isMissing && (finalTargetValue.isBlank() || isIdentical)
 
                 TranslationEntry(
                     key = key,
@@ -333,14 +347,13 @@ class TranslatorViewModel : ViewModel() {
                     targetValue = finalTargetValue,
                     isUntranslated = isUntranslated,
                     isModified = isModified,
-                    isMissing = isMissing
+                    isMissing = isMissing,
+                    isIdentical = isIdentical
                 )
             }
 
             _allEntries.value = newEntries
-
-            val translatedCount = newEntries.count { entry -> !entry.isUntranslated && !entry.isMissing }
-            translationProgress.value = if (newEntries.isEmpty()) 0f else translatedCount.toFloat() / newEntries.size
+            recalculateProgress()
         }
     }
 

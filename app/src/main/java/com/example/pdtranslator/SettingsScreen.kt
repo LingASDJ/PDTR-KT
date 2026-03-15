@@ -166,8 +166,7 @@ fun LanguageSetting(onClick: () -> Unit) {
 fun TranslationEngineSetting(selectedEngine: Int, onEngineSelected: (Int) -> Unit) {
     var expanded by remember { mutableStateOf(false) }
     val engines = listOf(
-        R.string.translation_engine_youdao,
-        R.string.translation_engine_baidu
+        R.string.translation_engine_google
     )
 
     Row(

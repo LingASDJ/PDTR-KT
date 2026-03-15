@@ -19,6 +19,8 @@
     <string name="translator_search_placeholder">Search (Key or Original Text)</string>
     <string name="translator_complete_missing">Complete Missing Fields</string>
     <string name="translator_progress">Translation Progress</string>
+    <string name="translator_identical_warning">[Identical Fields]</string>
+    <string name="translator_auto_translate_button">Auto Translate</string>
 
     <!-- Common Composables -->
     <string name="common_select_language_group">Select language group</string>
@@ -71,17 +73,18 @@
     <!-- Changelog Screen -->
     <string name="changelog_title">更新记录</string>
     <string name="changelog_version_0_1_0">v0.1.0</string>
-    <string name="changelog_content_0_1_0">- 初版发布。</string>
-    <string name="changelog_version_1_0_0">1.0.0 - 主要更新</string>
-    <string name="changelog_content_1_0_0">- 完成基础翻译功能。</string>
-    <string name="changelog_version_1_0_1">1.0.1 - 国际化</string>
-    <string name="changelog_content_1_0_1">- 新增中英文语言切换。\n- 优化设置页面布局。</string>
-    <string name="changelog_version_1_0_2">1.0.2 - 动态主题和UI优化</string>
-    <string name="changelog_content_1_0_2">- 实装了动态主题颜色功能，允许用户在默认、M3、薄荷绿和薰衣草紫主题之间进行选择。\n- 重构了更新日志页面，以提供更佳的视觉体验。</string>
+    <string name="changelog_content_0_1_0">- Initial release.</string>
+    <string name="changelog_version_1_0_0">1.0.0 - Major Update</string>
+    <string name="changelog_content_1_0_0">- Completed basic translation functionality.</string>
+    <string name="changelog_version_1_0_1">1.0.1 - Internationalization</string>
+    <string name="changelog_content_1_0_1">- Added language switching between Chinese and English.\n- Optimized the layout of the settings page.</string>
+    <string name="changelog_version_1_0_2">1.0.2 - Dynamic Theming and UI Optimization</string>
+    <string name="changelog_content_1_0_2">- Implemented dynamic theme color functionality, allowing users to choose between Default, M3, Mint Green, and Lavender themes.\n- Refactored the changelog page for a better visual experience.</string>
+    <string name="changelog_version_1_1_0">1.1.0 - Google Translate Integration</string>
+    <string name="changelog_content_1_1_0">- Re-implemented and integrated the Google Translate engine based on the C# version provided by the user.\n- Added a one-click translation button to each translation entry card for instant translation.\n- Refactored and streamlined the translation engine module, removing previous engines to focus on a single, powerful implementation.</string>
 
     <!-- Translation Engines -->
-    <string name="translation_engine_youdao">Built-in Youdao</string>
-    <string name="translation_engine_baidu">Baidu Translate</string>
+    <string name="translation_engine_google">Google Translate</string>
 
     <!-- Theme Names -->
     <string name="theme_name_default">Default</string>

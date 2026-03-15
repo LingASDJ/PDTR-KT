@@ -76,6 +76,8 @@
     <string name="changelog_content_1_0_0">- 完成基础翻译功能。</string>
     <string name="changelog_version_1_0_1">1.0.1 - 国际化</string>
     <string name="changelog_content_1_0_1">- 新增中英文语言切换。\n- 优化设置页面布局。</string>
+    <string name="changelog_version_1_1_0">1.1.0 - 谷歌翻译集成</string>
+    <string name="changelog_content_1_1_0">- 根据用户提供的C#版本，重新实现并集成了谷歌翻译引擎。\n- 为每个翻译条目卡片添加了一键翻译按钮，实现即时翻译。\n- 重构并精简了翻译引擎模块，移除了旧的引擎，专注于单一、强大的实现。</string>
 
     <!-- Translation Engines -->
     <string name="translation_engine_youdao">内置有道</string>
