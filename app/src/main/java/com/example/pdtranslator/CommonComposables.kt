@@ -59,16 +59,26 @@ fun getLanguageDisplayName(langCode: String): String {
     if (langCode.isEmpty()) return ""
     if (langCode == "base") return stringResource(id = R.string.source_language)
 
+    // Handle 'chk' as a special case for Traditional Chinese
+    val bcp47Tag = when (langCode.lowercase()) {
+        "chk" -> "zh-Hant"
+        else -> langCode
+    }
+
     val currentLocale = Locale.getDefault()
-    val languageLocale = Locale.forLanguageTag(langCode)
+    val languageLocale = Locale.forLanguageTag(bcp47Tag)
 
     val nativeName = languageLocale.getDisplayName(languageLocale)
     val localizedName = languageLocale.getDisplayName(currentLocale)
 
-    return if (nativeName.equals(localizedName, ignoreCase = true)) {
-        nativeName.replaceFirstChar { if (it.isLowerCase()) it.titlecase(languageLocale) else it.toString() }
+    // Capitalize the first letter for consistency
+    val finalNativeName = nativeName.replaceFirstChar { if (it.isLowerCase()) it.titlecase(languageLocale) else it.toString() }
+    val finalLocalizedName = localizedName.replaceFirstChar { if (it.isLowerCase()) it.titlecase(currentLocale) else it.toString() }
+
+    return if (finalNativeName.equals(finalLocalizedName, ignoreCase = true)) {
+        finalNativeName
     } else {
-        "$nativeName ($localizedName)".replaceFirstChar { if (it.isLowerCase()) it.titlecase(languageLocale) else it.toString() }
+        "$finalNativeName ($finalLocalizedName)"
     }
 }
 

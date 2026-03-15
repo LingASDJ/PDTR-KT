@@ -283,6 +283,7 @@ class TranslatorViewModel : ViewModel() {
         selectedGroupName.value = null
         sourceLangCode.value = null
         targetLangCode.value = null
+        availableLanguages.value = emptyList() // Clear the list of available languages
         _allEntries.value = emptyList()
         _modifiedEntries.value = emptyMap()
         isSaveEnabled.value = false
