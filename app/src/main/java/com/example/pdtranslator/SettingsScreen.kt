@@ -31,6 +31,7 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import com.example.pdtranslator.translators.GoogleTranslator
+import com.example.pdtranslator.translators.TranslationService
 
 @Composable
 fun SettingsScreen(

@@ -1,5 +1,6 @@
 package com.example.pdtranslator.translators
 
+import com.example.pdtranslator.translators.TranslationService
 import io.ktor.client.*
 import io.ktor.client.engine.android.*
 import io.ktor.client.request.*
