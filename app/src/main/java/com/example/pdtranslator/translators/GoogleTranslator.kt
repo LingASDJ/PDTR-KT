@@ -16,7 +16,7 @@ class GoogleTranslator : TranslationService {
     override suspend fun translate(text: String, from: String, to: String): String {
         if (text.isBlank()) return ""
 
-        val url = "https://translate.google.com/translate_a/single?client=gtx&sl=$from&tl=$to&dt=t&q=${text.encodeURL()}}”
+        val url = "https://translate.google.com/translate_a/single?client=gtx&sl=$from&tl=$to&dt=t&q=${text.encodeURL()}}"
 
         return withContext(Dispatchers.IO) {
             try {
