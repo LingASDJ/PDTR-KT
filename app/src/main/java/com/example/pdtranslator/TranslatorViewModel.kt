@@ -177,12 +177,22 @@ class TranslatorViewModel : ViewModel() {
                         BufferedReader(InputStreamReader(stream)).readText()
                     } ?: continue
 
-                    val filteredContent = content.lines().filter {
-                        !it.trim().startsWith("#") && !it.trim().startsWith("//")
-                    }.joinToString("\n")
+                    // Fix for crash with malformed \uXXXX encoding.
+                    // This escapes any backslash followed by a 'u' that is not part of a valid Unicode sequence.
+                    val escapedContent = content.replace(Regex("""\u(?![0-9a-fA-F]{4})"""), """\\u""")
 
-                    val props = Properties().apply { load(StringReader(filteredContent)) }
-                    groups.getOrPut(baseName) { mutableMapOf() }[langCode] = LanguageData(fileName, props)
+                    val filteredContent = escapedContent.lines().filter {
+                        !it.trim().startsWith("#") && !it.trim().startsWith("//")
+                    }.joinToString("
+")
+
+                    try {
+                        val props = Properties().apply { load(StringReader(filteredContent)) }
+                        groups.getOrPut(baseName) { mutableMapOf() }[langCode] = LanguageData(fileName, props)
+                    } catch (e: Exception) {
+                        // Log or handle the error for the specific file that failed to load
+                        e.printStackTrace()
+                    }
                 }
             }
             processLoadedGroups(groups)
