@@ -155,7 +155,7 @@ private fun KeywordHighlightingCard(viewModel: TranslatorViewModel) {
                     mainAxisSpacing = 8.dp,
                     crossAxisSpacing = 8.dp
                 ) {
-                    highlightKeywords.forEach { keyword ->
+                    for (keyword in highlightKeywords) {
                         Chip(keyword) { viewModel.removeHighlightKeyword(keyword) }
                     }
                 }
