@@ -2,18 +2,49 @@ package com.example.pdtranslator
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDropDown
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.Divider
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.input.OffsetMapping
+import androidx.compose.ui.text.input.TransformedText
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.flow.collectLatest
 
@@ -26,10 +57,11 @@ fun TranslatorScreen(viewModel: TranslatorViewModel, onShowSnackbar: suspend (St
     val infoBarText by viewModel.infoBarText.collectAsState()
     val isSearchCardVisible by viewModel.isSearchCardVisible.collectAsState()
     val missingEntriesCount by viewModel.missingEntriesCount.collectAsState()
+    val highlightKeywords by viewModel.highlightKeywords.collectAsState()
 
     LaunchedEffect(key1 = true) {
         viewModel.uiEvents.collectLatest {
-            when(it) {
+            when (it) {
                 is UiEvent.ShowSnackbar -> onShowSnackbar(it.message)
             }
         }
@@ -69,7 +101,9 @@ fun TranslatorScreen(viewModel: TranslatorViewModel, onShowSnackbar: suspend (St
 
         if (filterState == FilterState.MISSING) {
             Column(
-                modifier = Modifier.weight(1f).fillMaxWidth(),
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth(),
                 verticalArrangement = Arrangement.Center,
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
@@ -77,7 +111,7 @@ fun TranslatorScreen(viewModel: TranslatorViewModel, onShowSnackbar: suspend (St
                     onClick = { viewModel.fillMissingEntries() },
                     enabled = missingEntriesCount > 0
                 ) {
-                    Text("补全缺失字段")
+                    Text(stringResource(id = R.string.translator_complete_missing))
                 }
             }
         } else {
@@ -88,6 +122,7 @@ fun TranslatorScreen(viewModel: TranslatorViewModel, onShowSnackbar: suspend (St
                 items(displayEntries, key = { it.key }) { entry ->
                     NewTranslationCard(
                         entry = entry,
+                        highlightKeywords = highlightKeywords,
                         onSave = { newText -> viewModel.stageChange(entry.key, newText) },
                         onDiscard = { viewModel.unstageChange(entry.key) }
                     )
@@ -129,14 +164,18 @@ fun SearchReplaceControls(viewModel: TranslatorViewModel) {
                 horizontalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 Row(
-                    Modifier.selectable(selected = isCaseSensitive, onClick = { viewModel.setCaseSensitive(!isCaseSensitive) }),
+                    Modifier.selectable(
+                        selected = isCaseSensitive,
+                        onClick = { viewModel.setCaseSensitive(!isCaseSensitive) }),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Checkbox(checked = isCaseSensitive, onCheckedChange = { viewModel.setCaseSensitive(it) })
                     Text("区分大小写")
                 }
                 Row(
-                     Modifier.selectable(selected = isExactMatch, onClick = { viewModel.setExactMatch(!isExactMatch) }),
+                    Modifier.selectable(
+                        selected = isExactMatch,
+                        onClick = { viewModel.setExactMatch(!isExactMatch) }),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Checkbox(checked = isExactMatch, onCheckedChange = { viewModel.setExactMatch(it) })
@@ -151,6 +190,7 @@ fun SearchReplaceControls(viewModel: TranslatorViewModel) {
 @Composable
 fun NewTranslationCard(
     entry: TranslationEntry,
+    highlightKeywords: Set<String>,
     onSave: (String) -> Unit,
     onDiscard: () -> Unit
 ) {
@@ -174,7 +214,7 @@ fun NewTranslationCard(
                         color = MaterialTheme.colorScheme.error
                     )
                 }
-                 if (entry.isMissing) {
+                if (entry.isMissing) {
                     Text(
                         text = "(Missing)",
                         style = MaterialTheme.typography.labelSmall,
@@ -185,27 +225,95 @@ fun NewTranslationCard(
             Divider(modifier = Modifier.padding(vertical = 8.dp))
 
             Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(entry.sourceValue, style = MaterialTheme.typography.bodyMedium)
-                
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+
+                HighlightedText(text = entry.sourceValue, keywords = highlightKeywords)
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
                     OutlinedTextField(
                         value = currentText,
                         onValueChange = { currentText = it },
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier
+                            .weight(1f)
+                            .onFocusChanged {
+                                if (!it.isFocused && currentText != entry.targetValue) {
+                                    onSave(currentText)
+                                }
+                            },
                         label = { Text(stringResource(id = R.string.common_translation)) },
+                        visualTransformation = keywordHighlightVisualTransformation(
+                            keywords = highlightKeywords,
+                            highlightColor = MaterialTheme.colorScheme.primaryContainer
+                        )
                     )
 
                     if (entry.isModified) {
                         IconButton(onClick = onDiscard) {
-                            Icon(painter = painterResource(id = R.drawable.ic_discard), contentDescription = "Discard Changes")
-                        }
-                    } else {
-                        IconButton(onClick = { onSave(currentText) }, enabled = currentText != entry.originalTargetValue) {
-                            Icon(painter = painterResource(id = R.drawable.ic_save), contentDescription = "Save Changes")
+                            Icon(
+                                painter = painterResource(id = R.drawable.ic_discard),
+                                contentDescription = "Discard Changes"
+                            )
                         }
                     }
                 }
             }
         }
+    }
+}
+
+@Composable
+fun HighlightedText(text: String, keywords: Set<String>, modifier: Modifier = Modifier) {
+    val highlightColor = MaterialTheme.colorScheme.primaryContainer
+    if (keywords.isEmpty() || text.isBlank()) {
+        Text(text, modifier = modifier, style = MaterialTheme.typography.bodyMedium)
+        return
+    }
+
+    val annotatedString = buildAnnotatedString {
+        append(text)
+        keywords.forEach { keyword ->
+            if (keyword.isNotBlank()) {
+                var startIndex = text.indexOf(keyword, ignoreCase = true)
+                while (startIndex != -1) {
+                    val endIndex = startIndex + keyword.length
+                    addStyle(
+                        style = SpanStyle(background = highlightColor),
+                        start = startIndex,
+                        end = endIndex
+                    )
+                    startIndex = text.indexOf(keyword, startIndex + 1, ignoreCase = true)
+                }
+            }
+        }
+    }
+    Text(annotatedString, modifier = modifier, style = MaterialTheme.typography.bodyMedium)
+}
+
+fun keywordHighlightVisualTransformation(keywords: Set<String>, highlightColor: Color): VisualTransformation {
+    return VisualTransformation { text ->
+        if (keywords.isEmpty()) {
+            return@VisualTransformation TransformedText(text, OffsetMapping.Identity)
+        }
+
+        val annotatedString = buildAnnotatedString {
+            append(text)
+            keywords.forEach { keyword ->
+                if (keyword.isNotBlank()) {
+                    var startIndex = text.text.indexOf(keyword, ignoreCase = true)
+                    while (startIndex != -1) {
+                        val endIndex = startIndex + keyword.length
+                        addStyle(
+                            style = SpanStyle(background = highlightColor),
+                            start = startIndex,
+                            end = endIndex
+                        )
+                        startIndex = text.text.indexOf(keyword, startIndex + 1, ignoreCase = true)
+                    }
+                }
+            }
+        }
+        TransformedText(annotatedString, OffsetMapping.Identity)
     }
 }

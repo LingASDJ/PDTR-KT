@@ -3,18 +3,23 @@
     <string name="app_name">PD-Translator</string>
 
     <!-- Screen Titles -->
-    <string name="screen_title_config">Configuration</string>
+    <string name="screen_title_config">基础配置</string>
     <string name="screen_title_translator">Translator</string>
     <string name="screen_title_settings">Settings</string>
 
     <!-- Config Screen -->
     <string name="config_import_files">Import Files</string>
-    <string name="config_save">Save</string>
+    <string name="config_export">Export</string>
     <string name="config_source_language">Source Language</string>
     <string name="config_target_language">Target Language</string>
     <string name="config_import_dialog_title">How do you want to import?</string>
     <string name="config_import_from_zip">From ZIP file</string>
     <string name="config_import_from_properties">From .properties file</string>
+    <string name="config_keyword_highlighting_title">Keyword Highlighting</string>
+    <string name="config_keyword_highlighting_subtitle">Add keywords to be highlighted in the translator.</string>
+    <string name="config_add_keyword_label">Add a keyword</string>
+    <string name="config_add_keyword_button">Add</string>
+    <string name="config_remove_keyword_desc">Remove %1$s</string>
 
     <!-- Translator Screen -->
     <string name="translator_search_placeholder">Search (Key or Original Text)</string>
@@ -55,10 +60,15 @@
     <string name="settings_item_changelog">Changelog</string>
     <string name="settings_item_changelog_subtitle">View the version history and updates of the app</string>
 
+    <!-- Theme Names -->
+    <string name="theme_name_default">Default</string>
+    <string name="theme_name_m3">Material 3</string>
+    <string name="theme_name_green">Green</string>
+    <string name="theme_name_lavender">Lavender</string>
+
     <!-- About Dialog -->
     <string name="about_us_dialog_title">About Us</string>
-    <string name="about_us_dialog_content">This app was developed by JDSALing, with specific coding implemented by Gemini AI, referencing Renyunhao\'s PropertiesLocalizationTool project.\n\nFor learning and communication purposes only. Please do not use for other purposes.</string>
-
+    <string name="about_us_dialog_content">This app was developed by JDSALing, with specific coding implemented by Gemini AI, referencing Renyunhao's PropertiesLocalizationTool project.\n\nFor learning and communication purposes only. Please do not use for other purposes.</string>
     <string name="about_us_dialog_repo_link">Our GitHub Repository</string>
     <string name="about_us_dialog_visit_repo_button">Visit Repository</string>
     <string name="dialog_close_button">Close</string>
@@ -90,12 +100,8 @@
     <string name="changelog_content_0_1_5">- Added interactive translator.</string>
     <string name="changelog_version_0_1_6">v0.1.6</string>
     <string name="changelog_content_0_1_6">- Fixed compilation errors.\n- Replaced splash screen icon with app icon.\n- Updated version code to 10 and version name to 0.1.6.</string>
-
-    <!-- Theme Names -->
-    <string name="theme_name_default">Default</string>
-    <string name="theme_name_m3">M3 Baseline</string>
-    <string name="theme_name_green">Mint Green</string>
-    <string name="theme_name_lavender">Lavender</string>
+    <string name="changelog_version_0_1_7">v0.1.7</string>
+    <string name="changelog_content_0_1_7">- Added keyword highlighting.\n- Optimized editing experience.</string>
 
     <!-- Libraries -->
     <string name="lib_kotlin_name">Kotlin</string>

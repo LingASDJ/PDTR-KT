@@ -3,13 +3,13 @@
     <string name="app_name">PD-Translator</string>
 
     <!-- Screen Titles -->
-    <string name="screen_title_config">设置</string>
+    <string name="screen_title_config">基础配置</string>
     <string name="screen_title_translator">翻译</string>
-    <string name="screen_title_settings">通用设置</string>
+    <string name="screen_title_settings">设置</string>
 
     <!-- Config Screen -->
     <string name="config_import_files">导入文件</string>
-    <string name="config_save">保存</string>
+    <string name="config_save">导出</string>
     <string name="config_source_language">源语言</string>
     <string name="config_target_language">目标语言</string>
     <string name="config_import_dialog_title">请选择导入方式</string>

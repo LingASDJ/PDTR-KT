@@ -1,0 +1,137 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">PD-Translator</string>
+
+    <!-- Screen Titles -->
+    <string name="screen_title_config">基础配置</string>
+    <string name="screen_title_translator">翻译</string>
+    <string name="screen_title_settings">通用设置</string>
+
+    <!-- Config Screen -->
+    <string name="config_import_files">导入文件</string>
+    <string name="config_export">导出</string>
+    <string name="config_source_language">源语言</string>
+    <string name="config_target_language">目标语言</string>
+    <string name="config_import_dialog_title">您希望如何导入？</string>
+    <string name="config_import_from_zip">从 ZIP 文件导入</string>
+    <string name="config_import_from_properties">从 .properties 文件导入</string>
+    <string name="config_keyword_highlighting_title">关键词高亮</string>
+    <string name="config_keyword_highlighting_subtitle">添加的关键词将在翻译器中高亮显示。</string>
+    <string name="config_add_keyword_label">添加关键词</string>
+    <string name="config_add_keyword_button">添加</string>
+    <string name="config_remove_keyword_desc">移除 %1$s</string>
+
+    <!-- Translator Screen -->
+    <string name="translator_search_placeholder">搜索（键或原文）</string>
+    <string name="translator_complete_missing">补全缺失字段</string>
+    <string name="translator_progress">翻译进度</string>
+    <string name="translator_progress_info">语言组总条目: %1$d</string>
+    <string name="translator_translation_progress">翻译进度: %1$d%%</string>
+    <string name="translator_identical_warning">（源文和译文相同）</string>
+
+    <!-- Common Composables -->
+    <string name="common_select_language_group">请选择一个语言组</string>
+    <string name="common_language_group">语言组</string>
+    <string name="common_translation">翻译</string>
+    <string name="pagination_previous">上一页</string>
+    <string name="pagination_next">下一页</string>
+    <string name="pagination_page_info">第 %1$d / %2$d 页</string>
+
+    <!-- Filter States -->
+    <string name="filter_all">全部</string>
+    <string name="filter_untranslated">未翻译</string>
+    <string name="filter_translated">已翻译</string>
+    <string name="filter_modified">已修改</string>
+    <string name="filter_missing">缺失</string>
+
+    <!-- Settings Screen -->
+    <string name="settings_section_general">通用</string>
+    <string name="settings_section_about">关于</string>
+    <string name="settings_item_language">语言</string>
+    <string name="settings_item_language_subtitle">更改应用的显示语言</string>
+    <string name="settings_item_theme_color">主题色</string>
+    <string name="settings_item_theme_color_subtitle">自定义应用的主题颜色</string>
+    <string name="settings_item_translation_engine">翻译引擎</string>
+    <string name="settings_item_translation_engine_subtitle">选择用于在线翻译的服务</string>
+    <string name="settings_item_source_code_license">源代码与许可</string>
+    <string name="settings_item_source_code_license_subtitle">查看应用使用的开源库</string>
+    <string name="settings_item_about_us">关于我们</string>
+    <string name="settings_item_about_us_subtitle">了解此应用背后的故事</string>
+    <string name="settings_item_changelog">更新日志</string>
+    <string name="settings_item_changelog_subtitle">查看应用的版本历史和更新</string>
+
+    <!-- Theme Names -->
+    <string name="theme_name_default">默认</string>
+    <string name="theme_name_m3">Material 3</string>
+    <string name="theme_name_green">绿色</string>
+    <string name="theme_name_lavender">薰衣草紫</string>
+
+    <!-- About Dialog -->
+    <string name="about_us_dialog_title">关于我们</string>
+    <string name="about_us_dialog_content">本应用由 JDSALing 开发，具体编码由 Gemini AI 实现，参考了 Renyunhao 的 PropertiesLocalizationTool 项目。
+
+仅供学习交流，请勿用于其他用途。</string>
+    <string name="about_us_dialog_repo_link">我们的 GitHub 仓库</string>
+    <string name="about_us_dialog_visit_repo_button">访问仓库</string>
+    <string name="dialog_close_button">关闭</string>
+
+    <!-- Dependency Screen -->
+    <string name="source_code_license_title">源代码和许可</string>
+    <string name="back_button_description">返回</string>
+    <string name="visit_link_description">访问链接</string>
+
+    <!-- Language Dialog -->
+    <string name="language_dialog_title">选择语言</string>
+    <string name="language_chinese">简体中文</string>
+    <string name="language_english">English</string>
+
+
+    <!-- Changelog Screen -->
+    <string name="changelog_title">更新日志</string>
+    <string name="changelog_version_0_1_0">v0.1.0 - 基础构建</string>
+    <string name="changelog_content_0_1_0">- 在 Firebase Studio 中，通过 Gemini AI 的引导，使用 Kotlin 创建了基础框架。</string>
+    <string name="changelog_version_1_0_0">v0.1.1 - 主要更新</string>
+    <string name="changelog_content_1_0_0">- 完成了基础的翻译功能。</string>
+    <string name="changelog_version_1_0_1">v0.1.2 - 布局优化</string>
+    <string name="changelog_content_1_0_1">- 优化了设置页面的布局。</string>
+    <string name="changelog_version_1_0_2">v0.1.3 - 导入修复</string>
+    <string name="changelog_content_1_0_2">- 修复了当文件位于子目录中时 ZIP 导入不工作的问题。
+- 修复了更改语言组时语言选择不会被重置的问题。
+- 修复了未加载文件时信息栏显示不正确的问题。</string>
+    <string name="changelog_version_1_1_0">v0.1.4 - 初次发布</string>
+    <string name="changelog_content_1_1_0">- 添加了可折叠的搜索栏。
+- 添加了暂存更改的功能。
+- 修复了若干 Bug。</string>
+    <string name="changelog_version_0_1_5">v0.1.5</string>
+    <string name="changelog_content_0_1_5">- 添加了交互式翻译器。</string>
+    <string name="changelog_version_0_1_6">v0.1.6</string>
+    <string name="changelog_content_0_1_6">- 修复了编译错误。
+- 将闪屏图标替换为应用图标。
+- 将版本代码更新为 10，版本名更新为 0.1.6。</string>
+    <string name="changelog_version_0_1_7">v0.1.7</string>
+    <string name="changelog_content_0_1_7">- 添加了关键词高亮功能。
+- 优化了编辑体验。</string>
+
+    <!-- Libraries -->
+    <string name="lib_kotlin_name">Kotlin</string>
+    <string name="lib_kotlin_desc">一门让开发者更快乐的现代编程语言。</string>
+    <string name="lib_crash_name">CustomActivityOnCrash</string>
+    <string name="lib_crash_desc">一个安卓库，允许在你的应用崩溃时启动一个自定义活动。</string>
+    <string name="lib_ktor_name">Ktor 客户端</string>
+    <string name="lib_ktor_desc">一个用于发出请求的异步客户端。</string>
+    <string name="lib_nav_compose_name">AndroidX Navigation Compose</string>
+    <string name="lib_nav_compose_desc">为 Jetpack Compose 提供导航组件。</string>
+    <string name="lib_core_ktx_name">AndroidX Core KTX</string>
+    <string name="lib_core_ktx_desc">为安卓核心功能提供 Kotlin 扩展。</string>
+    <string name="lib_splashscreen_name">AndroidX Core Splashscreen</string>
+    <string name="lib_splashscreen_desc">为 Android 12+ 提供 SplashScreen API 并向后兼容。</string>
+    <string name="lib_lifecycle_name">AndroidX Lifecycle</string>
+    <string name="lib_lifecycle_desc">用于构建生命周期感知应用的组件。</string>
+    <string name="lib_activity_compose_name">AndroidX Activity Compose</string>
+    <string name="lib_activity_compose_desc">在 Activity 中集成 Jetpack Compose。</string>
+    <string name="lib_compose_name">Jetpack Compose</string>
+    <string name="lib_compose_desc">安卓用于构建原生 UI 的现代工具包。</string>
+    <string name="lib_accompanist_name">Accompanist</string>
+    <string name="lib_accompanist_desc">Jetpack Compose 的扩展库集合。</string>
+    <string name="source_language">源语言</string>
+</resources>

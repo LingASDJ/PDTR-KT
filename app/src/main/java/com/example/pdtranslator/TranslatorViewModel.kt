@@ -118,8 +118,9 @@ class TranslatorViewModel : ViewModel() {
                 // --- Filtering and Mapping Logic ---
                 val processedEntries = entries.map { entry ->
                     staged[entry.key]?.let { stagedValue ->
-                        entry.copy(targetValue = stagedValue, isModified = true)
-                    } ?: entry.copy(isModified = false)
+                        val modified = stagedValue != entry.originalTargetValue
+                        entry.copy(targetValue = stagedValue, isModified = modified)
+                    } ?: entry.copy(isModified = false, targetValue = entry.originalTargetValue)
                 }
 
                 val filtered = processedEntries.filter { entry ->
@@ -229,13 +230,7 @@ class TranslatorViewModel : ViewModel() {
         if (langCode != null) {
             resolver.openInputStream(uri)?.use { stream ->
                 val content = BufferedReader(InputStreamReader(stream)).readText()
-                // The Properties parser crashes on malformed \u escape sequences.
-                // A common issue is file paths like C:\Users which contains \u.
-                // This regex finds a literal backslash followed by a 'u' (\\u),
-                // but only if it's NOT followed by four hex digits (a valid Unicode escape).
-                // It then replaces the single backslash with a double backslash (\\),
-                // effectively escaping it for the Properties parser.
-                val preprocessedContent = content.replace(Regex("\\\\u(?![0-9a-fA-F]{4})"), "\\\\u")
+                val preprocessedContent = content.replace(Regex("\\u(?![0-9a-fA-F]{4})"), "\\u")
                 try {
                     val props = Properties().apply { load(StringReader(preprocessedContent)) }
                     groups.getOrPut(baseName) { mutableMapOf() }[langCode] = LanguageData(fileName, props)
@@ -295,20 +290,16 @@ class TranslatorViewModel : ViewModel() {
                 ZipOutputStream(it).use { zos ->
                     group.languages.forEach { (langCode, langData) ->
                         val finalProps = Properties()
-                        // Put original properties first
                         finalProps.putAll(langData.properties)
 
-                        // If this is the target language, apply staged changes
                         if (langCode == targetCode) {
                             staged.forEach { (key, value) ->
                                 finalProps.setProperty(key, value)
                             }
                         }
-
-                        // Use the full path for zip entry
+                        
                         val entryPath = langData.fileName
                         zos.putNextEntry(ZipEntry(entryPath))
-                        // Use a writer that can handle UTF-8 and proper escaping
                         val writer = OutputStreamWriter(zos, "UTF-8")
                         finalProps.store(writer, "PDTranslator Modified File")
                         writer.flush()
@@ -316,9 +307,7 @@ class TranslatorViewModel : ViewModel() {
                     }
                 }
             }
-            // Clear staged changes for the current group after successful save
             _stagedChanges.value = emptyMap()
-            // Refresh entries to show original state
             regenerateEntries()
         }
     }
@@ -364,12 +353,15 @@ class TranslatorViewModel : ViewModel() {
                 val isMissingInFile = !targetProps.containsKey(key)
                 val isStaged = _stagedChanges.value.containsKey(key)
 
-                if (isMissingInFile && !isStaged) missingCount++
-
                 val originalTargetValue = if (isMissingInFile) "" else targetProps.getProperty(key, "")
                 val finalTargetValue = _stagedChanges.value[key] ?: originalTargetValue
+                
+                val isModified = isStaged && (finalTargetValue != originalTargetValue)
+
+                if (isMissingInFile && !isStaged) missingCount++
+
                 val isIdentical = sourceValue == finalTargetValue && finalTargetValue.isNotBlank()
-                val isUntranslated = (isMissingInFile && !isStaged) || finalTargetValue.isBlank() || isIdentical
+                val isUntranslated = finalTargetValue.isBlank() || isIdentical
 
                 TranslationEntry(
                     key = key,
@@ -377,8 +369,8 @@ class TranslatorViewModel : ViewModel() {
                     targetValue = finalTargetValue,
                     originalTargetValue = originalTargetValue,
                     isUntranslated = isUntranslated,
-                    isModified = isStaged,
-                    isMissing = isMissingInFile && !isStaged, // Only missing if not in file and not staged
+                    isModified = isModified,
+                    isMissing = isMissingInFile && !isStaged,
                     isIdentical = isIdentical
                 )
             }
@@ -420,7 +412,6 @@ class TranslatorViewModel : ViewModel() {
             if (addedCount > 0) {
                 _stagedChanges.value = newStagedChanges
                 _uiEvents.send(UiEvent.ShowSnackbar("已补全 $addedCount 个缺失字段。视图已切换至“未翻译”"))
-                // Switch filter to UNTRANSLATED to show the new entries
                 filterState.value = FilterState.UNTRANSLATED
                 regenerateEntries() // Refresh the list
             } else {
