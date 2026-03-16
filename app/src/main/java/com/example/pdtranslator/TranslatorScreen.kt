@@ -245,7 +245,7 @@ fun NewTranslationCard(
                         label = { Text(stringResource(id = R.string.common_translation)) },
                         visualTransformation = keywordHighlightVisualTransformation(
                             keywords = highlightKeywords,
-                            highlightColor = MaterialTheme.colorScheme.primaryContainer
+                            highlightColor = Color.Yellow
                         )
                     )
 
@@ -265,7 +265,7 @@ fun NewTranslationCard(
 
 @Composable
 fun HighlightedText(text: String, keywords: Set<String>, modifier: Modifier = Modifier) {
-    val highlightColor = MaterialTheme.colorScheme.primaryContainer
+    val highlightColor = Color.Yellow
     if (keywords.isEmpty() || text.isBlank()) {
         Text(text, modifier = modifier, style = MaterialTheme.typography.bodyMedium)
         return

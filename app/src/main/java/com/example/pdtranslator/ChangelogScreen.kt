@@ -25,6 +25,13 @@ data class ChangelogItem(val version: String, val changes: List<String>)
 @Composable
 fun getChangelog(): List<ChangelogItem> {
     return listOf(
+        ChangelogItem("0.1.8", listOf(
+            "修复了 `_chk` 后缀无法被识别为繁体中文的问题",
+            "修复了在特定情况下，语言文件解析会崩溃的问题",
+            "新增了对 Accompanist Flow Layout 的依赖",
+            "优化了翻译页面过滤器的 UI",
+            "将关键词高亮颜色更改为黄色底纹"
+        )),
         ChangelogItem(stringResource(R.string.changelog_version_0_1_6), stringResource(R.string.changelog_content_0_1_6).split("\n")),
         ChangelogItem(stringResource(R.string.changelog_version_0_1_5), stringResource(R.string.changelog_content_0_1_5).split("\n")),
         ChangelogItem(stringResource(R.string.changelog_version_1_1_0), stringResource(R.string.changelog_content_1_1_0).split("\n")),

@@ -434,17 +434,24 @@ class TranslatorViewModel : ViewModel() {
         }
     }
 
-    private fun parseFileName(fileName: String): Pair<String, String?> {
-        val base = fileName.substringBeforeLast('.')
-        val parts = base.split('_')
-        return if (parts.size > 1) {
-            val langCode = parts.last()
-            val baseName = parts.dropLast(1).joinToString("_")
-            Pair(baseName, langCode)
-        } else {
-            Pair(base, "base")
+    private fun parseFileName(fileName: String): Pair<String, String> {
+        val nameWithoutExt = fileName.substringBeforeLast('.')
+        val lastUnderscore = nameWithoutExt.lastIndexOf('_')
+
+        if (lastUnderscore == -1 || lastUnderscore == 0) {
+            return Pair(nameWithoutExt, "base")
         }
+
+        val baseName = nameWithoutExt.substring(0, lastUnderscore)
+        var langCode = nameWithoutExt.substring(lastUnderscore + 1)
+
+        if (langCode.equals("chk", ignoreCase = true)) {
+            langCode = "zh-TW"
+        }
+
+        return Pair(baseName, langCode)
     }
+
 
     private fun getFileName(resolver: ContentResolver, uri: Uri): String? {
         return resolver.query(uri, null, null, null, null)?.use { cursor ->
@@ -452,6 +459,19 @@ class TranslatorViewModel : ViewModel() {
                 val nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
                 if (nameIndex != -1) cursor.getString(nameIndex) else null
             } else null
+        }
+    }
+
+    fun getLanguageDisplayName(code: String): String {
+        return when (code) {
+            "base" -> "基准"
+            "en" -> "英语"
+            "zh-CN" -> "简体中文"
+            "zh-TW" -> "繁體中文"
+            "ja" -> "日语"
+            "ko" -> "韩语"
+            "ru" -> "俄语"
+            else -> code
         }
     }
 }

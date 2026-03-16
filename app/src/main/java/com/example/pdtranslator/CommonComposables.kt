@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -23,9 +24,9 @@ import androidx.compose.ui.unit.dp
 
 @Composable
 fun FilterButtons(selectedFilter: FilterState, onFilterSelected: (FilterState) -> Unit) {
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         FilterState.values().forEach { state ->
-            val button: @Composable () -> Unit = {
+            val buttonText = @Composable {
                 Text(stringResource(id = when (state) {
                     FilterState.ALL -> R.string.filter_all
                     FilterState.UNTRANSLATED -> R.string.filter_untranslated
@@ -35,9 +36,19 @@ fun FilterButtons(selectedFilter: FilterState, onFilterSelected: (FilterState) -
                 }))
             }
             if (state == selectedFilter) {
-                Button(onClick = { onFilterSelected(state) }, modifier = Modifier.weight(1f), content = { button() })
+                Button(
+                    onClick = { onFilterSelected(state) },
+                    modifier = Modifier.weight(1f),
+                    shape = CircleShape,
+                    content = { buttonText() }
+                )
             } else {
-                OutlinedButton(onClick = { onFilterSelected(state) }, modifier = Modifier.weight(1f), content = { button() })
+                OutlinedButton(
+                    onClick = { onFilterSelected(state) },
+                    modifier = Modifier.weight(1f),
+                    shape = CircleShape,
+                    content = { buttonText() }
+                )
             }
         }
     }
@@ -77,14 +88,15 @@ fun LanguageSelectors(
     sourceLangCode: String?,
     targetLangCode: String?,
     onSourceSelected: (String) -> Unit,
-    onTargetSelected: (String) -> Unit
+    onTargetSelected: (String) -> Unit,
+    getDisplayName: (String) -> String
 ) {
     Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
         Box(modifier = Modifier.weight(1f)) {
-            LanguageSelector(availableLanguages, sourceLangCode, stringResource(id = R.string.config_source_language), onSourceSelected)
+            LanguageSelector(availableLanguages, sourceLangCode, stringResource(id = R.string.config_source_language), onSourceSelected, getDisplayName)
         }
         Box(modifier = Modifier.weight(1f)) {
-            LanguageSelector(availableLanguages, targetLangCode, stringResource(id = R.string.config_target_language), onTargetSelected)
+            LanguageSelector(availableLanguages, targetLangCode, stringResource(id = R.string.config_target_language), onTargetSelected, getDisplayName)
         }
     }
 }
@@ -95,14 +107,17 @@ fun LanguageSelector(
     languages: List<String>,
     selectedLanguage: String?,
     label: String,
-    onLanguageSelected: (String) -> Unit
+    onLanguageSelected: (String) -> Unit,
+    getDisplayName: (String) -> String
 ) {
     var expanded by remember { mutableStateOf(false) }
+    val selectedText = selectedLanguage?.let { getDisplayName(it) + " ($it)" } ?: ""
+
 
     ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = !expanded }) {
         OutlinedTextField(
             readOnly = true,
-            value = selectedLanguage ?: "",
+            value = selectedText,
             onValueChange = {},
             label = { Text(label) },
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
@@ -111,7 +126,8 @@ fun LanguageSelector(
         )
         ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
             languages.forEach { lang ->
-                DropdownMenuItem(text = { Text(lang) }, onClick = { onLanguageSelected(lang); expanded = false })
+                val text = getDisplayName(lang) + " ($lang)"
+                DropdownMenuItem(text = { Text(text) }, onClick = { onLanguageSelected(lang); expanded = false })
             }
         }
     }
