@@ -1,25 +1,55 @@
 package com.example.pdtranslator
 
+import android.content.ContentResolver
+import android.content.Intent
+import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.Divider
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.google.accompanist.flowlayout.FlowRow
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ConfigScreen(viewModel: TranslatorViewModel) {
     val context = LocalContext.current
+    val contentResolver = context.contentResolver
 
     val languageGroupNames by viewModel.languageGroupNames.collectAsState()
     val selectedGroupName by viewModel.selectedGroupName.collectAsState()
@@ -28,146 +58,207 @@ fun ConfigScreen(viewModel: TranslatorViewModel) {
     val targetLangCode by viewModel.targetLangCode.collectAsState()
     val isSaveEnabled by viewModel.isSaveEnabled.collectAsState()
 
-    val zipPickerLauncher = rememberLauncherForActivityResult(
+    // Launcher for single file import
+    val importLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument(),
-        onResult = { uri -> uri?.let { viewModel.loadFilesFromUris(context.contentResolver, listOf(it)) } }
+        onResult = { uri: Uri? -> uri?.let { viewModel.loadFilesFromUris(contentResolver, listOf(it)) } }
     )
-    val multipleFilesPickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.OpenMultipleDocuments(),
-        onResult = { uris -> if (uris.isNotEmpty()) viewModel.loadFilesFromUris(context.contentResolver, uris) }
+
+    // Launcher for ZIP file import
+    val importZipLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument(),
+        onResult = { uri: Uri? -> uri?.let { viewModel.loadFilesFromUris(contentResolver, listOf(it)) } }
     )
-    val saveFileLauncher = rememberLauncherForActivityResult(
+
+    // Launcher for saving the ZIP file
+    val saveZipLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("application/zip"),
-        onResult = { uri -> uri?.let { viewModel.saveChangesToZip(context.contentResolver, it) } }
+        onResult = { uri: Uri? -> uri?.let { viewModel.saveChangesToZip(contentResolver, it) } }
     )
 
-    var showImportSheet by remember { mutableStateOf(false) }
-
-    LazyColumn(
+    Column(
         modifier = Modifier
             .padding(16.dp)
-            .fillMaxSize(),
+            .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        item {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Button(onClick = { showImportSheet = true }) {
-                    Text(stringResource(id = R.string.config_import_files))
-                }
-                Button(
-                    onClick = { saveFileLauncher.launch("translation_output.zip") },
-                    enabled = isSaveEnabled
-                ) {
-                    Text(stringResource(id = R.string.config_export))
-                }
-            }
-        }
 
-        item { LanguageGroupSelector(languageGroupNames, selectedGroupName, onSelect = { viewModel.selectGroup(it) }) }
-
-        item {
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                LanguageSelector(stringResource(id = R.string.config_source_language), availableLanguages, sourceLangCode, onSelect = { viewModel.selectSourceLanguage(it) })
-                LanguageSelector(stringResource(id = R.string.config_target_language), availableLanguages, targetLangCode, onSelect = { viewModel.selectTargetLanguage(it) })
-            }
-        }
-
-        item { Divider(modifier = Modifier.padding(vertical = 8.dp)) }
-
-        item { KeywordHighlightSection(viewModel) }
-    }
-
-    if (showImportSheet) {
-        ModalBottomSheet(onDismissRequest = { showImportSheet = false }) {
+        Card {
             Column(Modifier.padding(16.dp)) {
-                Text(stringResource(id = R.string.config_import_dialog_title), style = MaterialTheme.typography.titleLarge)
+                Text(stringResource(id = R.string.config_import_files), style = MaterialTheme.typography.titleMedium)
                 Spacer(Modifier.height(16.dp))
-                Button({
-                    showImportSheet = false
-                    zipPickerLauncher.launch(arrayOf("application/zip"))
-                }, modifier = Modifier.fillMaxWidth()) {
-                    Text(stringResource(id = R.string.config_import_from_zip))
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                    OutlinedButton(onClick = { importZipLauncher.launch(arrayOf("application/zip")) }) {
+                        Text(stringResource(id = R.string.config_import_from_zip))
+                    }
+                    OutlinedButton(onClick = { importLauncher.launch(arrayOf("text/plain", "application/properties")) }) {
+                        Text(stringResource(id = R.string.config_import_from_properties))
+                    }
                 }
-                Spacer(Modifier.height(8.dp))
-                Button({
-                    showImportSheet = false
-                    multipleFilesPickerLauncher.launch(arrayOf("text/plain", "application/octet-stream"))
-                }, modifier = Modifier.fillMaxWidth()) {
-                    Text(stringResource(id = R.string.config_import_from_properties))
+            }
+        }
+
+        // Language Selection Card
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                LanguageGroupSelector(languageGroupNames, selectedGroupName) { viewModel.selectGroup(it) }
+                Spacer(Modifier.height(16.dp))
+                LanguageSelectors(availableLanguages, sourceLangCode, targetLangCode, viewModel::selectSourceLanguage, viewModel::selectTargetLanguage)
+            }
+        }
+
+        // Keyword Highlighting Card
+        KeywordHighlightingCard(viewModel)
+
+        Button(
+            onClick = {
+                val groupName = selectedGroupName ?: "Project"
+                val timestamp = System.currentTimeMillis()
+                saveZipLauncher.launch("${groupName}_${timestamp}.zip")
+            },
+            enabled = isSaveEnabled,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text(stringResource(id = R.string.config_export))
+        }
+    }
+}
+
+@Composable
+private fun KeywordHighlightingCard(viewModel: TranslatorViewModel) {
+    val highlightKeywords by viewModel.highlightKeywords.collectAsState()
+    var newKeyword by remember { mutableStateOf("") }
+
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(stringResource(id = R.string.config_keyword_highlighting_title), style = MaterialTheme.typography.titleMedium)
+            Text(stringResource(id = R.string.config_keyword_highlighting_subtitle), style = MaterialTheme.typography.bodySmall)
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                OutlinedTextField(
+                    value = newKeyword,
+                    onValueChange = { newKeyword = it },
+                    label = { Text(stringResource(id = R.string.config_add_keyword_label)) },
+                    modifier = Modifier.weight(1f)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Button(onClick = {
+                    viewModel.addHighlightKeyword(newKeyword)
+                    newKeyword = ""
+                }, enabled = newKeyword.isNotBlank()) {
+                    Icon(Icons.Default.Add, contentDescription = stringResource(id = R.string.config_add_keyword_button))
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            if (highlightKeywords.isNotEmpty()) {
+                Divider() 
+                Spacer(modifier = Modifier.height(16.dp))
+                FlowRow(
+                    mainAxisSpacing = 8.dp,
+                    crossAxisSpacing = 8.dp
+                ) {
+                    highlightKeywords.forEach { keyword ->
+                        Chip(keyword) { viewModel.removeHighlightKeyword(keyword) }
+                    }
                 }
             }
         }
     }
 }
 
-@OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
-private fun KeywordHighlightSection(viewModel: TranslatorViewModel) {
-    val keywords by viewModel.highlightKeywords.collectAsState()
-    var newKeyword by remember { mutableStateOf("") }
-
-    Column(modifier = Modifier.fillMaxWidth()) {
-        Text(
-            text = stringResource(id = R.string.config_keyword_highlighting_title),
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(bottom = 8.dp)
-        )
-        Text(
-            text = stringResource(id = R.string.config_keyword_highlighting_subtitle),
-            style = MaterialTheme.typography.bodySmall,
-            modifier = Modifier.padding(bottom = 16.dp)
-        )
-
+fun Chip(text: String, onClose: () -> Unit) {
+    Card(shape = MaterialTheme.shapes.extraLarge) {
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.padding(start = 12.dp, end = 6.dp, top = 6.dp, bottom = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
         ) {
-            OutlinedTextField(
-                value = newKeyword,
-                onValueChange = { newKeyword = it },
-                label = { Text(stringResource(id = R.string.config_add_keyword_label)) },
-                modifier = Modifier.weight(1f)
-            )
-            Button(
-                onClick = {
-                    viewModel.addHighlightKeyword(newKeyword)
-                    newKeyword = ""
-                },
-                enabled = newKeyword.isNotBlank()
-            ) {
-                Text(stringResource(id = R.string.config_add_keyword_button))
+            Text(text, style = MaterialTheme.typography.labelMedium)
+            IconButton(onClick = onClose, modifier = Modifier.height(18.dp)) {
+                Icon(Icons.Default.Close, contentDescription = stringResource(R.string.config_remove_keyword_desc, text), modifier = Modifier.height(18.dp))
             }
         }
+    }
+}
 
-        if (keywords.isNotEmpty()) {
-            Spacer(modifier = Modifier.height(16.dp))
-            FlowRow(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                keywords.forEach { keyword ->
-                    InputChip(
-                        selected = false,
-                        onClick = { /* Not needed */ },
-                        label = { Text(keyword) },
-                        trailingIcon = {
-                            Icon(
-                                imageVector = Icons.Default.Close,
-                                contentDescription = stringResource(id = R.string.config_remove_keyword_desc, keyword),
-                                modifier = Modifier
-                                    .size(InputChipDefaults.IconSize)
-                                    .clickable { viewModel.removeHighlightKeyword(keyword) }
-                            )
-                        }
-                    )
-                }
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun LanguageGroupSelector(
+    groupNames: List<String>,
+    selectedGroupName: String?,
+    onGroupSelected: (String) -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+
+    ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = !expanded }) {
+        OutlinedTextField(
+            readOnly = true,
+            value = selectedGroupName ?: stringResource(id = R.string.common_select_language_group),
+            onValueChange = {},
+            label = { Text(stringResource(id = R.string.common_language_group)) },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+            modifier = Modifier
+                .fillMaxWidth()
+                .menuAnchor(),
+            colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors()
+        )
+        ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            groupNames.forEach { name ->
+                DropdownMenuItem(text = { Text(name) }, onClick = { onGroupSelected(name); expanded = false })
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun LanguageSelectors(
+    availableLanguages: List<String>,
+    sourceLangCode: String?,
+    targetLangCode: String?,
+    onSourceSelected: (String) -> Unit,
+    onTargetSelected: (String) -> Unit
+) {
+    Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+        Box(modifier = Modifier.weight(1f)) {
+            LanguageSelector(availableLanguages, sourceLangCode, stringResource(id = R.string.config_source_language)) { onSourceSelected(it) }
+        }
+        Box(modifier = Modifier.weight(1f)) {
+            LanguageSelector(availableLanguages, targetLangCode, stringResource(id = R.string.config_target_language)) { onTargetSelected(it) }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun LanguageSelector(
+    languages: List<String>,
+    selectedLanguage: String?,
+    label: String,
+    onLanguageSelected: (String) -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+
+    ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = !expanded }) {
+        OutlinedTextField(
+            readOnly = true,
+            value = selectedLanguage ?: "",
+            onValueChange = {},
+            label = { Text(label) },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+            modifier = Modifier
+                .fillMaxWidth()
+                .menuAnchor(),
+            colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
+        )
+        ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            languages.forEach { lang ->
+                DropdownMenuItem(text = { Text(lang) }, onClick = { onLanguageSelected(lang); expanded = false })
             }
         }
     }

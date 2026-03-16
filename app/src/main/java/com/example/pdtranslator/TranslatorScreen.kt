@@ -16,6 +16,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
@@ -37,7 +38,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.SpanStyle
@@ -298,7 +298,7 @@ fun keywordHighlightVisualTransformation(keywords: Set<String>, highlightColor: 
         }
 
         val annotatedString = buildAnnotatedString {
-            append(text)
+            append(text.text)
             keywords.forEach { keyword ->
                 if (keyword.isNotBlank()) {
                     var startIndex = text.text.indexOf(keyword, ignoreCase = true)

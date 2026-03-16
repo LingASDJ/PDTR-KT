@@ -65,6 +65,7 @@ class TranslatorViewModel : ViewModel() {
     private val _themeColor = MutableStateFlow(ThemeColor.DEFAULT)
     private val _isSearchCardVisible = MutableStateFlow(true)
     private val _missingEntriesCount = MutableStateFlow(0)
+    private val _highlightKeywords = MutableStateFlow<Set<String>>(emptySet())
 
     // --- UI Events Channel ---
     private val _uiEvents = Channel<UiEvent>()
@@ -77,6 +78,7 @@ class TranslatorViewModel : ViewModel() {
     val stagedChanges = _stagedChanges.asStateFlow()
     val isSearchCardVisible = _isSearchCardVisible.asStateFlow()
     val missingEntriesCount = _missingEntriesCount.asStateFlow()
+    val highlightKeywords = _highlightKeywords.asStateFlow()
 
     val selectedGroupName = MutableStateFlow<String?>(null)
     val sourceLangCode = MutableStateFlow<String?>(null)
@@ -173,6 +175,16 @@ class TranslatorViewModel : ViewModel() {
     }
 
     // --- Public Intent Functions ---
+
+    fun addHighlightKeyword(keyword: String) {
+        if (keyword.isNotBlank()) {
+            _highlightKeywords.update { it + keyword.trim() }
+        }
+    }
+
+    fun removeHighlightKeyword(keyword: String) {
+        _highlightKeywords.update { it - keyword }
+    }
 
     fun setSearchQuery(query: String) { searchQuery.value = query }
     fun setReplaceQuery(query: String) { replaceQuery.value = query }
