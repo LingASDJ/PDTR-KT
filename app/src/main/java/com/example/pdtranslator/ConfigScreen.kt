@@ -1,12 +1,10 @@
 package com.example.pdtranslator
 
 import android.content.ContentResolver
-import android.content.Intent
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -22,10 +20,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.Divider
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExposedDropdownMenuBox
-import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -101,7 +96,7 @@ fun ConfigScreen(viewModel: TranslatorViewModel) {
         // Language Selection Card
         Card(modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.padding(16.dp)) {
-                LanguageGroupSelector(languageGroupNames, selectedGroupName) { viewModel.selectGroup(it) }
+                LanguageGroupSelector(languageGroupNames, selectedGroupName, viewModel::selectGroup)
                 Spacer(Modifier.height(16.dp))
                 LanguageSelectors(availableLanguages, sourceLangCode, targetLangCode, viewModel::selectSourceLanguage, viewModel::selectTargetLanguage)
             }
@@ -154,7 +149,7 @@ private fun KeywordHighlightingCard(viewModel: TranslatorViewModel) {
             Spacer(modifier = Modifier.height(16.dp))
 
             if (highlightKeywords.isNotEmpty()) {
-                Divider() 
+                Divider()
                 Spacer(modifier = Modifier.height(16.dp))
                 FlowRow(
                     mainAxisSpacing = 8.dp,
@@ -180,85 +175,6 @@ fun Chip(text: String, onClose: () -> Unit) {
             Text(text, style = MaterialTheme.typography.labelMedium)
             IconButton(onClick = onClose, modifier = Modifier.height(18.dp)) {
                 Icon(Icons.Default.Close, contentDescription = stringResource(R.string.config_remove_keyword_desc, text), modifier = Modifier.height(18.dp))
-            }
-        }
-    }
-}
-
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun LanguageGroupSelector(
-    groupNames: List<String>,
-    selectedGroupName: String?,
-    onGroupSelected: (String) -> Unit
-) {
-    var expanded by remember { mutableStateOf(false) }
-
-    ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = !expanded }) {
-        OutlinedTextField(
-            readOnly = true,
-            value = selectedGroupName ?: stringResource(id = R.string.common_select_language_group),
-            onValueChange = {},
-            label = { Text(stringResource(id = R.string.common_language_group)) },
-            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-            modifier = Modifier
-                .fillMaxWidth()
-                .menuAnchor(),
-            colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors()
-        )
-        ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-            groupNames.forEach { name ->
-                DropdownMenuItem(text = { Text(name) }, onClick = { onGroupSelected(name); expanded = false })
-            }
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun LanguageSelectors(
-    availableLanguages: List<String>,
-    sourceLangCode: String?,
-    targetLangCode: String?,
-    onSourceSelected: (String) -> Unit,
-    onTargetSelected: (String) -> Unit
-) {
-    Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-        Box(modifier = Modifier.weight(1f)) {
-            LanguageSelector(availableLanguages, sourceLangCode, stringResource(id = R.string.config_source_language)) { onSourceSelected(it) }
-        }
-        Box(modifier = Modifier.weight(1f)) {
-            LanguageSelector(availableLanguages, targetLangCode, stringResource(id = R.string.config_target_language)) { onTargetSelected(it) }
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun LanguageSelector(
-    languages: List<String>,
-    selectedLanguage: String?,
-    label: String,
-    onLanguageSelected: (String) -> Unit
-) {
-    var expanded by remember { mutableStateOf(false) }
-
-    ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = !expanded }) {
-        OutlinedTextField(
-            readOnly = true,
-            value = selectedLanguage ?: "",
-            onValueChange = {},
-            label = { Text(label) },
-            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-            modifier = Modifier
-                .fillMaxWidth()
-                .menuAnchor(),
-            colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
-        )
-        ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-            languages.forEach { lang ->
-                DropdownMenuItem(text = { Text(lang) }, onClick = { onLanguageSelected(lang); expanded = false })
             }
         }
     }
