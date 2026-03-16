@@ -53,7 +53,7 @@
 
     <!-- About Dialog -->
     <string name="about_us_dialog_title">关于我们</string>
-    <string name="about_us_dialog_content">本应用由指挥官JDSALing构思和指导，由Gemini AI具体编码实现。\n\n您的想法，我的代码，我们共同创造！\n\n</string>
+    <string name="about_us_dialog_content">本应用由JDSALing指导Gemini AI具体编码实现，参考了Renyunhao的PropertiesLocalizationTool项目。\n\n仅供学习交流，请勿使用于其他用途。\n\n</string>
     <string name="about_us_dialog_repo_link">我们的GitHub仓库</string>
     <string name="about_us_dialog_visit_repo_button">访问仓库</string>
     <string name="dialog_close_button">关闭</string>
@@ -68,16 +68,15 @@
     <string name="language_chinese">简体中文</string>
     <string name="language_english">English</string>
 
+
     <!-- Changelog Screen -->
     <string name="changelog_title">更新记录</string>
-    <string name="changelog_version_0_1_0">v0.1.0</string>
-    <string name="changelog_content_0_1_0">- 初版发布。</string>
-    <string name="changelog_version_1_0_0">1.0.0 - 主要更新</string>
+    <string name="changelog_version_0_1_0">v0.1.0 - 基础构建</string>
+    <string name="changelog_content_0_1_0">- 通过FireBase Studio，指导AI通过Kotlin进行基础框架制作</string>
+    <string name="changelog_version_1_0_0">v0.1.1 - 主要更新</string>
     <string name="changelog_content_1_0_0">- 完成基础翻译功能。</string>
-    <string name="changelog_version_1_0_1">1.0.1 - 国际化</string>
-    <string name="changelog_content_1_0_1">- 新增中英文语言切换。\n- 优化设置页面布局。</string>
-    <string name="changelog_version_1_1_0">1.1.0 - 谷歌翻译集成</string>
-    <string name="changelog_content_1_1_0">- 根据用户提供的C#版本，重新实现并集成了谷歌翻译引擎。\n- 为每个翻译条目卡片添加了一键翻译按钮，实现即时翻译。\n- 重构并精简了翻译引擎模块，移除了旧的引擎，专注于单一、强大的实现。</string>
+    <string name="changelog_version_1_0_1">v0.1.2 - 布局优化</string>
+    <string name="changelog_content_1_0_1">- 优化设置页面布局。</string>
 
     <!-- Libraries -->
     <string name="lib_kotlin_name">Kotlin</string>
