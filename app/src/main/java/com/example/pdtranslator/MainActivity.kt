@@ -1,4 +1,3 @@
-
 package com.example.pdtranslator
 
 import android.content.Context
@@ -7,10 +6,16 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import com.example.pdtranslator.ui.theme.PDTranslatorTheme
+import kotlinx.coroutines.launch
 import java.util.Locale
 
 class MainActivity : ComponentActivity() {
@@ -23,11 +28,22 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             val themeColor by viewModel.themeColor.collectAsState()
+            val snackbarHostState = remember { SnackbarHostState() }
+            val scope = rememberCoroutineScope()
+
             PDTranslatorTheme(themeColor = themeColor) {
-                AppNavigator(
-                    viewModel = viewModel,
-                    onLanguageSelected = { lang -> setLocale(lang) }
-                )
+                Scaffold(
+                    snackbarHost = { SnackbarHost(hostState = snackbarHostState) }
+                ) {
+                    AppNavigator(
+                        viewModel = viewModel,
+                        paddingValues = it,
+                        onLanguageSelected = { lang -> setLocale(lang) },
+                        onShowSnackbar = { message ->
+                            scope.launch { snackbarHostState.showSnackbar(message) }
+                        }
+                    )
+                }
             }
         }
     }

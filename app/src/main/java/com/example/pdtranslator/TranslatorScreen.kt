@@ -1,13 +1,10 @@
-
 package com.example.pdtranslator
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDropDown
@@ -18,9 +15,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.flow.collectLatest
 
 @Composable
-fun TranslatorScreen(viewModel: TranslatorViewModel) {
+fun TranslatorScreen(viewModel: TranslatorViewModel, onShowSnackbar: suspend (String) -> Unit) {
     val displayEntries by viewModel.displayEntries.collectAsState()
     val filterState by viewModel.filterState.collectAsState()
     val currentPage by viewModel.currentPage.collectAsState()
@@ -28,6 +26,14 @@ fun TranslatorScreen(viewModel: TranslatorViewModel) {
     val infoBarText by viewModel.infoBarText.collectAsState()
     val isSearchCardVisible by viewModel.isSearchCardVisible.collectAsState()
     val missingEntriesCount by viewModel.missingEntriesCount.collectAsState()
+
+    LaunchedEffect(key1 = true) {
+        viewModel.uiEvents.collectLatest {
+            when(it) {
+                is UiEvent.ShowSnackbar -> onShowSnackbar(it.message)
+            }
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -74,7 +80,6 @@ fun TranslatorScreen(viewModel: TranslatorViewModel) {
                     Text("补全缺失字段")
                 }
             }
-
         } else {
             LazyColumn(
                 modifier = Modifier.weight(1f),
@@ -177,28 +182,27 @@ fun NewTranslationCard(
                     )
                 }
             }
-            Spacer(modifier = Modifier.height(8.dp))
+            Divider(modifier = Modifier.padding(vertical = 8.dp))
 
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                Box(modifier = Modifier.weight(1f)) {
-                     Text(entry.sourceValue, modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(8.dp), maxLines = 1)
-                }
+            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(entry.sourceValue, style = MaterialTheme.typography.bodyMedium)
                 
-                OutlinedTextField(
-                    value = currentText,
-                    onValueChange = { currentText = it },
-                    modifier = Modifier.weight(1f),
-                    label = { Text(stringResource(id = R.string.common_translation)) },
-                    singleLine = true
-                )
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(
+                        value = currentText,
+                        onValueChange = { currentText = it },
+                        modifier = Modifier.weight(1f),
+                        label = { Text(stringResource(id = R.string.common_translation)) },
+                    )
 
-                if (entry.isModified) {
-                    IconButton(onClick = onDiscard) {
-                        Icon(painter = painterResource(id = R.drawable.ic_discard), contentDescription = "Discard Changes")
-                    }
-                } else {
-                    IconButton(onClick = { onSave(currentText) }, enabled = currentText != entry.originalTargetValue) {
-                        Icon(painter = painterResource(id = R.drawable.ic_save), contentDescription = "Save Changes")
+                    if (entry.isModified) {
+                        IconButton(onClick = onDiscard) {
+                            Icon(painter = painterResource(id = R.drawable.ic_discard), contentDescription = "Discard Changes")
+                        }
+                    } else {
+                        IconButton(onClick = { onSave(currentText) }, enabled = currentText != entry.originalTargetValue) {
+                            Icon(painter = painterResource(id = R.drawable.ic_save), contentDescription = "Save Changes")
+                        }
                     }
                 }
             }

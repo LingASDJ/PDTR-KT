@@ -6,9 +6,11 @@ import android.provider.OpenableColumns
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.io.BufferedReader
@@ -19,6 +21,11 @@ import java.util.Properties
 import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
+
+// --- UI Events ---
+sealed class UiEvent {
+    data class ShowSnackbar(val message: String) : UiEvent()
+}
 
 // --- Data Classes & Enums ---
 
@@ -59,6 +66,9 @@ class TranslatorViewModel : ViewModel() {
     private val _isSearchCardVisible = MutableStateFlow(true)
     private val _missingEntriesCount = MutableStateFlow(0)
 
+    // --- UI Events Channel ---
+    private val _uiEvents = Channel<UiEvent>()
+    val uiEvents = _uiEvents.receiveAsFlow()
 
     // --- UI State Exposed as StateFlows ---
     val languageGroupNames = MutableStateFlow<List<String>>(emptyList())
@@ -115,10 +125,10 @@ class TranslatorViewModel : ViewModel() {
                 val filtered = processedEntries.filter { entry ->
                     val matchesFilter = when (filter) {
                         FilterState.ALL -> true
-                        FilterState.UNTRANSLATED -> entry.isUntranslated
+                        FilterState.UNTRANSLATED -> entry.isUntranslated || (entry.isMissing && staged.containsKey(entry.key))
                         FilterState.TRANSLATED -> !entry.isUntranslated && !entry.isMissing
-                        FilterState.MODIFIED -> entry.isModified // Relies on the mapping above
-                        FilterState.MISSING -> entry.isMissing
+                        FilterState.MODIFIED -> entry.isModified
+                        FilterState.MISSING -> entry.isMissing && !staged.containsKey(entry.key)
                     }
 
                     val matchesSearch = if (search.isBlank()) {
@@ -170,11 +180,8 @@ class TranslatorViewModel : ViewModel() {
     fun setFilter(filter: FilterState) {
         filterState.value = filter
         currentPage.value = 1
-        if (filter == FilterState.MISSING) {
-            regenerateEntriesForMissing()
-        } else {
-            regenerateEntries()
-        }
+        // Regenerate entries when the filter changes to ensure the list is correct.
+        regenerateEntries()
     }
     fun nextPage() { if (currentPage.value < totalPages.value) currentPage.value++ }
     fun previousPage() { if (currentPage.value > 1) currentPage.value-- }
@@ -346,17 +353,23 @@ class TranslatorViewModel : ViewModel() {
             val sourceProps = group.languages[sourceCode]?.properties ?: Properties()
             val targetProps = group.languages[targetCode]?.properties ?: Properties()
 
-            val sortedKeys = (sourceProps.keys + targetProps.keys).mapNotNull { it as? String }.distinct().sorted()
+            val allKeys = (sourceProps.keys + targetProps.keys).mapNotNull { it as? String }.distinct()
+            val stagedKeys = _stagedChanges.value.keys
+            val sortedKeys = (allKeys + stagedKeys).distinct().sorted()
+
 
             var missingCount = 0
             val newEntries = sortedKeys.map { key ->
                 val sourceValue = sourceProps.getProperty(key, "")
-                val isMissing = !targetProps.containsKey(key)
-                if (isMissing) missingCount++
-                val originalTargetValue = if (isMissing) "" else targetProps.getProperty(key, "")
-                val finalTargetValue = originalTargetValue
+                val isMissingInFile = !targetProps.containsKey(key)
+                val isStaged = _stagedChanges.value.containsKey(key)
+
+                if (isMissingInFile && !isStaged) missingCount++
+
+                val originalTargetValue = if (isMissingInFile) "" else targetProps.getProperty(key, "")
+                val finalTargetValue = _stagedChanges.value[key] ?: originalTargetValue
                 val isIdentical = sourceValue == finalTargetValue && finalTargetValue.isNotBlank()
-                val isUntranslated = !isMissing && (finalTargetValue.isBlank() || isIdentical)
+                val isUntranslated = (isMissingInFile && !isStaged) || finalTargetValue.isBlank() || isIdentical
 
                 TranslationEntry(
                     key = key,
@@ -364,8 +377,8 @@ class TranslatorViewModel : ViewModel() {
                     targetValue = finalTargetValue,
                     originalTargetValue = originalTargetValue,
                     isUntranslated = isUntranslated,
-                    isModified = false, // Base state is not modified, UI will derive from staged changes
-                    isMissing = isMissing,
+                    isModified = isStaged,
+                    isMissing = isMissingInFile && !isStaged, // Only missing if not in file and not staged
                     isIdentical = isIdentical
                 )
             }
@@ -374,50 +387,50 @@ class TranslatorViewModel : ViewModel() {
         }
     }
 
-    private fun regenerateEntriesForMissing() {
-        val sourceCode = sourceLangCode.value
-        val targetCode = targetLangCode.value
-        val group = _languageGroups.value.find { it.name == selectedGroupName.value }
-
-        if (sourceCode == null || targetCode == null || group == null) {
-            _allEntries.value = emptyList()
-            return
-        }
-
+    fun fillMissingEntries() {
         viewModelScope.launch(Dispatchers.Default) {
+            val sourceCode = sourceLangCode.value
+            val targetCode = targetLangCode.value
+            val group = _languageGroups.value.find { it.name == selectedGroupName.value }
+
+            if (sourceCode == null || targetCode == null || group == null) return@launch
+
             val sourceProps = group.languages[sourceCode]?.properties ?: Properties()
             val targetProps = group.languages[targetCode]?.properties ?: Properties()
 
-            val missingEntries = sourceProps.keys.mapNotNull { it as? String }
+            val missingKeys = sourceProps.keys.mapNotNull { it as? String }
                 .filter { !targetProps.containsKey(it) }
-                .sorted()
-                .map { key ->
-                    TranslationEntry(
-                        key = key,
-                        sourceValue = sourceProps.getProperty(key, ""),
-                        targetValue = "",
-                        originalTargetValue = "",
-                        isUntranslated = true,
-                        isModified = false,
-                        isMissing = true,
-                        isIdentical = false
-                    )
+
+            if (missingKeys.isEmpty()) {
+                _uiEvents.send(UiEvent.ShowSnackbar("没有发现缺失的字段。"))
+                return@launch
+            }
+
+            val currentStaged = _stagedChanges.value
+            val newStagedChanges = currentStaged.toMutableMap()
+            var addedCount = 0
+
+            missingKeys.forEach { key ->
+                if (!currentStaged.containsKey(key)) {
+                    newStagedChanges[key] = "" // Add empty string for the missing key
+                    addedCount++
                 }
-            _allEntries.value = missingEntries
+            }
+
+            if (addedCount > 0) {
+                _stagedChanges.value = newStagedChanges
+                _uiEvents.send(UiEvent.ShowSnackbar("已补全 $addedCount 个缺失字段。视图已切换至“未翻译”"))
+                // Switch filter to UNTRANSLATED to show the new entries
+                filterState.value = FilterState.UNTRANSLATED
+                regenerateEntries() // Refresh the list
+            } else {
+                 _uiEvents.send(UiEvent.ShowSnackbar("所有缺失字段已在暂存区。视图已切换至“未翻译”"))
+                 filterState.value = FilterState.UNTRANSLATED
+                 regenerateEntries() // Refresh the list
+            }
         }
     }
 
-    fun fillMissingEntries() {
-        viewModelScope.launch(Dispatchers.Default) {
-            val missingEntries = _allEntries.value.filter { it.isMissing }
-            val newStagedChanges = _stagedChanges.value.toMutableMap()
-            missingEntries.forEach { entry ->
-                newStagedChanges[entry.key] = ""
-            }
-            _stagedChanges.value = newStagedChanges
-        }
-    }
-    
     private fun parseFileName(fileName: String): Pair<String, String?> {
         val base = fileName.substringBeforeLast('.')
         val parts = base.split('_')
