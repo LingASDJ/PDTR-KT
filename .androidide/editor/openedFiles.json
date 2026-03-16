@@ -1,7 +1,7 @@
 {
   "allFiles": [
     {
-      "file": "/storage/emulated/0/AndroidIDEProjects/PDTR-KT/build.gradle.kts",
+      "file": "/storage/emulated/0/AndroidIDEProjects/PDTR-KT/app/src/main/res/values-zh-rCN/strings.xml",
       "selection": {
         "end": {
           "column": 0,
@@ -12,36 +12,6 @@
           "column": 0,
           "index": 0,
           "line": 0
-        }
-      }
-    },
-    {
-      "file": "/storage/emulated/0/AndroidIDEProjects/PDTR-KT/app/build.gradle.kts",
-      "selection": {
-        "end": {
-          "column": 0,
-          "index": 0,
-          "line": 0
-        },
-        "start": {
-          "column": 0,
-          "index": 0,
-          "line": 0
-        }
-      }
-    },
-    {
-      "file": "/storage/emulated/0/AndroidIDEProjects/PDTR-KT/app/src/main/java/com/example/pdtranslator/AppNavigator.kt",
-      "selection": {
-        "end": {
-          "column": 34,
-          "index": 1560,
-          "line": 42
-        },
-        "start": {
-          "column": 34,
-          "index": 1560,
-          "line": 42
         }
       }
     },
@@ -49,47 +19,17 @@
       "file": "/storage/emulated/0/AndroidIDEProjects/PDTR-KT/app/src/main/res/values/strings.xml",
       "selection": {
         "end": {
-          "column": 0,
-          "index": 7859,
-          "line": 122
+          "column": 44,
+          "index": 4013,
+          "line": 70
         },
         "start": {
-          "column": 0,
-          "index": 0,
-          "line": 0
-        }
-      }
-    },
-    {
-      "file": "/storage/emulated/0/AndroidIDEProjects/PDTR-KT/app/src/main/java/com/example/pdtranslator/SettingsScreen.kt",
-      "selection": {
-        "end": {
-          "column": 0,
-          "index": 0,
-          "line": 0
-        },
-        "start": {
-          "column": 0,
-          "index": 0,
-          "line": 0
-        }
-      }
-    },
-    {
-      "file": "/storage/emulated/0/AndroidIDEProjects/PDTR-KT/app/src/main/res/values-zh-rCN/strings.xml",
-      "selection": {
-        "end": {
-          "column": 42,
-          "index": 6353,
-          "line": 120
-        },
-        "start": {
-          "column": 42,
-          "index": 6353,
-          "line": 120
+          "column": 44,
+          "index": 4013,
+          "line": 70
         }
       }
     }
   ],
-  "selectedFile": "/storage/emulated/0/AndroidIDEProjects/PDTR-KT/app/src/main/res/values-zh-rCN/strings.xml"
+  "selectedFile": "/storage/emulated/0/AndroidIDEProjects/PDTR-KT/app/src/main/res/values/strings.xml"
 }

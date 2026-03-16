@@ -3,7 +3,7 @@
     <string name="app_name">PD-Translator</string>
 
     <!-- Screen Titles -->
-    <string name="screen_title_config">基础配置</string>
+    <string name="screen_title_config">Configuration</string>
     <string name="screen_title_translator">Translator</string>
     <string name="screen_title_settings">Settings</string>
 
@@ -16,8 +16,8 @@
     <string name="config_import_from_zip">From ZIP file</string>
     <string name="config_import_from_properties">From .properties file</string>
     <string name="config_keyword_highlighting_title">Keyword Highlighting</string>
-    <string name="config_keyword_highlighting_subtitle">Add keywords to be highlighted in the translator.</string>
-    <string name="config_add_keyword_label">Add a keyword</string>
+    <string name="config_keyword_highlighting_subtitle">Added keywords will be highlighted in the translator.</string>
+    <string name="config_add_keyword_label">Add Keyword</string>
     <string name="config_add_keyword_button">Add</string>
     <string name="config_remove_keyword_desc">Remove %1$s</string>
 
@@ -68,7 +68,7 @@
 
     <!-- About Dialog -->
     <string name="about_us_dialog_title">About Us</string>
-    <string name="about_us_dialog_content">This app was developed by JDSALing, with specific coding implemented by Gemini AI, referencing Renyunhao's PropertiesLocalizationTool project.\n\nFor learning and communication purposes only. Please do not use for other purposes.</string>
+    <string name="about_us_dialog_content">F</string>
     <string name="about_us_dialog_repo_link">Our GitHub Repository</string>
     <string name="about_us_dialog_visit_repo_button">Visit Repository</string>
     <string name="dialog_close_button">Close</string>
@@ -83,11 +83,10 @@
     <string name="language_chinese">简体中文</string>
     <string name="language_english">English</string>
 
-
     <!-- Changelog Screen -->
     <string name="changelog_title">Changelog</string>
     <string name="changelog_version_0_1_0">v0.1.0 - Basic Build</string>
-    <string name="changelog_content_0_1_0">- Basic framework created with Kotlin guided by Gemini AI through Firebase Studio.</string>
+    <string name="changelog_content_0_1_0">- Basic framework created with Kotlin guided by Gemini AI in Firebase Studio.</string>
     <string name="changelog_version_1_0_0">v0.1.1 - Major Update</string>
     <string name="changelog_content_1_0_0">- Completed basic translation functions.</string>
     <string name="changelog_version_1_0_1">v0.1.2 - Layout Optimization</string>
@@ -101,7 +100,7 @@
     <string name="changelog_version_0_1_6">v0.1.6</string>
     <string name="changelog_content_0_1_6">- Fixed compilation errors.\n- Replaced splash screen icon with app icon.\n- Updated version code to 10 and version name to 0.1.6.</string>
     <string name="changelog_version_0_1_7">v0.1.7</string>
-    <string name="changelog_content_0_1_7">- Added keyword highlighting.\n- Optimized editing experience.</string>
+    <string name="changelog_content_0_1_7">- Added keyword highlighting feature.\n- Optimized editing experience.</string>
 
     <!-- Libraries -->
     <string name="lib_kotlin_name">Kotlin</string>
