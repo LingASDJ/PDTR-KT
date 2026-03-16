@@ -213,7 +213,10 @@ class TranslatorViewModel : ViewModel() {
         if (langCode != null) {
             resolver.openInputStream(uri)?.use { stream ->
                 val content = BufferedReader(InputStreamReader(stream)).readText()
-                val preprocessedContent = content.replace(Regex("\\u(?![0-9a-fA-F]{4})"), "\\u")
+                // The original regex had a syntax error because '\\u' was interpreted as an invalid
+                // escape sequence by the regex engine. To match a literal backslash, the regex needs '\\',
+                // which requires four backslashes in the Kotlin string literal ("\\\\").
+                val preprocessedContent = content.replace(Regex("\\\\u(?![0-9a-fA-F]{4})"), "\\\\u")
                 try {
                     val props = Properties().apply { load(StringReader(preprocessedContent)) }
                     groups.getOrPut(baseName) { mutableMapOf() }[langCode] = LanguageData(fileName, props)
