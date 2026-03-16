@@ -1,137 +1,116 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">PD-Translator</string>
-    <string name="navigation_translator">翻译器</string>
-    <string name="navigation_config">配置</string>
-    <string name="navigation_changelog">更新日志</string>
-    <string name="navigation_about">关于</string>
+
+    <!-- Screen Titles -->
+    <string name="screen_title_config">Configuration</string>
+    <string name="screen_title_translator">Translator</string>
+    <string name="screen_title_settings">Settings</string>
 
     <!-- Config Screen -->
-    <string name="config_import_files">导入文件</string>
-    <string name="config_save">保存</string>
-    <string name="config_language_group">语言组</string>
-    <string name="config_source_language">源语言</string>
-    <string name="config_target_language">目标语言</string>
-    <string name="config_import_dialog_title">你想如何导入？</string>
-    <string name="config_import_from_zip">从Zip文件</string>
-    <string name="config_import_from_properties">从.properties文件</string>
+    <string name="config_import_files">Import Files</string>
+    <string name="config_save">Save</string>
+    <string name="config_source_language">Source Language</string>
+    <string name="config_target_language">Target Language</string>
+    <string name="config_import_dialog_title">How do you want to import?</string>
+    <string name="config_import_from_zip">From ZIP file</string>
+    <string name="config_import_from_properties">From .properties file</string>
 
     <!-- Translator Screen -->
-    <string name="translator_progress_info">语言组总条目: %1$d</string>
-    <string name="translator_translation_progress">翻译进度: %1$d%%</string>
-    <string name="translator_identical_warning">(源文本和目标文本相同)</string>
+    <string name="translator_search_placeholder">Search (Key or Original Text)</string>
+    <string name="translator_complete_missing">Complete Missing Fields</string>
+    <string name="translator_progress">Translation Progress</string>
+    <string name="translator_progress_info">Total entries in language group: %1$d</string>
+    <string name="translator_translation_progress">Translation Progress: %1$d%%</string>
+    <string name="translator_identical_warning">(Source and target text are identical)</string>
 
-    <!-- Filter Buttons -->
-    <string name="filter_all">全部</string>
-    <string name="filter_untranslated">未翻译</string>
-    <string name="filter_translated">已翻译</string>
-    <string name="filter_modified">已修改</string>
-    <string name="filter_missing">缺失</string>
+    <!-- Common Composables -->
+    <string name="common_select_language_group">Select a language group</string>
+    <string name="common_language_group">Language Group</string>
+    <string name="common_translation">Translation</string>
+    <string name="pagination_previous">Previous</string>
+    <string name="pagination_next">Next</string>
+    <string name="pagination_page_info">Page %1$d / %2$d</string>
 
-    <!-- About Dialog -->
-    <string name="about_title">关于PD-Translator</string>
-    <string name="about_version">版本 %1$s</string>
-    <string name="about_description">PD-Translator 是一款专为 Paradox Development Studio 游戏设计的翻译工具，旨在简化 EU4 和 HOI4 等游戏的本地化文件（.yml 或 .properties）的翻译流程。</string>
-    <string name="about_developer_title">开发者</string>
-    <string name="about_developer_name">Ling</string>
-    <string name="about_github_button">在 Github 上查看</string>
-    <string name="about_feedback_button">发送反馈</string>
-    <string name="about_dismiss_button">关闭</string>
-    
-    <!-- Changelog -->
-    <string name="changelog_title">更新日志</string>
-    <string name="changelog_version_1_1_0">v0.1.4 - 初步发布</string>
-    <string name="changelog_content_1_1_0">
-        - 增加了可折叠的搜索栏
-
-        - 增加了暂存更改的功能
-
-        - 修复了几个bug
-    </string>
-    <string name="changelog_version_1_0_2">v0.1.3 - 导入修复</string>
-    <string name="changelog_content_1_0_2">
-        - 修复了当文件在子目录中时，zip导入无法正常工作的问题
-
-        - 修复了当更改语言组时，语言选择没有被重置的问题
-
-        - 修复了当没有加载文件时，信息栏显示不正确的问题
-    </string>
-    <string name="changelog_version_1_0_1">1.0.1</string>
-    <string name="changelog_content_1_0_1">
-        - 改进了分页逻辑
-
-        - 修复了当没有文件加载时，搜索栏可见的问题
-
-        - 修复了当没有文件加载时，过滤器按钮可见的问题
-    </string>
-    <string name="changelog_version_1_0_0">1.0.0</string>
-    <string name="changelog_content_1_0_0">初始版本</string>
-    <string name="changelog_version_0_1_0">0.1.0</string>
-    <string name="changelog_content_0_1_0">预发布版本</string>
-
-
-    <!-- Common -->
-    <string name="common_translation">翻译</string>
-    <string name="common_select_language_group">选择语言组</string>
-    <string name="common_language_group">语言组</string>
-    <string name="source_language">源语言</string>
-
-    <!-- Pagination -->
-    <string name="pagination_previous">上一页</string>
-    <string name="pagination_page_info">第 %1$d / %2$d 页</string>
-    <string name="pagination_next">下一页</string>
-
-    <!-- Dependency Screen -->
-    <string name="lib_kotlin_name">Kotlin</string>
-    <string name="lib_kotlin_desc">官方的 Kotlin 库</string>
-    <string name="lib_crash_name">CustomActivityOnCrash</string>
-    <string name="lib_crash_desc">一个用于在应用崩溃时显示自定义活动的安卓库</string>
-    <string name="lib_nav_compose_name">Navigation Compose</string>
-    <string name="lib_nav_compose_desc">用于在 Jetpack Compose 中导航的官方库</string>
-    <string name="lib_core_ktx_name">Core KTX</string>
-    <string name="lib_core_ktx_desc">为安卓核心库提供 Kotlin 扩展</string>
-    <string name="lib_splashscreen_name">SplashScreen API</string>
-    <string name="lib_splashscreen_desc">用于创建启动画面的官方 API</string>
-    <string name="lib_lifecycle_name">Lifecycle</string>
-    <string name="lib_lifecycle_desc">用于管理应用生命周期的官方库</string>
-    <string name="lib_activity_compose_name">Activity Compose</string>
-    <string name="lib_activity_compose_desc">Jetpack Activity 库的 Compose 集成</string>
-    <string name="lib_compose_name">Jetpack Compose</string>
-    <string name="lib_compose_desc">安卓现代化的声明式 UI 工具包</string>
-    <string name="lib_accompanist_name">Accompanist</string>
-    <string name="lib_accompanist_desc">一组库，用于补充 Jetpack Compose</string>
-    <string name="source_code_license_title">源代码和许可证</string>
-    <string name="back_button_description">返回</string>
-    <string name="visit_link_description">访问链接</string>
-
-    <!-- Main Screen -->
-    <string name="screen_title_config">配置</string>
-    <string name="screen_title_translator">翻译器</string>
-    <string name="screen_title_settings">设置</string>
+    <!-- Filter States -->
+    <string name="filter_all">All</string>
+    <string name="filter_untranslated">Untranslated</string>
+    <string name="filter_translated">Translated</string>
+    <string name="filter_modified">Modified</string>
+    <string name="filter_missing">Missing</string>
 
     <!-- Settings Screen -->
-    <string name="settings_section_general">通用</string>
-    <string name="settings_section_about">关于</string>
-    <string name="settings_item_theme_color">主题颜色</string>
-    <string name="settings_item_theme_color_subtitle">更改应用的主题颜色</string>
-    <string name="theme_name_default">默认</string>
-    <string name="theme_name_m3">Material 3</string>
-    <string name="theme_name_green">绿色</string>
-    <string name="theme_name_lavender">薰衣草紫</string>
-    <string name="dialog_close_button">关闭</string>
-    <string name="settings_item_language">语言</string>
-    <string name="settings_item_language_subtitle">更改应用的显示语言</string>
-    <string name="settings_item_source_code_license">源代码和许可证</string>
-    <string name="settings_item_source_code_license_subtitle">查看开源库</string>
-    <string name="settings_item_changelog">更新日志</string>
-    <string name="settings_item_changelog_subtitle">查看应用版本的更改</string>
-    <string name="settings_item_about_us">关于我们</string>
-    <string name="settings_item_about_us_subtitle">了解更多关于应用的信息</string>
-    <string name="about_us_dialog_title">关于 PD-Translator</string>
-    <string name="about_us_dialog_content">PD-Translator 是一款专为 Paradox Development Studio 游戏设计的翻译工具，旨在简化 EU4 和 HOI4 等游戏的本地化文件（.yml 或 .properties）的翻译流程。</string>
-    <string name="about_us_dialog_repo_link">https://github.com/LingASDJ/PDTR-KT</string>
-    <string name="about_us_dialog_visit_repo_button">访问代码仓库</string>
-    <string name="language_dialog_title">选择语言</string>
-    <string name="language_chinese">中文</string>
+    <string name="settings_section_general">General</string>
+    <string name="settings_section_about">About</string>
+    <string name="settings_item_language">Language</string>
+    <string name="settings_item_language_subtitle">Change the display language of the app</string>
+    <string name="settings_item_theme_color">Theme Color</string>
+    <string name="settings_item_theme_color_subtitle">Customize the theme color of the app</string>
+    <string name="settings_item_translation_engine">Translation Engine</string>
+    <string name="settings_item_translation_engine_subtitle">Choose the online service for translation</string>
+    <string name="settings_item_source_code_license">Source Code License</string>
+    <string name="settings_item_source_code_license_subtitle">View the open source libraries used by the app</string>
+    <string name="settings_item_about_us">About Us</string>
+    <string name="settings_item_about_us_subtitle">Learn the story behind this app</string>
+    <string name="settings_item_changelog">Changelog</string>
+    <string name="settings_item_changelog_subtitle">View the version history and updates of the app</string>
+
+    <!-- About Dialog -->
+    <string name="about_us_dialog_title">About Us</string>
+    <string name="about_us_dialog_content">This app was developed by JDSALing, with specific coding implemented by Gemini AI, referencing Renyunhao's PropertiesLocalizationTool project.\n\nFor learning and communication purposes only. Please do not use for other purposes.</string>
+    <string name="about_us_dialog_repo_link">Our GitHub Repository</string>
+    <string name="about_us_dialog_visit_repo_button">Visit Repository</string>
+    <string name="dialog_close_button">Close</string>
+
+    <!-- Dependency Screen -->
+    <string name="source_code_license_title">Source Code and Licenses</string>
+    <string name="back_button_description">Back</string>
+    <string name="visit_link_description">Visit link</string>
+
+    <!-- Language Dialog -->
+    <string name="language_dialog_title">Select Language</string>
+    <string name="language_chinese">简体中文</string>
     <string name="language_english">English</string>
-    
+
+
+    <!-- Changelog Screen -->
+    <string name="changelog_title">Changelog</string>
+    <string name="changelog_version_0_1_0">v0.1.0 - Basic Build</string>
+    <string name="changelog_content_0_1_0">- Basic framework created with Kotlin guided by Gemini AI through Firebase Studio.</string>
+    <string name="changelog_version_1_0_0">v0.1.1 - Major Update</string>
+    <string name="changelog_content_1_0_0">- Completed basic translation functions.</string>
+    <string name="changelog_version_1_0_1">v0.1.2 - Layout Optimization</string>
+    <string name="changelog_content_1_0_1">- Optimized settings page layout.</string>
+    <string name="changelog_version_1_0_2">v0.1.3 - Import Fix</string>
+    <string name="changelog_content_1_0_2">- Fixed zip import not working when files are in subdirectories.\n- Fixed language selection not being reset when changing language groups.\n- Fixed info bar displaying incorrectly when no files are loaded.</string>
+    <string name="changelog_version_1_1_0">v0.1.4 - Initial Release</string>
+    <string name="changelog_content_1_1_0">- Added collapsible search bar.\n- Added functionality to stage changes.\n- Fixed several bugs.</string>
+    <string name="changelog_version_0_1_5">v0.1.5</string>
+    <string name="changelog_content_0_1_5">- Added interactive translator.</string>
+    <string name="changelog_version_0_1_6">v0.1.6</string>
+    <string name="changelog_content_0_1_6">- Fixed compilation errors.\n- Replaced splash screen icon with app icon.\n- Updated version code to 10 and version name to 0.1.6.</string>
+
+
+    <!-- Libraries -->
+    <string name="lib_kotlin_name">Kotlin</string>
+    <string name="lib_kotlin_desc">A modern programming language that makes developers happier.</string>
+    <string name="lib_crash_name">CustomActivityOnCrash</string>
+    <string name="lib_crash_desc">An Android library that allows launching a custom activity when your app crashes.</string>
+    <string name="lib_ktor_name">Ktor Client</string>
+    <string name="lib_ktor_desc">An asynchronous client for making requests.</string>
+    <string name="lib_nav_compose_name">AndroidX Navigation Compose</string>
+    <string name="lib_nav_compose_desc">Provides navigation components for Jetpack Compose.</string>
+    <string name="lib_core_ktx_name">AndroidX Core KTX</string>
+    <string name="lib_core_ktx_desc">Provides Kotlin extensions for Android core functionality.</string>
+    <string name="lib_splashscreen_name">AndroidX Core Splashscreen</string>
+    <string name="lib_splashscreen_desc">Provides the SplashScreen API for Android 12+ and backward compatibility.</string>
+    <string name="lib_lifecycle_name">AndroidX Lifecycle</string>
+    <string name="lib_lifecycle_desc">Components for building lifecycle-aware apps.</string>
+    <string name="lib_activity_compose_name">AndroidX Activity Compose</string>
+    <string name="lib_activity_compose_desc">Integrates Jetpack Compose in an Activity.</string>
+    <string name="lib_compose_name">Jetpack Compose</string>
+    <string name="lib_compose_desc">Android’s modern toolkit for building native UI.</string>
+    <string name="lib_accompanist_name">Accompanist</string>
+    <string name="lib_accompanist_desc">A collection of extension libraries for Jetpack Compose.</string>
+    <string name="source_language">Source Language</string>
 </resources>
