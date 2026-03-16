@@ -1,109 +1,122 @@
 <resources>
-    <string name="app_name">PD-Translator</string>
+    <string name="app_name">PD-翻译</string>
 
-    <!-- Screen Titles -->
-    <string name="screen_title_config">基础配置</string>
-    <string name="screen_title_translator">翻译中心</string>
-    <string name="screen_title_settings">全局设置</string>
+    <!-- 页面标题 -->
+    <string name="screen_title_config">配置</string>
+    <string name="screen_title_translator">翻译</string>
+    <string name="screen_title_settings">设置</string>
+    <string name="source_language">源语言</string>
 
-    <!-- Config Screen -->
+    <!-- 配置页面 -->
     <string name="config_import_files">导入文件</string>
     <string name="config_save">保存</string>
     <string name="config_source_language">源语言</string>
     <string name="config_target_language">目标语言</string>
-    <string name="config_import_dialog_title">请选择导入方式</string>
-    <string name="config_import_from_zip">从 ZIP 压缩包导入</string>
+    <string name="config_import_dialog_title">选择导入方式</string>
+    <string name="config_import_from_zip">从 ZIP 导入</string>
     <string name="config_import_from_properties">从 .properties 文件导入</string>
 
-    <!-- Translator Screen -->
-    <string name="translator_search_placeholder">搜索 (Key或原文)</string>
+    <!-- 翻译页面 -->
+    <string name="translator_search_placeholder">搜索（键名或原文）</string>
     <string name="translator_complete_missing">补全缺失字段</string>
     <string name="translator_progress">翻译进度</string>
+    <string name="translator_identical_warning">【重复字段】</string>
+    <string name="translator_auto_translate_button">自动翻译</string>
 
-    <!-- Common Composables -->
-    <string name="common_select_language_group">请选择语言组</string>
+    <!-- 通用组件 -->
+    <string name="common_select_language_group">选择语言组</string>
     <string name="common_language_group">语言组</string>
-    <string name="common_translation">译文</string>
+    <string name="common_translation">翻译</string>
     <string name="pagination_previous">上一页</string>
     <string name="pagination_next">下一页</string>
-    <string name="pagination_page_info">第 %1$d / %2$d 页</string>
+    <string name="pagination_page_info">第 %1$d 页 / 共 %2$d 页</string>
 
-    <!-- Filter States -->
-    <string name="filter_all">总条目</string>
+    <!-- 筛选状态 -->
+    <string name="filter_all">全部</string>
     <string name="filter_untranslated">未翻译</string>
     <string name="filter_translated">已翻译</string>
-    <string name="filter_modified">已改动</string>
+    <string name="filter_modified">已修改</string>
     <string name="filter_missing">缺失</string>
 
-    <!-- Settings Screen -->
-    <string name="settings_section_general">常规</string>
+    <!-- 设置页面 -->
+    <string name="settings_section_general">通用</string>
     <string name="settings_section_about">关于</string>
     <string name="settings_item_language">语言</string>
-    <string name="settings_item_language_subtitle">更改应用程序的显示语言</string>
+    <string name="settings_item_language_subtitle">切换应用显示语言</string>
     <string name="settings_item_theme_color">主题颜色</string>
-    <string name="settings_item_theme_color_subtitle">自定义应用的主题颜色</string>
+    <string name="settings_item_theme_color_subtitle">自定义应用主题颜色</string>
     <string name="settings_item_translation_engine">翻译引擎</string>
-    <string name="settings_item_translation_engine_subtitle">选择用于翻译的在线服务</string>
-    <string name="settings_item_source_code_license">源代码许可</string>
+    <string name="settings_item_translation_engine_subtitle">选择在线翻译服务</string>
+    <string name="settings_item_source_code_license">开源许可</string>
     <string name="settings_item_source_code_license_subtitle">查看应用使用的开源库</string>
     <string name="settings_item_about_us">关于我们</string>
-    <string name="settings_item_about_us_subtitle">了解本应用背后的故事</string>
+    <string name="settings_item_about_us_subtitle">了解应用背后的故事</string>
     <string name="settings_item_changelog">更新日志</string>
-    <string name="settings_item_changelog_subtitle">查看应用的版本历史和更新内容</string>
+    <string name="settings_item_changelog_subtitle">查看应用版本历史与更新内容</string>
 
-    <!-- About Dialog -->
+    <!-- 关于弹窗 -->
     <string name="about_us_dialog_title">关于我们</string>
-    <string name="about_us_dialog_content">本应用由指挥官JDSALing构思和指导，由Gemini AI具体编码实现。\n\n您的想法，我的代码，我们共同创造！\n\n</string>
-    <string name="about_us_dialog_repo_link">我们的GitHub仓库</string>
+    <string name="about_us_dialog_content">本应用由 JDSALing 指挥官构思并指导，Gemini AI 完成具体编码。
+你的创意，我的代码，我们一起创造！</string>
+    <string name="about_us_dialog_repo_link">GitHub 仓库</string>
     <string name="about_us_dialog_visit_repo_button">访问仓库</string>
     <string name="dialog_close_button">关闭</string>
 
-    <!-- Dependency Screen -->
-    <string name="source_code_license_title">源代码开放许可</string>
+    <!-- 依赖库页面 -->
+    <string name="source_code_license_title">开源许可</string>
     <string name="back_button_description">返回</string>
     <string name="visit_link_description">访问链接</string>
 
-    <!-- Language Dialog -->
+    <!-- 语言弹窗 -->
     <string name="language_dialog_title">选择语言</string>
     <string name="language_chinese">简体中文</string>
     <string name="language_english">English</string>
 
-    <!-- Changelog Screen -->
+    <!-- 更新日志页面 -->
     <string name="changelog_title">更新记录</string>
     <string name="changelog_version_0_1_0">v0.1.0</string>
-    <string name="changelog_content_0_1_0">- 初版发布。</string>
-    <string name="changelog_version_1_0_0">1.0.0 - 主要更新</string>
+    <string name="changelog_content_0_1_0">- 初始版本发布。</string>
+    <string name="changelog_version_1_0_0">1.0.0 - 重大更新</string>
     <string name="changelog_content_1_0_0">- 完成基础翻译功能。</string>
-    <string name="changelog_version_1_0_1">1.0.1 - 国际化</string>
-    <string name="changelog_content_1_0_1">- 新增中英文语言切换。\n- 优化设置页面布局。</string>
-    <string name="changelog_version_1_1_0">1.1.0 - 谷歌翻译集成</string>
-    <string name="changelog_content_1_1_0">- 根据用户提供的C#版本，重新实现并集成了谷歌翻译引擎。\n- 为每个翻译条目卡片添加了一键翻译按钮，实现即时翻译。\n- 重构并精简了翻译引擎模块，移除了旧的引擎，专注于单一、强大的实现。</string>
+    <string name="changelog_version_1_0_1">1.0.1 - 国际化支持</string>
+    <string name="changelog_content_1_0_1">- 新增中英文切换功能。
+- 优化设置页面布局。</string>
+    <string name="changelog_version_1_0_2">1.0.2 - 动态主题与界面优化</string>
+    <string name="changelog_content_1_0_2">- 实现动态主题色功能，支持默认、M3、薄荷绿、薰衣草等主题。
+- 重构更新日志页面，提升视觉体验。</string>
+    <string name="changelog_version_1_1_0">1.1.0 - 集成谷歌翻译</string>
+    <string name="changelog_content_1_1_0">- 基于用户提供的 C# 版本重新实现并集成谷歌翻译引擎。
+- 为每条翻译条目卡片添加一键翻译按钮。
+- 重构精简翻译引擎模块，移除旧引擎，专注单一稳定实现。</string>
 
-    <!-- Translation Engines -->
-    <string name="translation_engine_youdao">内置有道</string>
-    <string name="translation_engine_baidu">百度翻译</string>
+    <!-- 翻译引擎 -->
+    <string name="translation_engine_google">谷歌翻译</string>
 
-    <!-- Libraries -->
+    <!-- 主题名称 -->
+    <string name="theme_name_default">默认</string>
+    <string name="theme_name_m3">M3 标准</string>
+    <string name="theme_name_green">薄荷绿</string>
+    <string name="theme_name_lavender">薰衣草</string>
+
+    <!-- 开源库 -->
     <string name="lib_kotlin_name">Kotlin</string>
-    <string name="lib_kotlin_desc">让开发者更快乐的现代编程语言。</string>
+    <string name="lib_kotlin_desc">让开发者更愉悦的现代编程语言。</string>
     <string name="lib_crash_name">CustomActivityOnCrash</string>
-    <string name="lib_crash_desc">一个安卓库，允许在你的应用崩溃时启动一个自定义活动。</string>
-    <string name="lib_ktor_name">Ktor 客户端</string>
-    <string name="lib_ktor_desc">用于发出请求的异步客户端。</string>
+    <string name="lib_crash_desc">一个在应用崩溃时可启动自定义页面的 Android 库。</string>
+    <string name="lib_ktor_name">Ktor Client</string>
+    <string name="lib_ktor_desc">用于发起网络请求的异步客户端。</string>
     <string name="lib_nav_compose_name">AndroidX Navigation Compose</string>
     <string name="lib_nav_compose_desc">为 Jetpack Compose 提供导航组件。</string>
     <string name="lib_core_ktx_name">AndroidX Core KTX</string>
-    <string name="lib_core_ktx_desc">为安卓核心功能提供 Kotlin 扩展。</string>
+    <string name="lib_core_ktx_desc">为 Android 核心功能提供 Kotlin 扩展。</string>
     <string name="lib_splashscreen_name">AndroidX Core Splashscreen</string>
-    <string name="lib_splashscreen_desc">为 Android 12+ 提供 SplashScreen API 并向后兼容。</string>
+    <string name="lib_splashscreen_desc">为 Android 12+ 提供启动屏 API 并兼容低版本。</string>
     <string name="lib_lifecycle_name">AndroidX Lifecycle</string>
-    <string name="lib_lifecycle_desc">用于构建生命周期感知应用的组件。</string>
+    <string name="lib_lifecycle_desc">用于构建感知生命周期的应用组件。</string>
     <string name="lib_activity_compose_name">AndroidX Activity Compose</string>
     <string name="lib_activity_compose_desc">在 Activity 中集成 Jetpack Compose。</string>
     <string name="lib_compose_name">Jetpack Compose</string>
-    <string name="lib_compose_desc">安卓用于构建原生 UI 的现代工具包。</string>
+    <string name="lib_compose_desc">Android 现代原生 UI 构建工具包。</string>
     <string name="lib_accompanist_name">Accompanist</string>
-    <string name="lib_accompanist_desc">Jetpack Compose 的扩展库集合。</string>
-    <string name="source_language">源语言</string>
-
+    <string name="lib_accompanist_desc">Jetpack Compose 扩展库集合。</string>
 </resources>

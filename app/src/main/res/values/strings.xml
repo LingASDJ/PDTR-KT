@@ -5,7 +5,8 @@
     <string name="screen_title_config">Configuration</string>
     <string name="screen_title_translator">Translator</string>
     <string name="screen_title_settings">Settings</string>
-    <string name="source_language">Soucrce Langs</string>
+    <string name="source_language">Source Langs</string>
+
     <!-- Config Screen -->
     <string name="config_import_files">Import Files</string>
     <string name="config_save">Save</string>
