@@ -1,4 +1,3 @@
-
 package com.example.pdtranslator
 
 import androidx.compose.foundation.layout.padding
@@ -36,7 +35,8 @@ fun MainScreen(
     viewModel: TranslatorViewModel,
     onNavigateToDependencies: () -> Unit,
     onNavigateToChangelog: () -> Unit,
-    onLanguageSelected: (String) -> Unit
+    onLanguageSelected: (String) -> Unit,
+    onShowSnackbar: suspend (String) -> Unit
 ) {
     val navController = rememberNavController()
 
@@ -79,7 +79,7 @@ fun MainScreen(
                  ConfigScreen(viewModel = viewModel)
             }
             composable(Screen.Translator.route) {
-                TranslatorScreen(viewModel = viewModel)
+                TranslatorScreen(viewModel = viewModel, onShowSnackbar = onShowSnackbar)
             }
             composable(Screen.Settings.route) {
                 SettingsScreen(
