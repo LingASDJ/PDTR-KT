@@ -98,7 +98,14 @@ fun ConfigScreen(viewModel: TranslatorViewModel) {
             Column(modifier = Modifier.padding(16.dp)) {
                 LanguageGroupSelector(languageGroupNames, selectedGroupName, viewModel::selectGroup)
                 Spacer(Modifier.height(16.dp))
-                LanguageSelectors(availableLanguages, sourceLangCode, targetLangCode, viewModel::selectSourceLanguage, viewModel::selectTargetLanguage)
+                LanguageSelectors(
+                    availableLanguages = availableLanguages,
+                    sourceLangCode = sourceLangCode,
+                    targetLangCode = targetLangCode,
+                    onSourceSelected = viewModel::selectSourceLanguage,
+                    onTargetSelected = viewModel::selectTargetLanguage,
+                    getDisplayName = viewModel::getLanguageDisplayName
+                )
             }
         }
 
