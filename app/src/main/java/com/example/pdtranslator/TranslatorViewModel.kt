@@ -703,15 +703,6 @@ class TranslatorViewModel(application: Application) : AndroidViewModel(applicati
   }
 
   fun getLanguageDisplayName(code: String): String {
-    return when (code) {
-      "base" -> "基准"
-      "en" -> "英语"
-      "zh-CN" -> "简体中文"
-      "zh-TW" -> "繁體中文"
-      "ja" -> "日语"
-      "ko" -> "韩语"
-      "ru" -> "俄语"
-      else -> code
-    }
+    return LanguageUtils.getDisplayName(code)
   }
 }
