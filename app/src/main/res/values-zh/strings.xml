@@ -134,4 +134,61 @@
     <string name="lib_accompanist_name">Accompanist</string>
     <string name="lib_accompanist_desc">Jetpack Compose 的扩展库集合。</string>
     <string name="source_language">源语言</string>
+
+    <!-- Batch Import -->
+    <string name="import_success_count">已导入 %1$d 个文件</string>
+    <string name="import_overwrite_count">覆盖 %1$d 个语言文件</string>
+    <string name="import_ignore_count">%1$d 个忽略</string>
+    <string name="import_fail_count">%1$d 个失败</string>
+
+    <!-- Draft -->
+    <string name="draft_found_title">发现草稿</string>
+    <string name="draft_match_info">发现上次会话的草稿，是否恢复？</string>
+    <string name="draft_mismatch_warning">草稿来自不同版本的文件，恢复可能引入过期的翻译键。</string>
+    <string name="draft_restore">恢复</string>
+    <string name="draft_discard">丢弃</string>
+    <string name="draft_force_restore">仍然恢复</string>
+    <string name="draft_saved_ago">%1$s 前保存</string>
+    <string name="draft_saved_minutes_ago">%1$d 分钟</string>
+    <string name="draft_saved_hours_ago">%1$d 小时</string>
+    <string name="draft_saved_days_ago">%1$d 天</string>
+    <string name="draft_changes_count">%1$d 条暂存修改</string>
+
+    <!-- Translation Memory -->
+    <string name="tm_record_fail">录入翻译记忆失败</string>
+    <string name="tm_suggestion_label">TM</string>
+
+    <!-- Search / Replace -->
+    <string name="search_label">搜索</string>
+    <string name="replace_label">替换</string>
+    <string name="search_case_sensitive">区分大小写</string>
+    <string name="search_exact_match">完全匹配</string>
+
+    <!-- Export -->
+    <string name="export_success">导出成功</string>
+    <string name="export_tm_recorded">TM 已录入 %1$d 条</string>
+
+    <!-- Empty States -->
+    <string name="empty_no_files">导入文件以开始使用</string>
+    <string name="empty_no_entries">没有匹配当前筛选条件的条目</string>
+    <string name="empty_select_languages">请选择源语言和目标语言</string>
+
+    <!-- Loading -->
+    <string name="loading_importing">正在导入…</string>
+
+    <!-- Fill Missing -->
+    <string name="fill_missing_none">没有发现缺失的字段。</string>
+    <string name="fill_missing_done">已补全 %1$d 个缺失字段，视图已切换至"未翻译"。</string>
+    <string name="fill_missing_already_staged">所有缺失字段已在暂存区，视图已切换至"未翻译"。</string>
+
+    <!-- Language Display -->
+    <string name="lang_base">基准</string>
+
+    <!-- Changelog 0.1.8 -->
+    <string name="changelog_version_0_1_8">v0.1.8</string>
+    <string name="changelog_content_0_1_8">- 修复了 `_chk` 后缀无法被识别为繁体中文的问题。\n- 修复了在特定情况下语言文件解析会崩溃的问题。\n- 新增了对 Accompanist Flow Layout 的依赖。\n- 优化了翻译页面过滤器的 UI。\n- 将关键词高亮颜色更改为黄色底纹。</string>
+
+    <!-- Changelog 0.1.9 -->
+    <string name="changelog_version_0_1_9">v0.1.9</string>
+    <string name="changelog_content_0_1_9">- 新增批量导入多个 .properties 文件。\n- 新增自动保存草稿系统，支持 SHA-256 校验恢复。\n- 新增翻译记忆（TM）系统，支持模糊匹配建议。\n- 优化语言选择器：通过 Locale API 显示本地化语言名称。\n- 支持混合文件命名格式（下划线/连字符/脚本标签）。\n- 筛选按钮升级为 Material 3 FilterChip。\n- 翻页控件改为紧凑图标按钮。\n- 翻译页新增空状态引导提示。\n- 所有硬编码文案迁移至字符串资源，完善国际化支持。\n- 导出完成后新增 Snackbar 成功反馈。</string>
 </resources>

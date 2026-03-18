@@ -1,6 +1,7 @@
 package com.example.pdtranslator
 
 import android.app.Application
+import android.content.Context
 import android.content.ContentResolver
 import android.net.Uri
 import android.provider.OpenableColumns
@@ -62,6 +63,13 @@ enum class ThemeColor {
 // --- ViewModel ---
 
 class TranslatorViewModel(application: Application) : AndroidViewModel(application) {
+
+  companion object {
+    // Cache ISO 639 language codes for parseFileName validation
+    private val isoLanguages: Set<String> by lazy {
+      java.util.Locale.getISOLanguages().toSet()
+    }
+  }
 
   // --- Draft & TM ---
   private val draftManager = DraftManager(application)
@@ -179,9 +187,11 @@ class TranslatorViewModel(application: Application) : AndroidViewModel(applicati
           val total = entries.size
           val translated = total - entries.count { it.isUntranslated }
           val progress = if (total == 0) 0f else translated.toFloat() / total
-          infoBarText.value = "翻译进度: ${(progress * 100).toInt()}%"
+          val app = getApplication<Application>()
+          infoBarText.value = app.getString(R.string.translator_translation_progress, (progress * 100).toInt())
         } else {
-          infoBarText.value = "语言组总条目: ${entries.size}"
+          val app = getApplication<Application>()
+          infoBarText.value = app.getString(R.string.translator_progress_info, entries.size)
         }
       }.collect {}
     }
@@ -280,7 +290,7 @@ class TranslatorViewModel(application: Application) : AndroidViewModel(applicati
       if (ignoreCount > 0) parts.add(getApplication<Application>().getString(R.string.import_ignore_count, ignoreCount))
       if (failCount > 0) parts.add(getApplication<Application>().getString(R.string.import_fail_count, failCount))
       if (parts.isNotEmpty()) {
-        _uiEvents.send(UiEvent.ShowSnackbar(parts.joinToString("，")))
+        _uiEvents.send(UiEvent.ShowSnackbar(parts.joinToString(", ")))
       }
 
       // Validate existing draft against newly loaded files
@@ -647,7 +657,7 @@ class TranslatorViewModel(application: Application) : AndroidViewModel(applicati
         .filter { !targetProps.containsKey(it) }
 
       if (missingKeys.isEmpty()) {
-        _uiEvents.send(UiEvent.ShowSnackbar("没有发现缺失的字段。"))
+        _uiEvents.send(UiEvent.ShowSnackbar(getApplication<Application>().getString(R.string.fill_missing_none)))
         return@launch
       }
 
@@ -662,13 +672,14 @@ class TranslatorViewModel(application: Application) : AndroidViewModel(applicati
         }
       }
 
+      val app = getApplication<Application>()
       if (addedCount > 0) {
         _stagedChanges.value = newStagedChanges
-        _uiEvents.send(UiEvent.ShowSnackbar("已补全 $addedCount 个缺失字段。视图已切换至\u201C未翻译\u201D"))
+        _uiEvents.send(UiEvent.ShowSnackbar(app.getString(R.string.fill_missing_done, addedCount)))
         filterState.value = FilterState.UNTRANSLATED
         regenerateEntries()
       } else {
-        _uiEvents.send(UiEvent.ShowSnackbar("所有缺失字段已在暂存区。视图已切换至\u201C未翻译\u201D"))
+        _uiEvents.send(UiEvent.ShowSnackbar(app.getString(R.string.fill_missing_already_staged)))
         filterState.value = FilterState.UNTRANSLATED
         regenerateEntries()
       }
@@ -677,20 +688,48 @@ class TranslatorViewModel(application: Application) : AndroidViewModel(applicati
 
   private fun parseFileName(fileName: String): Pair<String, String> {
     val nameWithoutExt = fileName.substringBeforeLast('.')
-    val lastUnderscore = nameWithoutExt.lastIndexOf('_')
 
-    if (lastUnderscore == -1 || lastUnderscore == 0) {
-      return Pair(nameWithoutExt, "base")
+    // Special case: chk suffix
+    if (nameWithoutExt.endsWith("_chk", ignoreCase = true) || nameWithoutExt.endsWith("-chk", ignoreCase = true)) {
+      val sep = if (nameWithoutExt.contains("_chk", ignoreCase = true)) "_chk" else "-chk"
+      val base = nameWithoutExt.substringBeforeLast(sep, "")
+      return if (base.isNotEmpty()) Pair(base, "zh-TW") else Pair(nameWithoutExt, "base")
     }
 
-    val baseName = nameWithoutExt.substring(0, lastUnderscore)
-    var langCode = nameWithoutExt.substring(lastUnderscore + 1)
+    // Split by both _ and - to get all segments
+    val tokens = nameWithoutExt.split(Regex("[-_]"))
+    if (tokens.size < 2) return Pair(nameWithoutExt, "base")
 
-    if (langCode.equals("chk", ignoreCase = true)) {
-      langCode = "zh-TW"
+    // Try candidate suffixes from longest (3 segments) to shortest (1 segment)
+    // e.g. for [messages, zh, Hant, TW] try "zh-Hant-TW", then "Hant-TW", then "TW"
+    for (take in minOf(3, tokens.size - 1) downTo 1) {
+      val candidate = tokens.takeLast(take).joinToString("-")
+      val locale = java.util.Locale.forLanguageTag(candidate)
+      // Validate: language must be a real ISO 639 code, not just any 2-8 letter string
+      if (locale.language.isNotEmpty() && isoLanguages.contains(locale.language)) {
+        // Valid locale found — reconstruct base name from original string
+        // Find the position in the original string where the locale suffix starts
+        val baseName = reconstructBaseName(nameWithoutExt, take)
+        if (baseName.isNotEmpty()) {
+          // Normalize to BCP-47 format
+          val langCode = locale.toLanguageTag()
+          return Pair(baseName, langCode)
+        }
+      }
     }
 
-    return Pair(baseName, langCode)
+    return Pair(nameWithoutExt, "base")
+  }
+
+  private fun reconstructBaseName(nameWithoutExt: String, suffixTokenCount: Int): String {
+    // Walk from the end, skip `suffixTokenCount` separator-delimited segments
+    var remaining = nameWithoutExt
+    repeat(suffixTokenCount) {
+      val lastSep = maxOf(remaining.lastIndexOf('_'), remaining.lastIndexOf('-'))
+      if (lastSep <= 0) return ""
+      remaining = remaining.substring(0, lastSep)
+    }
+    return remaining
   }
 
   private fun getFileName(resolver: ContentResolver, uri: Uri): String? {
@@ -702,7 +741,7 @@ class TranslatorViewModel(application: Application) : AndroidViewModel(applicati
     }
   }
 
-  fun getLanguageDisplayName(code: String): String {
-    return LanguageUtils.getDisplayName(code)
+  fun getLanguageDisplayName(code: String, context: Context): String {
+    return LanguageUtils.getDisplayName(code, context)
   }
 }

@@ -167,4 +167,20 @@
 
     <!-- Loading -->
     <string name="loading_importing">Importing…</string>
+
+    <!-- Fill Missing -->
+    <string name="fill_missing_none">No missing fields found.</string>
+    <string name="fill_missing_done">Filled %1$d missing fields. Switched to \"Untranslated\" view.</string>
+    <string name="fill_missing_already_staged">All missing fields are already staged. Switched to \"Untranslated\" view.</string>
+
+    <!-- Language Display -->
+    <string name="lang_base">Base</string>
+
+    <!-- Changelog 0.1.8 -->
+    <string name="changelog_version_0_1_8">v0.1.8</string>
+    <string name="changelog_content_0_1_8">- Fixed `_chk` suffix not being recognized as Traditional Chinese.\n- Fixed language file parsing crash in certain cases.\n- Added Accompanist Flow Layout dependency.\n- Optimized translator page filter UI.\n- Changed keyword highlighting color to yellow.</string>
+
+    <!-- Changelog 0.1.9 -->
+    <string name="changelog_version_0_1_9">v0.1.9</string>
+    <string name="changelog_content_0_1_9">- Added batch import for multiple .properties files.\n- Added auto-save draft system with SHA-256 validation.\n- Added Translation Memory (TM) with fuzzy matching suggestions.\n- Improved language selector: displays localized names via Locale API.\n- Supports mixed filename formats (underscore/hyphen/script tags).\n- Filter buttons upgraded to Material 3 FilterChip.\n- Pagination controls compacted with icon buttons.\n- Added empty state guidance for translator screen.\n- All hardcoded strings moved to resources for full i18n support.\n- Export now shows success Snackbar feedback.</string>
 </resources>

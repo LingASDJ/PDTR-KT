@@ -124,7 +124,7 @@ fun LanguageSelector(
   getDisplayName: (String) -> String
 ) {
   var expanded by remember { mutableStateOf(false) }
-  val selectedText = selectedLanguage?.let { getDisplayName(it) + " ($it)" } ?: ""
+  val selectedText = selectedLanguage?.let { getDisplayName(it) } ?: ""
 
   ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = !expanded }) {
     OutlinedTextField(
@@ -140,8 +140,22 @@ fun LanguageSelector(
     )
     ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
       languages.forEach { lang ->
-        val text = getDisplayName(lang) + " ($lang)"
-        DropdownMenuItem(text = { Text(text) }, onClick = { onLanguageSelected(lang); expanded = false })
+        DropdownMenuItem(
+          text = {
+            Row(
+              verticalAlignment = Alignment.CenterVertically,
+              horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+              Text(getDisplayName(lang))
+              Text(
+                text = lang,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+              )
+            }
+          },
+          onClick = { onLanguageSelected(lang); expanded = false }
+        )
       }
     }
   }

@@ -45,5 +45,96 @@
     <string name="changelog_content_1_0_0">- First release of the application, including basic translation features.</string>
     <string name="changelog_version_1_0_1">1.0.1 - Internationalization Support</string>
     <string name="changelog_content_1_0_1">- Added language switching between Chinese and English.\n- Optimized the layout of the settings screen.</string>
-    <string name="source_language">Soucrce Langs</string>
+    <string name="source_language">Source Language</string>
+
+    <!-- Config Screen -->
+    <string name="config_import_files">Import Files</string>
+    <string name="config_export">Export</string>
+    <string name="config_source_language">Source Language</string>
+    <string name="config_target_language">Target Language</string>
+    <string name="config_import_from_zip">From ZIP file</string>
+    <string name="config_import_from_properties">From .properties file</string>
+    <string name="config_keyword_highlighting_title">Keyword Highlighting</string>
+    <string name="config_keyword_highlighting_subtitle">Added keywords will be highlighted in the translator.</string>
+    <string name="config_add_keyword_label">Add Keyword</string>
+    <string name="config_add_keyword_button">Add</string>
+    <string name="config_remove_keyword_desc">Remove %1$s</string>
+
+    <!-- Translator Screen -->
+    <string name="translator_complete_missing">Complete Missing Fields</string>
+    <string name="translator_progress_info">Total entries in language group: %1$d</string>
+    <string name="translator_translation_progress">Translation Progress: %1$d%%</string>
+    <string name="translator_identical_warning">(Source and target text are identical)</string>
+
+    <!-- Common Composables -->
+    <string name="common_select_language_group">Select a language group</string>
+    <string name="common_language_group">Language Group</string>
+    <string name="common_translation">Translation</string>
+    <string name="pagination_previous">Previous</string>
+    <string name="pagination_next">Next</string>
+    <string name="pagination_page_info">Page %1$d / %2$d</string>
+
+    <!-- Filter States -->
+    <string name="filter_all">All</string>
+    <string name="filter_untranslated">Untranslated</string>
+    <string name="filter_translated">Translated</string>
+    <string name="filter_modified">Modified</string>
+    <string name="filter_missing">Missing</string>
+
+    <!-- Batch Import -->
+    <string name="import_success_count">Imported %1$d files</string>
+    <string name="import_overwrite_count">overwrote %1$d language files</string>
+    <string name="import_ignore_count">%1$d ignored</string>
+    <string name="import_fail_count">%1$d failed</string>
+
+    <!-- Draft -->
+    <string name="draft_found_title">Draft Found</string>
+    <string name="draft_match_info">A draft from a previous session was found. Would you like to restore it?</string>
+    <string name="draft_mismatch_warning">The draft is from a different version of the file. Restoring may introduce outdated translation keys.</string>
+    <string name="draft_restore">Restore</string>
+    <string name="draft_discard">Discard</string>
+    <string name="draft_force_restore">Restore Anyway</string>
+    <string name="draft_saved_ago">Saved %1$s ago</string>
+    <string name="draft_saved_minutes_ago">%1$d min</string>
+    <string name="draft_saved_hours_ago">%1$d hr</string>
+    <string name="draft_saved_days_ago">%1$d days</string>
+    <string name="draft_changes_count">%1$d staged changes</string>
+
+    <!-- Translation Memory -->
+    <string name="tm_record_fail">Failed to record to Translation Memory</string>
+    <string name="tm_suggestion_label">TM</string>
+
+    <!-- Search / Replace -->
+    <string name="search_label">Search</string>
+    <string name="replace_label">Replace</string>
+    <string name="search_case_sensitive">Case Sensitive</string>
+    <string name="search_exact_match">Exact Match</string>
+
+    <!-- Export -->
+    <string name="export_success">Exported successfully</string>
+    <string name="export_tm_recorded">TM recorded %1$d entries</string>
+
+    <!-- Empty States -->
+    <string name="empty_no_files">Import files to get started</string>
+    <string name="empty_no_entries">No entries match the current filter</string>
+    <string name="empty_select_languages">Select source and target languages to begin</string>
+
+    <!-- Loading -->
+    <string name="loading_importing">Importing…</string>
+
+    <!-- Fill Missing -->
+    <string name="fill_missing_none">No missing fields found.</string>
+    <string name="fill_missing_done">Filled %1$d missing fields. Switched to \"Untranslated\" view.</string>
+    <string name="fill_missing_already_staged">All missing fields are already staged. Switched to \"Untranslated\" view.</string>
+
+    <!-- Language Display -->
+    <string name="lang_base">Base</string>
+
+    <!-- Changelog 0.1.8 -->
+    <string name="changelog_version_0_1_8">v0.1.8</string>
+    <string name="changelog_content_0_1_8">- Fixed `_chk` suffix not being recognized as Traditional Chinese.\n- Fixed language file parsing crash in certain cases.\n- Added Accompanist Flow Layout dependency.\n- Optimized translator page filter UI.\n- Changed keyword highlighting color to yellow.</string>
+
+    <!-- Changelog 0.1.9 -->
+    <string name="changelog_version_0_1_9">v0.1.9</string>
+    <string name="changelog_content_0_1_9">- Added batch import for multiple .properties files.\n- Added auto-save draft system with SHA-256 validation.\n- Added Translation Memory (TM) with fuzzy matching suggestions.\n- Improved language selector: displays localized names via Locale API.\n- Supports mixed filename formats (underscore/hyphen/script tags).\n- Filter buttons upgraded to Material 3 FilterChip.\n- Pagination controls compacted with icon buttons.\n- Added empty state guidance for translator screen.\n- All hardcoded strings moved to resources for full i18n support.\n- Export now shows success Snackbar feedback.</string>
 </resources>

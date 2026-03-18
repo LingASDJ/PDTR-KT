@@ -134,7 +134,7 @@ fun ConfigScreen(viewModel: TranslatorViewModel) {
           targetLangCode = targetLangCode,
           onSourceSelected = viewModel::selectSourceLanguage,
           onTargetSelected = viewModel::selectTargetLanguage,
-          getDisplayName = viewModel::getLanguageDisplayName
+          getDisplayName = { code -> viewModel.getLanguageDisplayName(code, context) }
         )
       }
     }

@@ -177,4 +177,20 @@
 
     <!-- Loading -->
     <string name="loading_importing">正在导入…</string>
+
+    <!-- Fill Missing -->
+    <string name="fill_missing_none">没有发现缺失的字段。</string>
+    <string name="fill_missing_done">已补全 %1$d 个缺失字段，视图已切换至"未翻译"。</string>
+    <string name="fill_missing_already_staged">所有缺失字段已在暂存区，视图已切换至"未翻译"。</string>
+
+    <!-- Language Display -->
+    <string name="lang_base">基准</string>
+
+    <!-- Changelog 0.1.8 -->
+    <string name="changelog_version_0_1_8">v0.1.8</string>
+    <string name="changelog_content_0_1_8">- 修复了 `_chk` 后缀无法被识别为繁体中文的问题。\n- 修复了在特定情况下语言文件解析会崩溃的问题。\n- 新增了对 Accompanist Flow Layout 的依赖。\n- 优化了翻译页面过滤器的 UI。\n- 将关键词高亮颜色更改为黄色底纹。</string>
+
+    <!-- Changelog 0.1.9 -->
+    <string name="changelog_version_0_1_9">v0.1.9</string>
+    <string name="changelog_content_0_1_9">- 新增批量导入多个 .properties 文件。\n- 新增自动保存草稿系统，支持 SHA-256 校验恢复。\n- 新增翻译记忆（TM）系统，支持模糊匹配建议。\n- 优化语言选择器：通过 Locale API 显示本地化语言名称。\n- 支持混合文件命名格式（下划线/连字符/脚本标签）。\n- 筛选按钮升级为 Material 3 FilterChip。\n- 翻页控件改为紧凑图标按钮。\n- 翻译页新增空状态引导提示。\n- 所有硬编码文案迁移至字符串资源，完善国际化支持。\n- 导出完成后新增 Snackbar 成功反馈。</string>
 </resources>
