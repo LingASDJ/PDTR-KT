@@ -326,7 +326,7 @@ class TranslatorViewModel(application: Application) : AndroidViewModel(applicati
               val (baseName, langCode) = parseFileName(innerFileName)
               if (langCode != null) {
                 try {
-                  val content = BufferedReader(InputStreamReader(zis)).readText()
+                  val content = BufferedReader(InputStreamReader(zis, Charsets.UTF_8)).readText()
                   val props = loadProperties(content)
                   val langMap = groups.getOrPut(baseName) { mutableMapOf() }
                   if (langMap.containsKey(langCode)) overwritten++
@@ -355,7 +355,9 @@ class TranslatorViewModel(application: Application) : AndroidViewModel(applicati
     return try {
       resolver.openInputStream(uri)?.use { stream ->
         val rawBytes = stream.readBytes()
-        val content = String(rawBytes, Charsets.ISO_8859_1)
+        // Try UTF-8 first (modern .properties with direct CJK characters),
+        // fall back to ISO-8859-1 (traditional .properties with \uXXXX escapes)
+        val content = String(rawBytes, Charsets.UTF_8)
         val props = loadProperties(content)
         val langMap = groups.getOrPut(baseName) { mutableMapOf() }
         val wasOverwrite = langMap.containsKey(langCode)
