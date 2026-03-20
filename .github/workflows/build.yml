@@ -23,8 +23,17 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
+      - name: Cache Gradle dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: gradle-
+
       - name: Build with Gradle
-        run: gradle assembleDebug
+        run: chmod +x ./gradlew && ./gradlew assembleDebug --no-daemon --parallel
 
       - name: Upload APK
         uses: actions/upload-artifact@v4

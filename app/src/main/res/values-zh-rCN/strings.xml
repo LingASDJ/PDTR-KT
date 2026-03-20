@@ -65,6 +65,8 @@
     <string name="theme_name_m3">Material 3</string>
     <string name="theme_name_green">绿色</string>
     <string name="theme_name_lavender">薰衣草紫</string>
+    <string name="theme_name_modern">现代</string>
+    <string name="theme_name_pixel_dungeon">像素地牢</string>
 
     <!-- About Dialog -->
     <string name="about_us_dialog_title">关于我们</string>

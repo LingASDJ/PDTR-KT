@@ -65,6 +65,8 @@
     <string name="theme_name_m3">Material 3</string>
     <string name="theme_name_green">Green</string>
     <string name="theme_name_lavender">Lavender</string>
+    <string name="theme_name_modern">Modern</string>
+    <string name="theme_name_pixel_dungeon">Pixel Dungeon</string>
 
     <!-- About Dialog -->
     <string name="about_us_dialog_title">About Us</string>

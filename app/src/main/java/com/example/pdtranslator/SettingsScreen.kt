@@ -134,6 +134,8 @@ fun ThemeColorSelectorDialog(
                             ThemeColor.M3 -> stringResource(id = R.string.theme_name_m3)
                             ThemeColor.GREEN -> stringResource(id = R.string.theme_name_green)
                             ThemeColor.LAVENDER -> stringResource(id = R.string.theme_name_lavender)
+                            ThemeColor.MODERN -> stringResource(id = R.string.theme_name_modern)
+                            ThemeColor.PIXEL_DUNGEON -> stringResource(id = R.string.theme_name_pixel_dungeon)
                         })
                     }
                 }

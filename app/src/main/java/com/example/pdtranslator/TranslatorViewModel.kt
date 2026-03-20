@@ -57,7 +57,7 @@ data class LanguageGroup(
 enum class FilterState { ALL, UNTRANSLATED, TRANSLATED, MODIFIED, MISSING }
 
 enum class ThemeColor {
-  DEFAULT, M3, GREEN, LAVENDER
+  DEFAULT, M3, GREEN, LAVENDER, MODERN, PIXEL_DUNGEON
 }
 
 // --- ViewModel ---
@@ -262,7 +262,11 @@ class TranslatorViewModel(application: Application) : AndroidViewModel(applicati
       var failCount = 0
 
       uris.forEach { uri ->
-        val fileName = getFileName(resolver, uri) ?: return@forEach
+        val fileName = getFileName(resolver, uri)
+        if (fileName == null) {
+          failCount++
+          return@forEach
+        }
         if (fileName.endsWith(".zip")) {
           val result = loadFromZip(resolver, uri, groups)
           successCount += result.first
@@ -322,8 +326,8 @@ class TranslatorViewModel(application: Application) : AndroidViewModel(applicati
               val (baseName, langCode) = parseFileName(innerFileName)
               if (langCode != null) {
                 try {
-                  val content = BufferedReader(InputStreamReader(zis)).readText()
-                  val props = Properties().apply { load(StringReader(content)) }
+                  val content = BufferedReader(InputStreamReader(zis, Charsets.UTF_8)).readText()
+                  val props = loadProperties(content)
                   val langMap = groups.getOrPut(baseName) { mutableMapOf() }
                   if (langMap.containsKey(langCode)) overwritten++
                   langMap[langCode] = LanguageData(entryName, props)
@@ -348,18 +352,20 @@ class TranslatorViewModel(application: Application) : AndroidViewModel(applicati
     groups: MutableMap<String, MutableMap<String, LanguageData>>
   ): LoadResult {
     val (baseName, langCode) = parseFileName(fileName)
-    if (langCode == null) return LoadResult.IGNORE
     return try {
       resolver.openInputStream(uri)?.use { stream ->
-        val content = BufferedReader(InputStreamReader(stream)).readText()
-        val preprocessedContent = content.replace(Regex("\\u(?![0-9a-fA-F]{4})"), "\\u")
-        val props = Properties().apply { load(StringReader(preprocessedContent)) }
+        val rawBytes = stream.readBytes()
+        // Try UTF-8 first (modern .properties with direct CJK characters),
+        // fall back to ISO-8859-1 (traditional .properties with \uXXXX escapes)
+        val content = String(rawBytes, Charsets.UTF_8)
+        val props = loadProperties(content)
         val langMap = groups.getOrPut(baseName) { mutableMapOf() }
         val wasOverwrite = langMap.containsKey(langCode)
         langMap[langCode] = LanguageData(fileName, props)
         if (wasOverwrite) LoadResult.OVERWRITE else LoadResult.SUCCESS
       } ?: LoadResult.FAIL
-    } catch (_: Exception) {
+    } catch (e: Exception) {
+      android.util.Log.e("TranslatorVM", "Failed to load $fileName", e)
       LoadResult.FAIL
     }
   }
@@ -576,10 +582,40 @@ class TranslatorViewModel(application: Application) : AndroidViewModel(applicati
 
   // --- Internal Functions ---
 
-  private fun processLoadedGroups(groups: Map<String, Map<String, LanguageData>>) {
-    _languageGroups.value = groups.map { (name, languages) -> LanguageGroup(name, languages) }.sortedBy { it.name }
-    languageGroupNames.value = _languageGroups.value.map { it.name }
-    resetAllSelections()
+  private suspend fun processLoadedGroups(groups: Map<String, Map<String, LanguageData>>) {
+    withContext(Dispatchers.Main) {
+      _languageGroups.value = groups.map { (name, languages) -> LanguageGroup(name, languages) }.sortedBy { it.name }
+      languageGroupNames.value = _languageGroups.value.map { it.name }
+
+      // Auto-select if there's only one group
+      val groupList = _languageGroups.value
+      if (groupList.size == 1) {
+        val group = groupList.first()
+        selectedGroupName.value = group.name
+        availableLanguages.value = group.languages.keys.sorted()
+
+        // Auto-select languages if exactly 2 available
+        val langs = availableLanguages.value
+        if (langs.size == 2) {
+          // Prefer "base" or the first alphabetically as source
+          val sourceIdx = langs.indexOfFirst { it == "base" }.takeIf { it >= 0 } ?: 0
+          val targetIdx = if (sourceIdx == 0) 1 else 0
+          sourceLangCode.value = langs[sourceIdx]
+          targetLangCode.value = langs[targetIdx]
+          _stagedChanges.value = emptyMap()
+          regenerateEntries()
+        } else {
+          // More than 2 languages — let user pick, but clear old selections
+          sourceLangCode.value = null
+          targetLangCode.value = null
+          _allEntries.value = emptyList()
+          _stagedChanges.value = emptyMap()
+        }
+      } else {
+        // Multiple groups — reset and let user pick
+        resetAllSelections()
+      }
+    }
   }
 
   private fun resetAllSelections() {
@@ -684,6 +720,23 @@ class TranslatorViewModel(application: Application) : AndroidViewModel(applicati
         regenerateEntries()
       }
     }
+  }
+
+  /**
+   * Safely load a .properties file content, handling malformed unicode escapes.
+   * Properties.load() expects ISO 8859-1 encoding and throws IllegalArgumentException
+   * on malformed \uXXXX sequences. This method sanitizes only the bad \u escapes.
+   */
+  private fun loadProperties(content: String): Properties {
+    val props = Properties()
+    try {
+      props.load(StringReader(content))
+    } catch (_: IllegalArgumentException) {
+      // Sanitize malformed \uXXXX: \x5C = backslash in regex, avoids Java regex \u bug
+      val sanitized = content.replace(Regex("""\x5Cu(?![0-9a-fA-F]{4})"""), "\\\\u")
+      props.load(StringReader(sanitized))
+    }
+    return props
   }
 
   private fun parseFileName(fileName: String): Pair<String, String> {

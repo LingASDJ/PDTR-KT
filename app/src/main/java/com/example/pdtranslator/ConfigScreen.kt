@@ -112,7 +112,7 @@ fun ConfigScreen(viewModel: TranslatorViewModel) {
             Text(stringResource(id = R.string.config_import_from_zip), maxLines = 1)
           }
           OutlinedButton(
-            onClick = { importMultipleLauncher.launch(arrayOf("text/plain", "application/properties", "application/octet-stream")) },
+            onClick = { importMultipleLauncher.launch(arrayOf("*/*")) },
             modifier = Modifier.weight(1f)
           ) {
             Icon(Icons.Default.FolderOpen, contentDescription = null, modifier = Modifier.size(18.dp))

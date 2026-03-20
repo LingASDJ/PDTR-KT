@@ -131,6 +131,10 @@
     <string name="lang_base">Base</string>
 
     <!-- Changelog 0.1.8 -->
+    <!-- Theme Names -->
+    <string name="theme_name_modern">Modern</string>
+    <string name="theme_name_pixel_dungeon">Pixel Dungeon</string>
+
     <string name="changelog_version_0_1_8">v0.1.8</string>
     <string name="changelog_content_0_1_8">- Fixed `_chk` suffix not being recognized as Traditional Chinese.\n- Fixed language file parsing crash in certain cases.\n- Added Accompanist Flow Layout dependency.\n- Optimized translator page filter UI.\n- Changed keyword highlighting color to yellow.</string>
 

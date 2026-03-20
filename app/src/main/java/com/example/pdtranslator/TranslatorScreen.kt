@@ -58,6 +58,7 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.google.accompanist.flowlayout.FlowRow
+import androidx.compose.ui.platform.LocalContext
 import kotlinx.coroutines.flow.collectLatest
 
 @Composable
@@ -75,6 +76,8 @@ fun TranslatorScreen(viewModel: TranslatorViewModel, onShowSnackbar: suspend (St
   val selectedGroupName by viewModel.selectedGroupName.collectAsState()
   val sourceLangCode by viewModel.sourceLangCode.collectAsState()
   val targetLangCode by viewModel.targetLangCode.collectAsState()
+  val availableLanguages by viewModel.availableLanguages.collectAsState()
+  val context = LocalContext.current
 
   LaunchedEffect(key1 = true) {
     viewModel.uiEvents.collectLatest {
@@ -93,12 +96,29 @@ fun TranslatorScreen(viewModel: TranslatorViewModel, onShowSnackbar: suspend (St
     return
   }
 
-  // Empty state: languages not selected
+  // Languages not fully selected — show inline selectors
   if (selectedGroupName == null || sourceLangCode == null || targetLangCode == null) {
-    EmptyState(
-      icon = { Icon(Icons.Default.Translate, contentDescription = null, modifier = Modifier.size(48.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant) },
-      message = stringResource(R.string.empty_select_languages)
-    )
+    Column(
+      modifier = Modifier
+        .fillMaxSize()
+        .padding(16.dp),
+      verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+      Text(
+        text = stringResource(R.string.empty_select_languages),
+        style = MaterialTheme.typography.bodyLarge,
+        color = MaterialTheme.colorScheme.onSurfaceVariant
+      )
+      LanguageGroupSelector(languageGroupNames, selectedGroupName, viewModel::selectGroup)
+      LanguageSelectors(
+        availableLanguages = availableLanguages,
+        sourceLangCode = sourceLangCode,
+        targetLangCode = targetLangCode,
+        onSourceSelected = viewModel::selectSourceLanguage,
+        onTargetSelected = viewModel::selectTargetLanguage,
+        getDisplayName = { code -> viewModel.getLanguageDisplayName(code, context) }
+      )
+    }
     return
   }
 
