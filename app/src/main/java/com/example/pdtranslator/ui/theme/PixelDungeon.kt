@@ -80,33 +80,28 @@ fun rememberTimeTick(): Int {
   return tick
 }
 
+/** Direct zone palette — no interpolation, each zone has its own distinct look */
 fun currentZonePalette(): ZonePalette {
-  val (seg, frac) = getTimeSegment()
-  val from = ALL_ZONES[seg]; val to = ALL_ZONES[(seg + 1).coerceAtMost(5)]
-  return ZonePalette(
-    lerp(from.color1, to.color1, frac), lerp(from.color2, to.color2, frac),
-    lerp(from.wall, to.wall, frac), lerp(from.wallLight, to.wallLight, frac),
-    lerp(from.wallDark, to.wallDark, frac), lerp(from.floor, to.floor, frac),
-    lerp(from.mortar, to.mortar, frac)
-  )
+  val (seg, _) = getTimeSegment()
+  return ALL_ZONES[seg]
 }
 
 data class TimeTint(val accent1: Color, val accent2: Color, val surfaceTint: Color)
 fun currentTimeTint(): TimeTint {
   val p = currentZonePalette()
-  return TimeTint(p.color1, p.color2, lerp(p.floor, Color.Black, 0.3f))
+  return TimeTint(p.color1, p.color2, p.floor)
 }
 
 /** Zone names for easter eggs / display */
 fun currentZoneName(): String {
   return when (getTimeSegment().first) {
-    0 -> "Demon Halls"  // 0-3
-    1 -> "Sewers"       // 4-7
-    2 -> "Prison"       // 8-11
-    3 -> "Caves"        // 12-15
-    4 -> "Dwarf City"   // 16-19
-    5 -> "Demon Halls"  // 20-23
-    else -> "Dungeon"
+    0 -> "恶魔大厅 Demon Halls"
+    1 -> "下水道 Sewers"
+    2 -> "监狱 Prison"
+    3 -> "洞穴 Caves"
+    4 -> "矮人城 Dwarf City"
+    5 -> "恶魔大厅 Demon Halls"
+    else -> "地牢 Dungeon"
   }
 }
 
@@ -218,55 +213,56 @@ fun TorchFlame(modifier: Modifier = Modifier.size(32.dp, 56.dp)) {
     infiniteRepeatable(tween(600, easing = LinearEasing), RepeatMode.Restart),
     label = "flame"
   )
+  val tick = rememberTimeTick()
+  val seg = (tick / 240).coerceIn(0, 5)
+
+  // Zone-specific flame color palettes
+  data class FlameColors(val base: Color, val mid: Color, val bright: Color, val core: Color, val tip: Color, val glow: Color)
+  val flames = when (seg) {
+    0, 5 -> FlameColors(Color(0xFFAA0000), Color(0xFFDD2200), Color(0xFFFF4400), Color(0xFFFF8844), Color(0xFFFFBB88), Color(0xFFFF2200)) // Halls — hellfire
+    1    -> FlameColors(Color(0xFF005500), Color(0xFF008833), Color(0xFF22BB55), Color(0xFF66FF88), Color(0xFFAAFFCC), Color(0xFF33FF66)) // Sewers — toxic green
+    2    -> FlameColors(Color(0xFF886600), Color(0xFFBB8800), Color(0xFFDDAA22), Color(0xFFFFDD44), Color(0xFFFFEE88), Color(0xFFFFDD33)) // Prison — lantern
+    3    -> FlameColors(Color(0xFFCC4400), Color(0xFFEE6600), Color(0xFFFF8800), Color(0xFFFFAA00), Color(0xFFFFDD66), Color(0xFFFF9900)) // Caves — standard torch
+    4    -> FlameColors(Color(0xFF6666AA), Color(0xFF8888CC), Color(0xFFAAAAEE), Color(0xFFCCCCFF), Color(0xFFEEEEFF), Color(0xFFCCCCFF)) // City — magical blue-white
+    else -> FlameColors(Color(0xFFCC0000), Color(0xFFFF6600), Color(0xFFFF8800), Color(0xFFFFFF44), Color(0xFFFFFFCC), Color(0xFFFF6600))
+  }
 
   Canvas(modifier = modifier) {
-    val px = size.width / 8f  // pixel unit (8x grid)
+    val px = size.width / 8f
     val cx = size.width / 2f
 
-    // ── Torch handle (bottom) ──
+    // ── Torch handle ──
     val handleTop = size.height * 0.65f
-    // Brown wooden handle
     drawRect(Color(0xFF8B4513), Offset(cx - px, handleTop), Size(px * 2, size.height - handleTop))
-    // Dark end cap
     drawRect(Color(0xFF5D3A0E), Offset(cx - px, size.height - px), Size(px * 2, px))
-    // Bracket
     drawRect(Color(0xFF3D2E18), Offset(cx - px * 1.5f, handleTop), Size(px * 3, px))
 
     // ── Ember glow ──
     val flameBase = handleTop - px
     drawCircle(
       brush = Brush.radialGradient(
-        listOf(Color(0x55FF6600), Color(0x22FF4400), Color.Transparent),
+        listOf(flames.glow.copy(alpha = 0.35f), flames.glow.copy(alpha = 0.12f), Color.Transparent),
         center = Offset(cx, flameBase), radius = size.width * 1.0f
       ), center = Offset(cx, flameBase), radius = size.width * 1.0f
     )
 
-    // ── Pixelated flame particles (blocks, not ovals) ──
-    // Each "particle" is a colored pixel-block that shifts with time + tilt
+    // ── Pixelated flame particles with zone colors ──
     data class FlamePixel(val relX: Float, val relY: Float, val color: Color, val phase: Float)
 
+    val f = flames
     val particles = listOf(
-      // Base layer — red/dark orange, wide
-      FlamePixel(-2f, 0f, Color(0xFFCC0000), 0f),
-      FlamePixel(-1f, 0f, Color(0xFFEE4400), 0.5f),
-      FlamePixel(0f, 0f, Color(0xFFFF6600), 1f),
-      FlamePixel(1f, 0f, Color(0xFFEE4400), 1.5f),
-      FlamePixel(2f, 0f, Color(0xFFCC0000), 2f),
-      // Mid layer — orange
-      FlamePixel(-1.5f, -1f, Color(0xFFFF6600), 0.3f),
-      FlamePixel(-0.5f, -1f, Color(0xFFFF8800), 0.8f),
-      FlamePixel(0.5f, -1f, Color(0xFFFF8800), 1.3f),
-      FlamePixel(1.5f, -1f, Color(0xFFFF6600), 1.8f),
-      // Upper mid — bright orange/yellow
-      FlamePixel(-1f, -2f, Color(0xFFFF8800), 0.4f),
-      FlamePixel(0f, -2f, Color(0xFFFFAA00), 1.0f),
-      FlamePixel(1f, -2f, Color(0xFFFF8800), 1.6f),
-      // Core — yellow
-      FlamePixel(-0.5f, -3f, Color(0xFFFFFF44), 0.6f),
-      FlamePixel(0.5f, -3f, Color(0xFFFFFF44), 1.2f),
-      // Tip — white/pale
-      FlamePixel(0f, -4f, Color(0xFFFFFF88), 0.9f),
-      FlamePixel(0f, -5f, Color(0xFFFFFFCC), 1.5f),
+      // Base layer — wide
+      FlamePixel(-2f, 0f, f.base, 0f), FlamePixel(-1f, 0f, f.mid, 0.5f),
+      FlamePixel(0f, 0f, f.mid, 1f), FlamePixel(1f, 0f, f.mid, 1.5f), FlamePixel(2f, 0f, f.base, 2f),
+      // Mid layer
+      FlamePixel(-1.5f, -1f, f.mid, 0.3f), FlamePixel(-0.5f, -1f, f.bright, 0.8f),
+      FlamePixel(0.5f, -1f, f.bright, 1.3f), FlamePixel(1.5f, -1f, f.mid, 1.8f),
+      // Upper
+      FlamePixel(-1f, -2f, f.bright, 0.4f), FlamePixel(0f, -2f, f.core, 1.0f), FlamePixel(1f, -2f, f.bright, 1.6f),
+      // Core
+      FlamePixel(-0.5f, -3f, f.core, 0.6f), FlamePixel(0.5f, -3f, f.core, 1.2f),
+      // Tip
+      FlamePixel(0f, -4f, f.tip, 0.9f), FlamePixel(0f, -5f, f.tip, 1.5f),
     )
 
     for (p in particles) {
@@ -295,13 +291,14 @@ fun TorchGlowOverlay(modifier: Modifier = Modifier) {
   )
   val tick = rememberTimeTick()
   val seg = (tick / 240).coerceIn(0, 5)
-  // Torch color shifts with zone
+  // Torch color = zone's signature color, very distinct per zone
+  val palette = currentZonePalette()
   val torchColor = when (seg) {
-    0, 5 -> Color(0xFFFF4400) // Halls — deep red fire
-    1    -> Color(0xFF44FF88) // Sewers — eerie green
-    2    -> Color(0xFFFFCC44) // Prison — warm yellow
-    3    -> Color(0xFFFF8800) // Caves — orange
-    4    -> Color(0xFFFFFFAA) // City — bright pale
+    0, 5 -> Color(0xFFFF2200) // Halls — hellfire red
+    1    -> Color(0xFF33FF66) // Sewers — toxic green glow
+    2    -> Color(0xFFFFDD33) // Prison — lantern yellow
+    3    -> Color(0xFFFF9900) // Caves — mining torch orange
+    4    -> Color(0xFFEEEEFF) // City — bright magical white-blue
     else -> Color(0xFFFF8800)
   }
 

@@ -113,26 +113,25 @@ fun PDTranslatorTheme(
       if (darkTheme) ModernThemeColors.darkColorScheme else ModernThemeColors.lightColorScheme
     }
     ThemeColor.PIXEL_DUNGEON -> {
-      // Always dark — the dungeon has no daylight
-      // rememberTimeTick() makes this recompose every 60s so colors shift
+      // Always dark. Each 4-hour zone has its own distinct palette — no blending.
       val tick = rememberTimeTick()
-      val tint = currentTimeTint()
+      val palette = currentZonePalette()
       val base = PixelDungeonThemeColors.darkColorScheme
       base.copy(
-        // Strong zone tinting — visible color shift every 4 hours
-        primary = lerp(base.primary, tint.accent2, 0.35f),
-        secondary = lerp(base.secondary, tint.accent1, 0.4f),
-        secondaryContainer = lerp(base.secondaryContainer, tint.surfaceTint, 0.4f),
-        tertiary = lerp(base.tertiary, tint.accent1, 0.6f),
-        tertiaryContainer = lerp(base.tertiaryContainer, tint.surfaceTint, 0.5f),
-        outline = lerp(base.outline, tint.accent1, 0.35f),
-        outlineVariant = lerp(base.outlineVariant, tint.accent1, 0.3f),
-        primaryContainer = lerp(base.primaryContainer, tint.accent1, 0.25f),
-        onPrimaryContainer = lerp(base.onPrimaryContainer, tint.accent2, 0.2f),
-        // Also tint background/surface so standalone screens show zone color
-        background = lerp(base.background, tint.surfaceTint, 0.5f),
-        surface = lerp(base.surface, tint.surfaceTint, 0.3f),
-        surfaceVariant = lerp(base.surfaceVariant, tint.surfaceTint, 0.3f),
+        // Zone accent as tertiary — most visible colored element
+        tertiary = palette.color1,
+        tertiaryContainer = palette.wallDark,
+        onTertiaryContainer = palette.color2,
+        // Outline = zone wall edge color
+        outline = palette.wallLight,
+        outlineVariant = palette.wall,
+        // Bottom nav bar takes zone wall color
+        primaryContainer = palette.wall,
+        onPrimaryContainer = palette.color2,
+        // Background/surface tinted with zone floor
+        background = palette.floor,
+        surface = palette.mortar.copy(alpha = 0.8f),
+        surfaceVariant = palette.wallDark.copy(alpha = 0.8f),
       )
     }
   }
