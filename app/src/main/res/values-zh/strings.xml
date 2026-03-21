@@ -141,6 +141,7 @@
     <string name="import_overwrite_count">覆盖 %1$d 个语言文件</string>
     <string name="import_ignore_count">%1$d 个忽略</string>
     <string name="import_fail_count">%1$d 个失败</string>
+    <string name="import_empty">未找到 .properties 文件</string>
 
     <!-- Draft -->
     <string name="draft_found_title">发现草稿</string>
@@ -165,7 +166,12 @@
     <string name="search_case_sensitive">区分大小写</string>
     <string name="search_exact_match">完全匹配</string>
     <string name="search_find_btn">查找</string>
+    <string name="search_prev_btn">上一条</string>
+    <string name="search_next_btn">下一条</string>
+    <string name="search_replace_current_btn">替换当前</string>
     <string name="search_replace_btn">全部替换</string>
+    <string name="search_result_status">第 %1$d / %2$d 个结果</string>
+    <string name="search_replace_current_done">已替换当前 %1$d 条</string>
     <string name="search_replace_done">已替换 %1$d 条</string>
 
     <!-- Export -->
@@ -194,7 +200,15 @@
     <!-- Dictionary -->
     <string name="dict_title">字典</string>
     <string name="dict_subtitle">保存翻译内容，版本更新后可快速复用。</string>
+    <string name="dict_default_name">默认字典</string>
+    <string name="dict_select_label">当前字典</string>
     <string name="dict_count">字典条目数: %1$d</string>
+    <string name="dict_count_short">%1$d 条</string>
+    <string name="dict_total">字典数量: %1$d</string>
+    <string name="dict_name_label">字典名称</string>
+    <string name="dict_create">新建字典</string>
+    <string name="dict_rename">重命名</string>
+    <string name="dict_delete">删除字典</string>
     <string name="dict_save">保存到字典</string>
     <string name="dict_apply">应用字典</string>
     <string name="dict_clear">清空字典</string>
@@ -202,6 +216,12 @@
     <string name="dict_apply_done">已从字典应用 %1$d 条翻译</string>
     <string name="dict_apply_none">字典中没有找到匹配的条目</string>
     <string name="dict_clear_done">字典已清空</string>
+    <string name="dict_create_done">已创建并切换到字典「%1$s」</string>
+    <string name="dict_rename_done">字典已重命名为「%1$s」</string>
+    <string name="dict_delete_done">字典已删除</string>
+    <string name="dict_delete_last_blocked">至少保留一个字典</string>
+    <string name="dict_name_exists">已存在同名字典</string>
+    <string name="dict_name_invalid">字典名称不能为空</string>
 
     <!-- Deleted Entries -->
     <string name="deleted_badge">已删除</string>
@@ -226,6 +246,7 @@
     <string name="create_lang_title">创建语言</string>
     <string name="create_lang_subtitle">为当前语言组创建新的目标语言文件。</string>
     <string name="create_lang_code_label">语言代码</string>
+    <string name="create_lang_code_placeholder">zh-CN, fr, ja...</string>
     <string name="create_lang_done">语言「%1$s」创建成功</string>
     <string name="create_lang_exists">语言「%1$s」已存在</string>
     <string name="create_lang_no_group">请先选择一个语言组</string>
@@ -259,6 +280,9 @@
     <string name="engine_test_success_short">成功：</string>
     <string name="engine_test_fail">连接失败：%1$s</string>
     <string name="engine_test_fail_short">失败：</string>
+    <string name="engine_status_untested">未验证</string>
+    <string name="engine_status_verified">已验证</string>
+    <string name="engine_status_failed">失败</string>
     <string name="engine_error_unknown">未知错误</string>
     <string name="engine_error_network">网络不可用，请检查连接</string>
     <string name="engine_error_timeout">连接超时</string>
@@ -273,6 +297,7 @@
     <string name="engine_translate_button">翻译</string>
     <string name="engine_base_lang_override">引擎基准语言</string>
     <string name="engine_base_lang_override_hint">留空则使用源语言</string>
+    <string name="engine_base_lang_override_placeholder">en, zh-CN...</string>
 
     <!-- Pixel Dungeon Easter Egg -->
     <string name="pd_dungeon_section">地牢状态</string>

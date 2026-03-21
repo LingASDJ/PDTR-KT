@@ -30,6 +30,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -108,10 +109,10 @@ fun LanguageSelectors(
 ) {
   Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
     Box(modifier = Modifier.weight(1f)) {
-      LanguageSelector(availableLanguages, sourceLangCode, stringResource(id = R.string.config_source_language), onSourceSelected, getDisplayName)
+      LanguageSelector(availableLanguages.filter { it != targetLangCode }, sourceLangCode, stringResource(id = R.string.config_source_language), onSourceSelected, getDisplayName)
     }
     Box(modifier = Modifier.weight(1f)) {
-      LanguageSelector(availableLanguages, targetLangCode, stringResource(id = R.string.config_target_language), onTargetSelected, getDisplayName)
+      LanguageSelector(availableLanguages.filter { it != sourceLangCode }, targetLangCode, stringResource(id = R.string.config_target_language), onTargetSelected, getDisplayName)
     }
   }
 }
@@ -157,6 +158,73 @@ fun LanguageSelector(
             }
           },
           onClick = { onLanguageSelected(lang); expanded = false }
+        )
+      }
+    }
+  }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun FilterableLanguageCodeField(
+  value: String,
+  onValueChange: (String) -> Unit,
+  label: String,
+  placeholder: String,
+  options: List<LanguageCodeOption>,
+  modifier: Modifier = Modifier,
+  enabled: Boolean = true
+) {
+  var expanded by remember { mutableStateOf(false) }
+  val focusManager = LocalFocusManager.current
+  val filteredOptions = remember(value, options) {
+    LanguageCodeCatalog.filter(options, value).take(12)
+  }
+
+  ExposedDropdownMenuBox(
+    expanded = expanded && filteredOptions.isNotEmpty(),
+    onExpandedChange = { expanded = !expanded }
+  ) {
+    OutlinedTextField(
+      value = value,
+      onValueChange = {
+        onValueChange(it)
+        expanded = true
+      },
+      label = { Text(label) },
+      placeholder = { Text(placeholder) },
+      trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded && filteredOptions.isNotEmpty()) },
+      modifier = modifier
+        .fillMaxWidth()
+        .menuAnchor(),
+      colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
+      singleLine = true,
+      enabled = enabled
+    )
+    ExposedDropdownMenu(
+      expanded = expanded && filteredOptions.isNotEmpty(),
+      onDismissRequest = { expanded = false }
+    ) {
+      filteredOptions.forEach { option ->
+        DropdownMenuItem(
+          text = {
+            Row(
+              verticalAlignment = Alignment.CenterVertically,
+              horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+              Text(option.code)
+              Text(
+                text = option.displayName,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+              )
+            }
+          },
+          onClick = {
+            onValueChange(option.code)
+            expanded = false
+            focusManager.clearFocus()
+          }
         )
       }
     }

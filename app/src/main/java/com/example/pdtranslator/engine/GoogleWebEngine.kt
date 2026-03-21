@@ -5,8 +5,6 @@ import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.request.get
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.jsonArray
-import kotlinx.serialization.json.jsonPrimitive
 
 class GoogleWebEngine(
   private val client: HttpClient
@@ -34,15 +32,8 @@ class GoogleWebEngine(
       ).body()
 
       val json = Json.parseToJsonElement(response)
-      val sentences = json.jsonArray[0].jsonArray
-      val translated = buildString {
-        for (i in 0 until sentences.size) {
-          val sentence = sentences[i]
-          if (sentence is kotlinx.serialization.json.JsonArray && sentence.size > 0) {
-            append(sentence[0].jsonPrimitive.content)
-          }
-        }
-      }
+      val translated = EngineJsonParser.extractGoogleWebTranslatedText(json)
+        ?: return Result.failure(Exception("Unexpected response format"))
 
       if (translated.isBlank()) {
         return Result.failure(Exception("Empty translation"))

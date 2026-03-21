@@ -34,12 +34,17 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import com.example.pdtranslator.engine.EngineConfig
+import com.example.pdtranslator.engine.EngineVerificationState
 import com.example.pdtranslator.ui.theme.currentZoneName
 import com.example.pdtranslator.ui.theme.rememberTimeTick
 
@@ -237,6 +242,7 @@ fun TranslationEngineDialog(
     var selectedId by remember { mutableStateOf(engineManager.getSelectedEngineId()) }
     var apiKey by remember(selectedId) { mutableStateOf(engineManager.getApiKey(selectedId)) }
     var endpoint by remember(selectedId) { mutableStateOf(engineManager.getEndpoint(selectedId)) }
+    var showApiKey by remember(selectedId) { mutableStateOf(false) }
     var testResult by remember { mutableStateOf<String?>(null) }
     var isTesting by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
@@ -268,6 +274,7 @@ fun TranslationEngineDialog(
                 ) {
                     // Engine selection
                     engines.forEach { engine ->
+                        val healthStatus = engineManager.getEngineHealthStatus(engine.id)
                         Row(
                             Modifier
                                 .fillMaxWidth()
@@ -301,6 +308,31 @@ fun TranslationEngineDialog(
                                             .padding(horizontal = 4.dp, vertical = 1.dp)
                                     )
                                 }
+                                Spacer(Modifier.width(6.dp))
+                                val statusLabel = when (healthStatus.state) {
+                                    EngineVerificationState.VERIFIED -> stringResource(R.string.engine_status_verified)
+                                    EngineVerificationState.FAILED -> stringResource(R.string.engine_status_failed)
+                                    EngineVerificationState.UNTESTED -> stringResource(R.string.engine_status_untested)
+                                }
+                                val statusColor = when (healthStatus.state) {
+                                    EngineVerificationState.VERIFIED -> MaterialTheme.colorScheme.primary
+                                    EngineVerificationState.FAILED -> MaterialTheme.colorScheme.error
+                                    EngineVerificationState.UNTESTED -> MaterialTheme.colorScheme.onSurfaceVariant
+                                }
+                                val statusBackground = when (healthStatus.state) {
+                                    EngineVerificationState.VERIFIED -> MaterialTheme.colorScheme.primaryContainer
+                                    EngineVerificationState.FAILED -> MaterialTheme.colorScheme.errorContainer
+                                    EngineVerificationState.UNTESTED -> MaterialTheme.colorScheme.surfaceVariant
+                                }
+                                Text(
+                                    text = statusLabel,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = statusColor,
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(4.dp))
+                                        .background(statusBackground)
+                                        .padding(horizontal = 4.dp, vertical = 1.dp)
+                                )
                             }
                         }
                     }
@@ -347,6 +379,15 @@ fun TranslationEngineDialog(
                                 },
                                 label = { Text(stringResource(R.string.engine_api_key_label)) },
                                 placeholder = if (hint.isNotBlank()) {{ Text(hint) }} else null,
+                                visualTransformation = if (showApiKey) VisualTransformation.None else PasswordVisualTransformation(),
+                                trailingIcon = {
+                                    IconButton(onClick = { showApiKey = !showApiKey }) {
+                                        Icon(
+                                            imageVector = if (showApiKey) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                            contentDescription = null
+                                        )
+                                    }
+                                },
                                 modifier = Modifier.fillMaxWidth(),
                                 singleLine = true
                             )
@@ -425,6 +466,20 @@ fun TranslationEngineDialog(
                                         else MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.3f)
                                     )
                                     .padding(8.dp)
+                            )
+                        }
+
+                        val selectedHealth = engineManager.getEngineHealthStatus(selectedId)
+                        if (testResult == null && selectedHealth.message.isNotBlank()) {
+                            Spacer(Modifier.height(8.dp))
+                            Text(
+                                text = selectedHealth.message,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = if (selectedHealth.state == EngineVerificationState.FAILED) {
+                                    MaterialTheme.colorScheme.error
+                                } else {
+                                    MaterialTheme.colorScheme.onSurfaceVariant
+                                }
                             )
                         }
                     }

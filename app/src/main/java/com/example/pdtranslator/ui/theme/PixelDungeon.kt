@@ -344,17 +344,67 @@ fun pdNavIcons(): Triple<Int, Int, Int> {
 private var cachedBrickBitmap: ImageBitmap? = null
 private var cachedBrickKey: Triple<Int, Int, Int>? = null // (hour, w, h)
 
-private fun generateBrickBitmap(w: Int, h: Int, palette: ZonePalette): ImageBitmap {
+/**
+ * Zone-specific decoration types — controls what details are painted on bricks.
+ * Inspired by MLPD's per-chapter tile decorations:
+ * Sewers=moss/water, Prison=torch_scorch/chains, Caves=ore/cracks,
+ * City=engravings/smoke, Halls=bones/lava, Bosses=themed.
+ */
+private enum class WallDeco {
+  MOSS,           // Sewers: green moss patches, dripping water stains
+  VINES,          // Garden: hanging vines, leaf litter
+  TORCH_SCORCH,   // Prison: torch burn marks, chain bolts
+  CRACKS,         // Caves: rock fractures, ore veins sparkling
+  CRYSTAL,        // Crystal caves: blue/cyan crystal growths on walls
+  ENGRAVINGS,     // City: carved runes, metal rivets, soot
+  ARCANE,         // Dwarf King / magic: glowing glyphs
+  BONES,          // Halls: bone fragments, blood drips
+  LAVA_DRIP,      // Yog / deep halls: lava seams, heat distortion
+  FROST,          // Ice Fist: ice crystals, frozen cracks
+  CORRUPTION,     // Rotting / poison: corrosion spots, slime
+  HOLY,           // Bright Fist: light cracks, golden veins
+  SHADOW,         // Dark Fist: void patches, purple wisps
+  RUSTED,         // Rusted Fist: rust streaks, oxidation
+  GOLD_TRIM       // Last level: golden inlays, amulet symbols
+}
+
+private fun getZoneDecos(hour: Int): List<WallDeco> = when (hour) {
+  0, 16       -> listOf(WallDeco.BONES, WallDeco.LAVA_DRIP)        // Demon Halls
+  1           -> listOf(WallDeco.LAVA_DRIP, WallDeco.TORCH_SCORCH)  // Burning Fist
+  2           -> listOf(WallDeco.CORRUPTION, WallDeco.MOSS)         // Rotting Fist
+  3           -> listOf(WallDeco.FROST, WallDeco.CRYSTAL)           // Ice Fist
+  4, 5        -> listOf(WallDeco.MOSS, WallDeco.CORRUPTION)         // Sewers / Goo
+  6           -> listOf(WallDeco.VINES, WallDeco.MOSS)              // Garden
+  7, 8        -> listOf(WallDeco.TORCH_SCORCH, WallDeco.CRACKS)     // Prison
+  9           -> listOf(WallDeco.TORCH_SCORCH, WallDeco.BONES)      // Tengu
+  10, 11      -> listOf(WallDeco.CRACKS, WallDeco.TORCH_SCORCH)     // Caves / Deep Mines
+  12          -> listOf(WallDeco.CRYSTAL, WallDeco.CRACKS)          // Crystal Caves
+  13, 14      -> listOf(WallDeco.ENGRAVINGS, WallDeco.ARCANE)       // Dwarf City
+  15          -> listOf(WallDeco.ARCANE, WallDeco.ENGRAVINGS)       // Dwarf King
+  17          -> listOf(WallDeco.ARCANE, WallDeco.CORRUPTION)       // Evil Eyes
+  18          -> listOf(WallDeco.CORRUPTION, WallDeco.BONES)        // Scorpio
+  19          -> listOf(WallDeco.LAVA_DRIP, WallDeco.BONES)         // Yog
+  20          -> listOf(WallDeco.HOLY, WallDeco.ENGRAVINGS)         // Bright Fist
+  21          -> listOf(WallDeco.SHADOW, WallDeco.ARCANE)           // Dark Fist
+  22          -> listOf(WallDeco.RUSTED, WallDeco.CRACKS)           // Rusted Fist
+  23          -> listOf(WallDeco.GOLD_TRIM, WallDeco.LAVA_DRIP)     // Last Level
+  else        -> listOf(WallDeco.CRACKS)
+}
+
+private fun generateBrickBitmap(w: Int, h: Int, palette: ZonePalette, hour: Int = 0): ImageBitmap {
   val bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
   val brickW = 28; val brickH = 14; val gap = 2
   val mortarArgb = palette.mortar.toArgb()
   val wallArgb = palette.wall.toArgb()
   val lightArgb = palette.wallLight.toArgb()
   val darkArgb = palette.wallDark.toArgb()
-  val speckArgb = palette.color1.copy(alpha = 0.2f).toArgb()
+  val decos = getZoneDecos(hour)
 
   // Fill mortar
   bmp.eraseColor(mortarArgb)
+
+  // Helper to safely set a pixel
+  fun px(x: Int, y: Int, c: Int) { if (x in 0 until w && y in 0 until h) bmp.setPixel(x, y, c) }
 
   val rows = h / brickH + 2; val cols = w / brickW + 2
   for (row in 0 until rows) {
@@ -362,38 +412,330 @@ private fun generateBrickBitmap(w: Int, h: Int, palette: ZonePalette): ImageBitm
     for (col in -1 until cols) {
       val bx = col * brickW + offX; val by = row * brickH
       val hash = (row * 137 + col * 269) and 0xFF
-      // Body
+      val hash2 = (row * 53 + col * 197 + 91) and 0xFF
+      val innerW = brickW - gap * 2; val innerH = brickH - gap * 2
+
+      // ── Brick body with subtle per-brick color variation ──
+      val variation = ((hash % 7) - 3) * 2  // -6..+6 brightness shift
+      val bodyArgb = shiftBrightness(wallArgb, variation)
       for (py in (by + gap) until (by + brickH - gap)) {
         if (py !in 0 until h) continue
-        for (px in (bx + gap) until (bx + brickW - gap)) {
-          if (px in 0 until w) bmp.setPixel(px, py, wallArgb)
+        for (ppx in (bx + gap) until (bx + brickW - gap)) {
+          if (ppx in 0 until w) bmp.setPixel(ppx, py, bodyArgb)
         }
       }
-      // Highlight top+left
+
+      // ── Highlight top + left edge ──
       val topY = by + gap; val leftX = bx + gap
-      if (topY in 0 until h) for (px in (bx + gap) until (bx + brickW - gap)) { if (px in 0 until w) bmp.setPixel(px, topY, lightArgb) }
+      if (topY in 0 until h) for (ppx in (bx + gap) until (bx + brickW - gap)) { if (ppx in 0 until w) bmp.setPixel(ppx, topY, lightArgb) }
       if (leftX in 0 until w) for (py in (by + gap) until (by + brickH - gap)) { if (py in 0 until h) bmp.setPixel(leftX, py, lightArgb) }
-      // Shadow bottom+right
+
+      // ── Shadow bottom + right edge ──
       val botY = by + brickH - gap - 1; val rightX = bx + brickW - gap - 1
-      if (botY in 0 until h) for (px in (bx + gap) until (bx + brickW - gap)) { if (px in 0 until w) bmp.setPixel(px, botY, darkArgb) }
+      if (botY in 0 until h) for (ppx in (bx + gap) until (bx + brickW - gap)) { if (ppx in 0 until w) bmp.setPixel(ppx, botY, darkArgb) }
       if (rightX in 0 until w) for (py in (by + gap) until (by + brickH - gap)) { if (py in 0 until h) bmp.setPixel(rightX, py, darkArgb) }
-      // Specks — zone-colored dust on bricks
-      if (hash % 5 == 0) {
-        val sx = (bx + gap + 2 + hash % ((brickW - gap * 2 - 4).coerceAtLeast(1))).coerceIn(0, w - 1)
-        val sy = (by + gap + 2 + (hash / 3) % ((brickH - gap * 2 - 4).coerceAtLeast(1))).coerceIn(0, h - 1)
-        bmp.setPixel(sx, sy, speckArgb)
+
+      // ── Inner surface texture: 50% common alt, 5% rare alt (like MLPD tile variance) ──
+      if (hash >= 128) {
+        // Common variant: subtle noise dots on brick surface
+        val noiseCount = 2 + hash % 3
+        for (n in 0 until noiseCount) {
+          val nx = bx + gap + 1 + ((hash * (n + 1) * 7) % (innerW - 2).coerceAtLeast(1))
+          val ny = by + gap + 1 + ((hash2 * (n + 1) * 5) % (innerH - 2).coerceAtLeast(1))
+          px(nx, ny, shiftBrightness(bodyArgb, if (n % 2 == 0) -8 else 6))
+        }
       }
-      // Extra detail: moss/blood/crystal stains based on zone accent
-      if (hash % 11 == 0) {
-        val stainArgb = palette.color2.copy(alpha = 0.12f).toArgb()
-        val sx2 = (bx + gap + 4 + (hash * 3) % ((brickW - gap * 2 - 6).coerceAtLeast(1))).coerceIn(0, w - 1)
-        val sy2 = (by + gap + 2 + (hash / 5) % ((brickH - gap * 2 - 4).coerceAtLeast(1))).coerceIn(0, h - 1)
-        bmp.setPixel(sx2, sy2, stainArgb)
-        if (sx2 + 1 < w) bmp.setPixel(sx2 + 1, sy2, stainArgb)
+      if (hash >= 243) {
+        // Rare variant (5%): diagonal scratch mark across brick
+        val sx = bx + gap + 2; val sy = by + gap + 1
+        for (i in 0 until minOf(3, innerW - 3, innerH - 2)) {
+          px(sx + i, sy + i, darkArgb)
+        }
+      }
+
+      // ━━━━ Zone-specific decorations ━━━━
+      for (deco in decos) {
+        when (deco) {
+          WallDeco.MOSS -> {
+            // Mossy patches on ~25% of bricks, more at bottom
+            val mossChance = if (by > h / 2) 4 else 6
+            if (hash % mossChance == 0) {
+              val mossColor = blendColors(palette.color1.toArgb(), 0xFF2D5A1E.toInt(), 0.5f)
+              // Cluster of 3-6 moss pixels along bottom/corner of brick
+              val mossCount = 3 + hash2 % 4
+              for (m in 0 until mossCount) {
+                val mx = bx + gap + 1 + (hash2 * (m + 1) * 3) % (innerW - 2).coerceAtLeast(1)
+                val my = by + brickH - gap - 2 - (m % 2)
+                px(mx, my, mossColor)
+                if (m % 3 == 0) px(mx, my - 1, shiftBrightness(mossColor, 15)) // lighter moss tip
+              }
+            }
+            // Drip stain from mortar gaps (~10%)
+            if (hash % 10 == 1) {
+              val dripX = bx + brickW / 2 + (hash2 % 5 - 2)
+              val dripColor = blendColors(palette.color2.toArgb(), palette.mortar.toArgb(), 0.4f)
+              for (dy in 0..2) px(dripX, by + gap + 1 + dy, dripColor)
+            }
+          }
+
+          WallDeco.VINES -> {
+            // Hanging vine tendrils from top of brick (~20%)
+            if (hash % 5 == 0) {
+              val vineColor = 0xFF3A7A2A.toInt()
+              val vineX = bx + gap + 2 + hash2 % (innerW - 4).coerceAtLeast(1)
+              val vineLen = 3 + hash % 4
+              for (vy in 0 until vineLen) {
+                px(vineX + (vy % 2), by + gap + vy, vineColor)
+              }
+              // Leaf at end
+              px(vineX - 1, by + gap + vineLen, shiftBrightness(vineColor, 20))
+              px(vineX + 1, by + gap + vineLen, shiftBrightness(vineColor, 10))
+            }
+          }
+
+          WallDeco.TORCH_SCORCH -> {
+            // Burn marks radiating from center-top of some bricks (~15%)
+            if (hash % 7 == 0) {
+              val scorchColor = shiftBrightness(darkArgb, -10)
+              val cx = bx + brickW / 2
+              val cy = by + gap + 1
+              px(cx, cy, scorchColor); px(cx - 1, cy, scorchColor); px(cx + 1, cy, scorchColor)
+              px(cx, cy + 1, scorchColor); px(cx - 1, cy + 1, shiftBrightness(scorchColor, 5))
+              px(cx + 1, cy + 1, shiftBrightness(scorchColor, 5))
+            }
+            // Chain bolt rivet (~8%)
+            if (hash2 % 12 == 0) {
+              val rivetColor = 0xFF8A8A8A.toInt()
+              val rx = bx + gap + 3 + hash % (innerW - 6).coerceAtLeast(1)
+              val ry = by + gap + 2 + hash2 % (innerH - 4).coerceAtLeast(1)
+              px(rx, ry, rivetColor); px(rx + 1, ry, 0xFF6A6A6A.toInt())
+              px(rx, ry + 1, 0xFF6A6A6A.toInt()); px(rx + 1, ry + 1, 0xFF555555.toInt())
+            }
+          }
+
+          WallDeco.CRACKS -> {
+            // Fracture lines across brick (~20%)
+            if (hash % 5 == 0) {
+              val crackColor = shiftBrightness(darkArgb, -5)
+              val sx = bx + gap + 1 + hash % (innerW / 2).coerceAtLeast(1)
+              val sy = by + gap + 1 + hash2 % (innerH - 2).coerceAtLeast(1)
+              val crackLen = 3 + hash % 3
+              for (i in 0 until crackLen) {
+                val dir = (hash2 + i) % 3 // 0=right, 1=down-right, 2=down
+                when (dir) {
+                  0 -> px(sx + i, sy, crackColor)
+                  1 -> px(sx + i, sy + i / 2, crackColor)
+                  2 -> px(sx + i / 2, sy + i, crackColor)
+                }
+              }
+            }
+            // Ore vein sparkle (~5%)
+            if (hash % 20 == 0) {
+              val oreColor = blendColors(palette.color2.toArgb(), 0xFFFFDD44.toInt(), 0.3f)
+              val ox = bx + gap + 2 + hash2 % (innerW - 4).coerceAtLeast(1)
+              val oy = by + gap + 2 + hash % (innerH - 4).coerceAtLeast(1)
+              px(ox, oy, oreColor); px(ox + 1, oy, shiftBrightness(oreColor, -10))
+            }
+          }
+
+          WallDeco.CRYSTAL -> {
+            // Crystal growths jutting from brick (~12%)
+            if (hash % 8 == 0) {
+              val crystalBase = blendColors(palette.color1.toArgb(), 0xFF66B3FF.toInt(), 0.6f)
+              val crystalTip = blendColors(crystalBase, 0xFFAADDFF.toInt(), 0.5f)
+              val cx = bx + gap + 3 + hash2 % (innerW - 6).coerceAtLeast(1)
+              val cy = by + brickH - gap - 2
+              // Small triangular crystal pointing up
+              px(cx, cy, crystalBase); px(cx, cy - 1, crystalBase); px(cx, cy - 2, crystalTip)
+              px(cx - 1, cy, shiftBrightness(crystalBase, -10))
+              px(cx + 1, cy, shiftBrightness(crystalBase, 10))
+            }
+          }
+
+          WallDeco.ENGRAVINGS -> {
+            // Carved horizontal line / rune on brick (~18%)
+            if (hash % 6 == 0) {
+              val engraveColor = shiftBrightness(darkArgb, 8)
+              val ey = by + gap + innerH / 2
+              val eStart = bx + gap + 3; val eEnd = bx + brickW - gap - 3
+              for (ex in eStart..eEnd step 2) px(ex, ey, engraveColor)
+            }
+            // Metal rivet at corners (~10%)
+            if (hash2 % 10 == 0) {
+              val rivetColor = 0xFFB0BEC5.toInt()
+              px(bx + gap + 1, by + gap + 1, rivetColor)
+              px(bx + brickW - gap - 2, by + brickH - gap - 2, shiftBrightness(rivetColor, -15))
+            }
+          }
+
+          WallDeco.ARCANE -> {
+            // Glowing glyph pixel cluster (~10%)
+            if (hash % 10 == 0) {
+              val glyphColor = blendColors(palette.color1.toArgb(), 0xFFCC33FF.toInt(), 0.4f)
+              val gx = bx + brickW / 2 - 1; val gy = by + brickH / 2 - 1
+              // Small cross glyph
+              px(gx + 1, gy, glyphColor)
+              px(gx, gy + 1, glyphColor); px(gx + 1, gy + 1, shiftBrightness(glyphColor, 20)); px(gx + 2, gy + 1, glyphColor)
+              px(gx + 1, gy + 2, glyphColor)
+            }
+          }
+
+          WallDeco.BONES -> {
+            // Bone fragment on brick (~15%)
+            if (hash % 7 == 0) {
+              val boneColor = 0xFFD4C9A8.toInt()
+              val boneShadow = 0xFFA09880.toInt()
+              val boneX = bx + gap + 2 + hash2 % (innerW - 5).coerceAtLeast(1)
+              val boneY = by + brickH - gap - 3
+              px(boneX, boneY, boneColor); px(boneX + 1, boneY, boneColor); px(boneX + 2, boneY, boneColor)
+              px(boneX + 1, boneY + 1, boneShadow)
+            }
+            // Blood drip (~10%)
+            if (hash2 % 10 == 0) {
+              val bloodColor = 0xFF880000.toInt()
+              val bx2 = bx + gap + 4 + hash % (innerW - 6).coerceAtLeast(1)
+              for (dy in 0..2) px(bx2, by + gap + 1 + dy, shiftBrightness(bloodColor, dy * 8))
+            }
+          }
+
+          WallDeco.LAVA_DRIP -> {
+            // Lava seam in mortar (~20% of mortar gaps)
+            if (hash % 5 == 0) {
+              val lavaColor = 0xFFFF4400.toInt()
+              val lavaGlow = 0xFFFF8800.toInt()
+              // Horizontal lava seam along bottom mortar gap
+              val seamY = by + brickH - 1
+              val seamStart = bx + gap; val seamEnd = bx + brickW - gap
+              if (seamY in 0 until h) {
+                for (sx in seamStart until seamEnd step 3) {
+                  px(sx, seamY, if ((sx + hash) % 2 == 0) lavaColor else lavaGlow)
+                }
+              }
+            }
+            // Heat shimmer dot on brick (~8%)
+            if (hash2 % 12 == 0) {
+              val heatColor = blendColors(palette.color1.toArgb(), 0xFFFF6600.toInt(), 0.3f)
+              px(bx + brickW / 2, by + gap + 2, heatColor)
+            }
+          }
+
+          WallDeco.FROST -> {
+            // Ice crystal pattern on brick (~20%)
+            if (hash % 5 == 0) {
+              val iceColor = 0xFF8AD8D8.toInt()
+              val iceBright = 0xFFAAFFFF.toInt()
+              val ix = bx + gap + 2 + hash2 % (innerW - 4).coerceAtLeast(1)
+              val iy = by + gap + 1 + hash % (innerH - 3).coerceAtLeast(1)
+              // Small ice star
+              px(ix, iy - 1, iceBright)
+              px(ix - 1, iy, iceColor); px(ix, iy, iceBright); px(ix + 1, iy, iceColor)
+              px(ix, iy + 1, iceColor)
+            }
+            // Frozen mortar (~15%)
+            if (hash % 7 == 0) {
+              val frozenMortar = blendColors(mortarArgb, 0xFF66DDDD.toInt(), 0.3f)
+              val fy = by + brickH - 1
+              for (fx in bx + gap until bx + brickW - gap step 2) px(fx, fy, frozenMortar)
+            }
+          }
+
+          WallDeco.CORRUPTION -> {
+            // Slime / corrosion patches (~20%)
+            if (hash % 5 == 0) {
+              val slimeColor = blendColors(palette.color2.toArgb(), 0xFF556B2F.toInt(), 0.4f)
+              val cx = bx + gap + 1 + hash2 % (innerW - 3).coerceAtLeast(1)
+              val cy = by + brickH - gap - 2
+              px(cx, cy, slimeColor); px(cx + 1, cy, slimeColor)
+              px(cx, cy + 1, shiftBrightness(slimeColor, -10)); px(cx + 1, cy + 1, shiftBrightness(slimeColor, 5))
+              if (hash % 3 == 0) px(cx + 2, cy, shiftBrightness(slimeColor, 10))
+            }
+          }
+
+          WallDeco.HOLY -> {
+            // Light cracks with golden glow (~12%)
+            if (hash % 8 == 0) {
+              val lightColor = 0xFFFFEEAA.toInt()
+              val goldColor = 0xFFFFDD44.toInt()
+              val lx = bx + gap + 2 + hash2 % (innerW - 4).coerceAtLeast(1)
+              val ly = by + gap + 2
+              px(lx, ly, goldColor); px(lx + 1, ly + 1, lightColor); px(lx + 2, ly + 2, goldColor)
+              px(lx + 1, ly, shiftBrightness(lightColor, 10))
+            }
+          }
+
+          WallDeco.SHADOW -> {
+            // Void patches — darker than dark (~15%)
+            if (hash % 7 == 0) {
+              val voidColor = 0xFF0A0610.toInt()
+              val voidEdge = blendColors(bodyArgb, voidColor, 0.5f)
+              val vx = bx + gap + 2 + hash2 % (innerW - 5).coerceAtLeast(1)
+              val vy = by + gap + 2 + hash % (innerH - 4).coerceAtLeast(1)
+              px(vx, vy, voidColor); px(vx + 1, vy, voidColor)
+              px(vx, vy + 1, voidColor); px(vx + 1, vy + 1, voidEdge)
+              px(vx + 2, vy, voidEdge); px(vx - 1, vy + 1, voidEdge)
+            }
+          }
+
+          WallDeco.RUSTED -> {
+            // Rust streaks running down brick (~22%)
+            if (hash % 5 == 0) {
+              val rustColor = blendColors(0xFFAA5500.toInt(), palette.color2.toArgb(), 0.3f)
+              val rx = bx + gap + 2 + hash2 % (innerW - 4).coerceAtLeast(1)
+              val rustLen = 2 + hash % 3
+              for (ry in 0 until rustLen) {
+                px(rx + (ry % 2), by + gap + 1 + ry, shiftBrightness(rustColor, ry * 5))
+              }
+            }
+            // Oxidation patch (~10%)
+            if (hash2 % 10 == 0) {
+              val oxColor = 0xFF668866.toInt()
+              val ox = bx + brickW / 2; val oy = by + brickH / 2
+              px(ox, oy, oxColor); px(ox + 1, oy, shiftBrightness(oxColor, 10))
+            }
+          }
+
+          WallDeco.GOLD_TRIM -> {
+            // Golden inlay line along brick center (~15%)
+            if (hash % 7 == 0) {
+              val goldColor = 0xFFDDAA22.toInt()
+              val goldBright = 0xFFFFDD44.toInt()
+              val gy = by + brickH / 2
+              for (gx in (bx + gap + 2) until (bx + brickW - gap - 2) step 2) {
+                px(gx, gy, if ((gx + hash) % 3 == 0) goldBright else goldColor)
+              }
+            }
+            // Tiny amulet symbol (~5%)
+            if (hash % 20 == 0) {
+              val symColor = 0xFFFFCC44.toInt()
+              val sx = bx + brickW / 2; val sy = by + brickH / 2 - 1
+              px(sx, sy, symColor); px(sx - 1, sy + 1, symColor); px(sx + 1, sy + 1, symColor)
+              px(sx, sy + 2, symColor)
+            }
+          }
+        }
       }
     }
   }
   return bmp.asImageBitmap()
+}
+
+/** Shift RGB brightness by delta (-255..+255), clamping channels */
+private fun shiftBrightness(argb: Int, delta: Int): Int {
+  val a = (argb ushr 24) and 0xFF
+  val r = (((argb ushr 16) and 0xFF) + delta).coerceIn(0, 255)
+  val g = (((argb ushr 8) and 0xFF) + delta).coerceIn(0, 255)
+  val b = ((argb and 0xFF) + delta).coerceIn(0, 255)
+  return (a shl 24) or (r shl 16) or (g shl 8) or b
+}
+
+/** Blend two ARGB colors by ratio (0.0 = colorA, 1.0 = colorB) */
+private fun blendColors(colorA: Int, colorB: Int, ratio: Float): Int {
+  val inv = 1f - ratio
+  val a = (((colorA ushr 24) and 0xFF) * inv + ((colorB ushr 24) and 0xFF) * ratio).toInt()
+  val r = (((colorA ushr 16) and 0xFF) * inv + ((colorB ushr 16) and 0xFF) * ratio).toInt()
+  val g = (((colorA ushr 8) and 0xFF) * inv + ((colorB ushr 8) and 0xFF) * ratio).toInt()
+  val b = ((colorA and 0xFF) * inv + (colorB and 0xFF) * ratio).toInt()
+  return (a.coerceIn(0, 255) shl 24) or (r.coerceIn(0, 255) shl 16) or (g.coerceIn(0, 255) shl 8) or b.coerceIn(0, 255)
 }
 
 private fun Color.toArgb(): Int {
@@ -418,7 +760,7 @@ fun PixelBrickBackground(modifier: Modifier = Modifier) {
   val brickBitmap = if (cachedBrickKey == key && cachedBrickBitmap != null) {
     cachedBrickBitmap!!
   } else {
-    generateBrickBitmap(widthPx, heightPx, currentZonePalette()).also {
+    generateBrickBitmap(widthPx, heightPx, currentZonePalette(), hour).also {
       cachedBrickBitmap = it
       cachedBrickKey = key
     }
@@ -494,9 +836,10 @@ fun TorchFlame(modifier: Modifier = Modifier.size(32.dp, 56.dp)) {
 
     // ── Torch handle ──
     val handleTop = size.height * 0.65f
-    drawRect(Color(0xFF8B4513), Offset(cx - px, handleTop), Size(px * 2, size.height - handleTop))
-    drawRect(Color(0xFF5D3A0E), Offset(cx - px, size.height - px), Size(px * 2, px))
-    drawRect(Color(0xFF3D2E18), Offset(cx - px * 1.5f, handleTop), Size(px * 3, px))
+    val handleShift = px * 0.5f
+    drawRect(Color(0xFF8B4513), Offset(cx - px + handleShift, handleTop), Size(px * 2, size.height - handleTop))
+    drawRect(Color(0xFF5D3A0E), Offset(cx - px + handleShift, size.height - px), Size(px * 2, px))
+    drawRect(Color(0xFF3D2E18), Offset(cx - px * 1.5f + handleShift, handleTop), Size(px * 3, px))
 
     // ── Ember glow ──
     val flameBase = handleTop - px

@@ -64,7 +64,9 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.example.pdtranslator.engine.EngineUsagePolicy
 import com.google.accompanist.flowlayout.FlowRow
+import java.util.Locale
 
 // ─────────────── Shared card section header ───────────────
 
@@ -113,6 +115,21 @@ fun ConfigScreen(viewModel: TranslatorViewModel) {
   val draftData by viewModel.draftData.collectAsState()
   val draftValidation by viewModel.draftValidation.collectAsState()
   val dictEntryCount by viewModel.dictEntryCount.collectAsState()
+  val dictionaries by viewModel.dictionaries.collectAsState()
+  val selectedDictionaryId by viewModel.selectedDictionaryId.collectAsState()
+  val selectedDictionaryName by viewModel.selectedDictionaryName.collectAsState()
+  val dictionaryCount by viewModel.dictionaryCount.collectAsState()
+  val canDeleteDictionary by viewModel.canDeleteDictionary.collectAsState()
+  val selectedEngineId = viewModel.engineManager.getSelectedEngineId()
+  val selectedEngineHealth = if (selectedEngineId.isBlank()) null else viewModel.engineManager.getEngineHealthStatus(selectedEngineId)
+  val currentLocales = context.resources.configuration.locales
+  val currentLocaleTag = if (currentLocales.isEmpty) Locale.getDefault().toLanguageTag() else currentLocales[0].toLanguageTag()
+  val languageCodeOptions = remember(availableLanguages, currentLocaleTag) {
+    LanguageCodeCatalog.buildOptions(
+      LanguageCodeCatalog.suggestedCodes(availableLanguages),
+      displayNameProvider = { code -> viewModel.getLanguageDisplayName(code, context) }
+    )
+  }
 
   val importMultipleLauncher = rememberLauncherForActivityResult(
     contract = ActivityResultContracts.OpenMultipleDocuments(),
@@ -201,8 +218,20 @@ fun ConfigScreen(viewModel: TranslatorViewModel) {
     }
 
     // ── Base Language Override (only when engine is configured) ──
-    if (selectedGroupName != null && viewModel.engineManager.getSelectedEngineId().isNotBlank()) {
-      BaseLangOverrideCard(groupName = selectedGroupName!!, viewModel = viewModel, isPD = isPD)
+    if (selectedGroupName != null && selectedEngineId.isNotBlank() && selectedEngineHealth != null) {
+      if (EngineUsagePolicy.shouldShowBaseLangOverride(selectedEngineId, selectedEngineHealth)) {
+        BaseLangOverrideCard(
+          groupName = selectedGroupName!!,
+          viewModel = viewModel,
+          languageCodeOptions = languageCodeOptions,
+          isPD = isPD
+        )
+      } else {
+        EngineFailedWarningCard(
+          message = selectedEngineHealth.message,
+          isPD = isPD
+        )
+      }
     }
 
     // ── Export ──
@@ -232,11 +261,20 @@ fun ConfigScreen(viewModel: TranslatorViewModel) {
 
     // ── Dictionary ──
     DictionaryCard(
+      dictionaries = dictionaries,
+      selectedDictionaryId = selectedDictionaryId,
+      selectedDictionaryName = selectedDictionaryName,
       dictEntryCount = dictEntryCount,
+      dictionaryCount = dictionaryCount,
       hasLanguageSelected = sourceLangCode != null && targetLangCode != null,
+      onSelectDictionary = viewModel::selectDictionary,
+      onCreateDictionary = viewModel::createDictionary,
+      onRenameDictionary = viewModel::renameCurrentDictionary,
+      onDeleteDictionary = viewModel::deleteCurrentDictionary,
       onSave = { viewModel.saveToDictionary() },
       onApply = { viewModel.applyDictionary() },
       onClear = { viewModel.clearDictionary() },
+      canDeleteDictionary = canDeleteDictionary,
       isPD = isPD
     )
 
@@ -244,6 +282,7 @@ fun ConfigScreen(viewModel: TranslatorViewModel) {
     CreateLanguageCard(
       hasGroupSelected = selectedGroupName != null,
       availableLanguages = availableLanguages,
+      languageCodeOptions = languageCodeOptions,
       getDisplayName = { code -> viewModel.getLanguageDisplayName(code, context) },
       onCreateLanguage = { langCode, copyFrom -> viewModel.createLanguage(langCode, copyFrom) },
       isPD = isPD
@@ -337,15 +376,30 @@ private fun DraftRecoveryCard(
 
 // ─────────────── Dictionary Card ───────────────
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun DictionaryCard(
+  dictionaries: List<NamedDictionary>,
+  selectedDictionaryId: String?,
+  selectedDictionaryName: String,
   dictEntryCount: Int,
+  dictionaryCount: Int,
   hasLanguageSelected: Boolean,
+  onSelectDictionary: (String) -> Unit,
+  onCreateDictionary: (String) -> Unit,
+  onRenameDictionary: (String) -> Unit,
+  onDeleteDictionary: () -> Unit,
   onSave: () -> Unit,
   onApply: () -> Unit,
   onClear: () -> Unit,
+  canDeleteDictionary: Boolean,
   isPD: Boolean = false
 ) {
+  var expanded by remember { mutableStateOf(false) }
+  var dictionaryNameInput by remember(selectedDictionaryId, selectedDictionaryName) {
+    mutableStateOf(selectedDictionaryName)
+  }
+
   ElevatedCard(modifier = Modifier.fillMaxWidth()) {
     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
       SectionHeader(
@@ -357,18 +411,100 @@ private fun DictionaryCard(
         subtitle = stringResource(R.string.dict_subtitle)
       )
 
-      // Count badge
-      Box(
-        modifier = Modifier
-          .clip(RoundedCornerShape(6.dp))
-          .background(MaterialTheme.colorScheme.surfaceVariant)
-          .padding(horizontal = 10.dp, vertical = 4.dp)
-      ) {
-        Text(
-          stringResource(R.string.dict_count, dictEntryCount),
-          style = MaterialTheme.typography.labelMedium,
-          color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
+      if (dictionaries.isNotEmpty()) {
+        ExposedDropdownMenuBox(
+          expanded = expanded,
+          onExpandedChange = { expanded = !expanded }
+        ) {
+          OutlinedTextField(
+            readOnly = true,
+            value = dictionaries.firstOrNull { it.id == selectedDictionaryId }?.name ?: selectedDictionaryName,
+            onValueChange = {},
+            label = { Text(stringResource(R.string.dict_select_label)) },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+            modifier = Modifier.fillMaxWidth().menuAnchor(),
+            colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors()
+          )
+          ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            dictionaries.forEach { dictionary ->
+              DropdownMenuItem(
+                text = {
+                  Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                  ) {
+                    Text(dictionary.name)
+                    Text(
+                      text = stringResource(R.string.dict_count_short, dictionary.entryCount),
+                      style = MaterialTheme.typography.labelSmall,
+                      color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                  }
+                },
+                onClick = {
+                  onSelectDictionary(dictionary.id)
+                  expanded = false
+                }
+              )
+            }
+          }
+        }
+      }
+
+      Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Box(
+          modifier = Modifier
+            .clip(RoundedCornerShape(6.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .padding(horizontal = 10.dp, vertical = 4.dp)
+        ) {
+          Text(
+            stringResource(R.string.dict_count, dictEntryCount),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+          )
+        }
+        Box(
+          modifier = Modifier
+            .clip(RoundedCornerShape(6.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .padding(horizontal = 10.dp, vertical = 4.dp)
+        ) {
+          Text(
+            stringResource(R.string.dict_total, dictionaryCount),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+          )
+        }
+      }
+
+      OutlinedTextField(
+        value = dictionaryNameInput,
+        onValueChange = { dictionaryNameInput = it },
+        label = { Text(stringResource(R.string.dict_name_label)) },
+        modifier = Modifier.fillMaxWidth(),
+        singleLine = true
+      )
+
+      Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        OutlinedButton(
+          onClick = { onCreateDictionary(dictionaryNameInput) },
+          enabled = dictionaryNameInput.isNotBlank(),
+          modifier = Modifier.weight(1f)
+        ) {
+          Icon(Icons.Default.Add, null, Modifier.size(16.dp))
+          Spacer(Modifier.width(4.dp))
+          Text(stringResource(R.string.dict_create), maxLines = 1)
+        }
+        OutlinedButton(
+          onClick = { onRenameDictionary(dictionaryNameInput) },
+          enabled = selectedDictionaryId != null &&
+            dictionaryNameInput.isNotBlank() &&
+            dictionaryNameInput.trim() != selectedDictionaryName,
+          modifier = Modifier.weight(1f)
+        ) {
+          Text(stringResource(R.string.dict_rename), maxLines = 1)
+        }
       }
 
       Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -380,15 +516,25 @@ private fun DictionaryCard(
         }
       }
 
-      OutlinedButton(
-        onClick = onClear,
-        enabled = dictEntryCount > 0,
-        modifier = Modifier.fillMaxWidth(),
-        colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
-      ) {
-        Icon(Icons.Default.Delete, null, Modifier.size(16.dp))
-        Spacer(Modifier.width(4.dp))
-        Text(stringResource(R.string.dict_clear), maxLines = 1)
+      Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        OutlinedButton(
+          onClick = onDeleteDictionary,
+          enabled = canDeleteDictionary,
+          modifier = Modifier.weight(1f),
+          colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
+        ) {
+          Icon(Icons.Default.Delete, null, Modifier.size(16.dp))
+          Spacer(Modifier.width(4.dp))
+          Text(stringResource(R.string.dict_delete), maxLines = 1)
+        }
+        OutlinedButton(
+          onClick = onClear,
+          enabled = dictEntryCount > 0,
+          modifier = Modifier.weight(1f),
+          colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
+        ) {
+          Text(stringResource(R.string.dict_clear), maxLines = 1)
+        }
       }
     }
   }
@@ -401,6 +547,7 @@ private fun DictionaryCard(
 private fun CreateLanguageCard(
   hasGroupSelected: Boolean,
   availableLanguages: List<String>,
+  languageCodeOptions: List<LanguageCodeOption>,
   getDisplayName: (String) -> String,
   onCreateLanguage: (String, String?) -> Unit,
   isPD: Boolean = false
@@ -421,13 +568,13 @@ private fun CreateLanguageCard(
       )
 
       Row(verticalAlignment = Alignment.CenterVertically) {
-        OutlinedTextField(
+        FilterableLanguageCodeField(
           value = langCode,
           onValueChange = { langCode = it.trim() },
-          label = { Text(stringResource(R.string.create_lang_code_label)) },
-          placeholder = { Text("zh-CN, fr, ja...") },
+          label = stringResource(R.string.create_lang_code_label),
+          placeholder = stringResource(R.string.create_lang_code_placeholder),
+          options = languageCodeOptions,
           modifier = Modifier.weight(1f),
-          singleLine = true
         )
         Spacer(Modifier.width(8.dp))
         Button(
@@ -531,7 +678,12 @@ private fun KeywordHighlightingCard(viewModel: TranslatorViewModel, isPD: Boolea
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun BaseLangOverrideCard(groupName: String, viewModel: TranslatorViewModel, isPD: Boolean = false) {
+private fun BaseLangOverrideCard(
+  groupName: String,
+  viewModel: TranslatorViewModel,
+  languageCodeOptions: List<LanguageCodeOption>,
+  isPD: Boolean = false
+) {
   var overrideLang by remember(groupName) {
     mutableStateOf(viewModel.engineManager.getBaseLangOverride(groupName))
   }
@@ -546,16 +698,38 @@ private fun BaseLangOverrideCard(groupName: String, viewModel: TranslatorViewMod
         title = stringResource(R.string.engine_base_lang_override),
         subtitle = stringResource(R.string.engine_base_lang_override_hint)
       )
-      OutlinedTextField(
+      FilterableLanguageCodeField(
         value = overrideLang,
         onValueChange = {
           overrideLang = it
           viewModel.engineManager.setBaseLangOverride(groupName, it.trim())
         },
-        label = { Text(stringResource(R.string.engine_base_lang_override)) },
-        placeholder = { Text("en, zh-CN...") },
-        modifier = Modifier.fillMaxWidth(),
-        singleLine = true
+        label = stringResource(R.string.engine_base_lang_override),
+        placeholder = stringResource(R.string.engine_base_lang_override_placeholder),
+        options = languageCodeOptions,
+        modifier = Modifier.fillMaxWidth()
+      )
+    }
+  }
+}
+
+@Composable
+private fun EngineFailedWarningCard(
+  message: String,
+  isPD: Boolean = false
+) {
+  Card(
+    modifier = Modifier.fillMaxWidth(),
+    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)
+  ) {
+    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+      SectionHeader(
+        icon = {
+          if (isPD) Icon(painterResource(R.drawable.ic_pd_skull), null, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.onErrorContainer)
+          else Icon(Icons.Default.Warning, null, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.onErrorContainer)
+        },
+        title = stringResource(R.string.engine_status_failed),
+        subtitle = if (message.isBlank()) null else message
       )
     }
   }

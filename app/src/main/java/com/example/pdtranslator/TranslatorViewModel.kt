@@ -10,7 +10,6 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -107,6 +106,7 @@ class TranslatorViewModel(application: Application) : AndroidViewModel(applicati
   }
 
   private val app get() = getApplication<Application>()
+  private val prefs = application.getSharedPreferences("prefs", Context.MODE_PRIVATE)
 
   // --- Draft, TM, Dictionary & Engine ---
   private val draftManager = DraftManager(application)
@@ -118,6 +118,8 @@ class TranslatorViewModel(application: Application) : AndroidViewModel(applicati
   // B-fix2: requestId counter for network suggestions
   private val requestCounter = AtomicLong(0)
   private var networkQueryJob: Job? = null
+  private var regenerateJob: Job? = null
+  private val dictionarySelectionRunner = LatestTaskRunner(viewModelScope)
   private val _networkSuggestion = MutableStateFlow<NetworkSuggestionState?>(null)
   val networkSuggestion = _networkSuggestion.asStateFlow()
 
@@ -127,7 +129,7 @@ class TranslatorViewModel(application: Application) : AndroidViewModel(applicati
   private val _stagedChanges = MutableStateFlow<Map<String, String>>(emptyMap())
   private val _stagedDeletions = MutableStateFlow<Set<String>>(emptySet())
   private val _showAboutDialog = MutableStateFlow(false)
-  private val _themeColor = MutableStateFlow(ThemeColor.PIXEL_DUNGEON)
+  private val _themeColor = MutableStateFlow(loadSavedThemeColor())
   private val _isSearchCardVisible = MutableStateFlow(true)
   private val _missingEntriesCount = MutableStateFlow(0)
   private val _deletedEntriesCount = MutableStateFlow(0)
@@ -148,6 +150,11 @@ class TranslatorViewModel(application: Application) : AndroidViewModel(applicati
   // --- Dictionary State ---
   private val _dictEntryCount = MutableStateFlow(0)
   val dictEntryCount = _dictEntryCount.asStateFlow()
+  val dictionaries = MutableStateFlow<List<NamedDictionary>>(emptyList())
+  val selectedDictionaryId = MutableStateFlow<String?>(null)
+  val selectedDictionaryName = MutableStateFlow("")
+  val dictionaryCount = MutableStateFlow(0)
+  val canDeleteDictionary = MutableStateFlow(false)
 
   // --- Created Languages (for export even without staged changes) ---
   private val _createdLanguages = MutableStateFlow<Set<String>>(emptySet())
@@ -157,7 +164,7 @@ class TranslatorViewModel(application: Application) : AndroidViewModel(applicati
   val deletedItems = _deletedItems.asStateFlow()
 
   // --- UI Events Channel ---
-  private val _uiEvents = Channel<UiEvent>()
+  private val _uiEvents = UiEventChannel()
   val uiEvents = _uiEvents.receiveAsFlow()
 
   // --- UI State Exposed as StateFlows ---
@@ -181,6 +188,11 @@ class TranslatorViewModel(application: Application) : AndroidViewModel(applicati
   val replaceQuery = MutableStateFlow("")
   val isCaseSensitive = MutableStateFlow(false)
   val isExactMatch = MutableStateFlow(false)
+  private val _searchResultKeys = MutableStateFlow<List<String>>(emptyList())
+  val searchResultCount = MutableStateFlow(0)
+  private val _currentSearchResultIndex = MutableStateFlow(-1)
+  val currentSearchResultIndex = _currentSearchResultIndex.asStateFlow()
+  val currentSearchResultKey = MutableStateFlow<String?>(null)
 
   val filterState = MutableStateFlow(FilterState.ALL)
 
@@ -229,7 +241,7 @@ class TranslatorViewModel(application: Application) : AndroidViewModel(applicati
           )
         }
 
-        val filtered = processedEntries.filter { entry ->
+        val filteredByFilter = processedEntries.filter { entry ->
           // DELETED filter is handled separately via deletedItems
           val matchesFilter = when (filter) {
             FilterState.ALL -> !entry.isDeleted
@@ -240,19 +252,42 @@ class TranslatorViewModel(application: Application) : AndroidViewModel(applicati
             FilterState.DIFF -> entry.isDiff && !entry.isDeleted
             FilterState.DELETED -> entry.isDeleted
           }
+          matchesFilter
+        }
 
-          val matchesSearch = if (search.isBlank()) {
-            true
-          } else {
-            val sourceMatch = if (exactMatch) {
-              entry.sourceValue.equals(search, ignoreCase = !caseSensitive)
-            } else {
-              entry.sourceValue.contains(search, ignoreCase = !caseSensitive)
-            }
-            val keyMatch = entry.key.contains(search, ignoreCase = !caseSensitive)
-            sourceMatch || keyMatch
+        val searchMatches = if (search.isBlank()) {
+          emptyList()
+        } else {
+          filteredByFilter.filter { entry ->
+            SearchReplaceUtils.matches(
+              entry = SearchableEntry(
+                key = entry.key,
+                sourceValue = entry.sourceValue,
+                targetValue = staged[entry.key] ?: entry.targetValue
+              ),
+              query = search,
+              caseSensitive = caseSensitive,
+              exactMatch = exactMatch
+            )
           }
-          matchesFilter && matchesSearch
+        }
+        val filtered = if (search.isBlank()) filteredByFilter else searchMatches
+
+        _searchResultKeys.value = searchMatches.map { it.key }
+        searchResultCount.value = searchMatches.size
+        if (searchMatches.isEmpty()) {
+          _currentSearchResultIndex.value = -1
+          currentSearchResultKey.value = null
+        } else {
+          val normalizedIndex = _currentSearchResultIndex.value.coerceIn(0, searchMatches.lastIndex)
+          if (_currentSearchResultIndex.value != normalizedIndex) {
+            _currentSearchResultIndex.value = normalizedIndex
+          }
+          currentSearchResultKey.value = searchMatches[normalizedIndex].key
+          val expectedPage = normalizedIndex / pageSize + 1
+          if (search.isNotBlank() && currentPage.value != expectedPage) {
+            currentPage.value = expectedPage
+          }
         }
 
         totalPages.value = (filtered.size + pageSize - 1) / pageSize.coerceAtLeast(1)
@@ -261,12 +296,18 @@ class TranslatorViewModel(application: Application) : AndroidViewModel(applicati
 
         displayEntries.value = filtered.chunked(pageSize).getOrElse(newPage - 1) { emptyList() }
 
-        val total = entries.count { !it.isDeleted }
-        val translated = total - entries.count { it.isUntranslated && !it.isDeleted }
-        val progress = if (total == 0) 0f else translated.toFloat() / total
-        translationProgress.value = progress
-        val pct = "%.2f".format(progress * 100)
-        infoBarText.value = app.getString(R.string.translator_translation_progress, pct, total)
+        val progressState = TranslationProgressCalculator.calculate(
+          processedEntries.map { entry ->
+            ProgressEntry(
+              sourceValue = entry.sourceValue,
+              targetValue = entry.targetValue,
+              isDeleted = entry.isDeleted
+            )
+          }
+        )
+        translationProgress.value = progressState.ratio
+        val pct = "%.2f".format(progressState.ratio * 100)
+        infoBarText.value = app.getString(R.string.translator_translation_progress, pct, progressState.totalCount)
       }.collect {}
     }
 
@@ -299,7 +340,7 @@ class TranslatorViewModel(application: Application) : AndroidViewModel(applicati
     }
     viewModelScope.launch {
       dictionaryManager.load()
-      _dictEntryCount.value = dictionaryManager.getTotalCount()
+      refreshDictionaryState()
     }
 
     // Check for existing draft
@@ -338,20 +379,73 @@ class TranslatorViewModel(application: Application) : AndroidViewModel(applicati
     _highlightKeywords.update { it - keyword }
   }
 
-  fun setSearchQuery(query: String) { searchQuery.value = query }
+  fun setSearchQuery(query: String) {
+    searchQuery.value = query
+    currentPage.value = 1
+    _currentSearchResultIndex.value = if (query.isBlank()) -1 else 0
+  }
   fun setReplaceQuery(query: String) { replaceQuery.value = query }
-  fun setCaseSensitive(isSensitive: Boolean) { isCaseSensitive.value = isSensitive }
-  fun setExactMatch(isExact: Boolean) { isExactMatch.value = isExact }
+  fun setCaseSensitive(isSensitive: Boolean) {
+    isCaseSensitive.value = isSensitive
+    currentPage.value = 1
+    if (searchQuery.value.isNotBlank()) _currentSearchResultIndex.value = 0
+  }
+  fun setExactMatch(isExact: Boolean) {
+    isExactMatch.value = isExact
+    currentPage.value = 1
+    if (searchQuery.value.isNotBlank()) _currentSearchResultIndex.value = 0
+  }
   fun setFilter(filter: FilterState) {
     filterState.value = filter
     currentPage.value = 1
+    _currentSearchResultIndex.value = if (searchQuery.value.isBlank()) -1 else 0
     regenerateEntries()
   }
   fun nextPage() { if (currentPage.value < totalPages.value) currentPage.value++ }
   fun previousPage() { if (currentPage.value > 1) currentPage.value-- }
   fun setShowAboutDialog(show: Boolean) { _showAboutDialog.value = show }
-  fun setThemeColor(theme: ThemeColor) { _themeColor.value = theme }
+  fun setThemeColor(theme: ThemeColor) {
+    _themeColor.value = theme
+    prefs.edit().putString("theme_color", theme.name).apply()
+  }
   fun toggleSearchCardVisibility() { _isSearchCardVisible.value = !_isSearchCardVisible.value }
+
+  fun focusFirstSearchResult() {
+    setCurrentSearchResultIndex(0)
+  }
+
+  fun nextSearchResult() {
+    val count = searchResultCount.value
+    if (count <= 0) return
+    val current = _currentSearchResultIndex.value.takeIf { it >= 0 } ?: 0
+    setCurrentSearchResultIndex((current + 1) % count)
+  }
+
+  fun previousSearchResult() {
+    val count = searchResultCount.value
+    if (count <= 0) return
+    val current = _currentSearchResultIndex.value.takeIf { it >= 0 } ?: 0
+    setCurrentSearchResultIndex((current - 1 + count) % count)
+  }
+
+  fun replaceCurrentMatch(): Int {
+    val key = currentSearchResultKey.value ?: return 0
+    val search = searchQuery.value
+    val replace = replaceQuery.value
+    if (search.isBlank()) return 0
+    val entry = _allEntries.value.find { it.key == key } ?: return 0
+    val currentValue = _stagedChanges.value[key] ?: entry.targetValue
+    val replaced = SearchReplaceUtils.replaceTarget(
+      original = currentValue,
+      search = search,
+      replacement = replace,
+      caseSensitive = isCaseSensitive.value,
+      exactMatch = isExactMatch.value
+    )
+    if (replaced == currentValue) return 0
+    stageChange(key, replaced)
+    return 1
+  }
 
   /** Replace all occurrences of searchQuery in target values of displayed entries with replaceQuery */
   fun replaceAllMatching(): Int {
@@ -360,30 +454,28 @@ class TranslatorViewModel(application: Application) : AndroidViewModel(applicati
     if (search.isBlank()) return 0
     val caseSensitive = isCaseSensitive.value
     val exact = isExactMatch.value
-    val entries = _allEntries.value
+    val matchKeys = _searchResultKeys.value
+    if (matchKeys.isEmpty()) return 0
+    val entriesByKey = _allEntries.value.associateBy { it.key }
     var count = 0
 
     _stagedChanges.update { currentStaged ->
       val newStaged = currentStaged.toMutableMap()
-      for (entry in entries) {
+      for (key in matchKeys) {
+        val entry = entriesByKey[key] ?: continue
         if (entry.isDeleted) continue
         val current = newStaged[entry.key] ?: entry.targetValue
         if (current.isBlank()) continue
 
-        val matches = if (exact) {
-          current.equals(search, ignoreCase = !caseSensitive)
-        } else {
-          current.contains(search, ignoreCase = !caseSensitive)
-        }
+        val replaced = SearchReplaceUtils.replaceTarget(
+          original = current,
+          search = search,
+          replacement = replace,
+          caseSensitive = caseSensitive,
+          exactMatch = exact
+        )
 
-        if (matches) {
-          val replaced = if (exact) {
-            replace
-          } else if (caseSensitive) {
-            current.replace(search, replace)
-          } else {
-            current.replace(Regex(Regex.escape(search), RegexOption.IGNORE_CASE), replace)
-          }
+        if (replaced != current) {
           newStaged[entry.key] = replaced
           count++
         }
@@ -391,7 +483,6 @@ class TranslatorViewModel(application: Application) : AndroidViewModel(applicati
       newStaged
     }
 
-    if (count > 0) regenerateEntries()
     return count
   }
 
@@ -411,9 +502,10 @@ class TranslatorViewModel(application: Application) : AndroidViewModel(applicati
         }
         if (fileName.endsWith(".zip")) {
           val result = loadFromZip(resolver, uri, groups)
-          successCount += result.first
-          ignoreCount += result.second
-          overwriteCount += result.third
+          successCount += result.success
+          ignoreCount += result.ignored
+          overwriteCount += result.overwritten
+          failCount += result.failed
         } else if (fileName.endsWith(".properties")) {
           val result = loadFile(resolver, uri, fileName, groups)
           when (result) {
@@ -436,6 +528,8 @@ class TranslatorViewModel(application: Application) : AndroidViewModel(applicati
       if (failCount > 0) parts.add(app.getString(R.string.import_fail_count, failCount))
       if (parts.isNotEmpty()) {
         _uiEvents.send(UiEvent.ShowSnackbar(parts.joinToString(", ")))
+      } else if (uris.isNotEmpty()) {
+        _uiEvents.send(UiEvent.ShowSnackbar(app.getString(R.string.import_empty)))
       }
 
       checkDraftAfterLoad()
@@ -444,15 +538,25 @@ class TranslatorViewModel(application: Application) : AndroidViewModel(applicati
 
   private enum class LoadResult { SUCCESS, OVERWRITE, FAIL, IGNORE }
 
+  private data class ZipLoadResult(
+    val success: Int,
+    val ignored: Int,
+    val overwritten: Int,
+    val failed: Int
+  )
+
   private fun loadFromZip(
     resolver: ContentResolver,
     uri: Uri,
     groups: MutableMap<String, MutableMap<String, LanguageData>>
-  ): Triple<Int, Int, Int> {
+  ): ZipLoadResult {
     var success = 0
     var ignored = 0
     var overwritten = 0
-    resolver.openInputStream(uri)?.use { zipInputStream ->
+    var failed = 0
+    val inputStream = resolver.openInputStream(uri)
+      ?: return ZipLoadResult(success = 0, ignored = 0, overwritten = 0, failed = 1)
+    inputStream.use { zipInputStream ->
       ZipInputStream(zipInputStream).use { zis ->
         var zipEntry: ZipEntry?
         while (zis.nextEntry.also { zipEntry = it } != null) {
@@ -472,14 +576,17 @@ class TranslatorViewModel(application: Application) : AndroidViewModel(applicati
                   if (langMap.containsKey(langCode)) overwritten++
                   langMap[langCode] = LanguageData(entryName, props)
                   success++
-                } catch (_: Exception) {}
+                } catch (e: Exception) {
+                  Log.w("TranslatorVM", "Failed to parse ZIP entry: $entryName", e)
+                  failed++
+                }
               }
             }
           }
         }
       }
     }
-    return Triple(success, ignored, overwritten)
+    return ZipLoadResult(success = success, ignored = ignored, overwritten = overwritten, failed = failed)
   }
 
   private fun loadFile(
@@ -514,16 +621,19 @@ class TranslatorViewModel(application: Application) : AndroidViewModel(applicati
     _stagedDeletions.value = emptySet()
     _createdLanguages.value = emptySet()
     _deletedItems.value = emptyList()
+    resetSearchState()
     availableLanguages.value = _languageGroups.value.find { it.name == name }
       ?.languages?.keys?.sorted() ?: emptyList()
   }
 
   fun selectSourceLanguage(code: String) {
+    if (code == targetLangCode.value) return
     sourceLangCode.value = code
     if (targetLangCode.value != null) regenerateEntries()
   }
 
   fun selectTargetLanguage(code: String) {
+    if (code == sourceLangCode.value) return
     targetLangCode.value = code
     if (sourceLangCode.value != null) regenerateEntries()
   }
@@ -541,6 +651,66 @@ class TranslatorViewModel(application: Application) : AndroidViewModel(applicati
       val newStaged = currentStaged.toMutableMap()
       newStaged.remove(key)
       newStaged
+    }
+  }
+
+  fun selectDictionary(id: String) {
+    dictionarySelectionRunner.launch {
+      selectDictionaryPersisted(
+        id = id,
+        persistSelection = { selectedId ->
+          dictionaryManager.selectDictionary(selectedId)
+          dictionaryManager.save()
+        },
+        onSelectionApplied = {
+          refreshDictionaryState()
+          regenerateEntries()
+        }
+      )
+    }
+  }
+
+  fun createDictionary(name: String) {
+    viewModelScope.launch(Dispatchers.IO) {
+      try {
+        dictionaryManager.createDictionary(name)
+        dictionaryManager.save()
+        refreshDictionaryState()
+        regenerateEntries()
+        _uiEvents.send(UiEvent.ShowSnackbar(app.getString(R.string.dict_create_done, dictionaryManager.getSelectedDictionaryName())))
+      } catch (e: IllegalArgumentException) {
+        val messageId = if (e.message == "duplicate_name") R.string.dict_name_exists else R.string.dict_name_invalid
+        _uiEvents.send(UiEvent.ShowSnackbar(app.getString(messageId)))
+      }
+    }
+  }
+
+  fun renameCurrentDictionary(name: String) {
+    viewModelScope.launch(Dispatchers.IO) {
+      try {
+        dictionaryManager.renameSelectedDictionary(name)
+        dictionaryManager.save()
+        refreshDictionaryState()
+        regenerateEntries()
+        _uiEvents.send(UiEvent.ShowSnackbar(app.getString(R.string.dict_rename_done, dictionaryManager.getSelectedDictionaryName())))
+      } catch (e: IllegalArgumentException) {
+        val messageId = if (e.message == "duplicate_name") R.string.dict_name_exists else R.string.dict_name_invalid
+        _uiEvents.send(UiEvent.ShowSnackbar(app.getString(messageId)))
+      }
+    }
+  }
+
+  fun deleteCurrentDictionary() {
+    viewModelScope.launch(Dispatchers.IO) {
+      val deleted = dictionaryManager.deleteSelectedDictionary()
+      if (!deleted) {
+        _uiEvents.send(UiEvent.ShowSnackbar(app.getString(R.string.dict_delete_last_blocked)))
+        return@launch
+      }
+      dictionaryManager.save()
+      refreshDictionaryState()
+      regenerateEntries()
+      _uiEvents.send(UiEvent.ShowSnackbar(app.getString(R.string.dict_delete_done)))
     }
   }
 
@@ -594,7 +764,7 @@ class TranslatorViewModel(application: Application) : AndroidViewModel(applicati
       // A1: pass groupName
       val count = dictionaryManager.importFromProperties(sourceProps, mergedTarget, groupName, sourceCode, targetCode)
       dictionaryManager.save()
-      _dictEntryCount.value = dictionaryManager.getTotalCount()
+      refreshDictionaryState()
 
       _uiEvents.send(UiEvent.ShowSnackbar(app.getString(R.string.dict_save_done, count)))
     }
@@ -628,7 +798,7 @@ class TranslatorViewModel(application: Application) : AndroidViewModel(applicati
   fun clearDictionary() {
     viewModelScope.launch {
       dictionaryManager.clear()
-      _dictEntryCount.value = 0
+      refreshDictionaryState()
       regenerateEntries()
       _uiEvents.send(UiEvent.ShowSnackbar(app.getString(R.string.dict_clear_done)))
     }
@@ -739,7 +909,7 @@ class TranslatorViewModel(application: Application) : AndroidViewModel(applicati
 
                     zos.putNextEntry(ZipEntry(langData.fileName))
                     val writer = OutputStreamWriter(zos, "UTF-8")
-                    finalProps.store(writer, "PDTranslator Modified File")
+                    PropertiesWriter.write(finalProps, writer)
                     writer.flush()
                     zos.closeEntry()
                   }
@@ -749,7 +919,7 @@ class TranslatorViewModel(application: Application) : AndroidViewModel(applicati
 
                   zos.putNextEntry(ZipEntry(langData.fileName))
                   val writer = OutputStreamWriter(zos, "UTF-8")
-                  finalProps.store(writer, "PDTranslator Modified File")
+                  PropertiesWriter.write(finalProps, writer)
                   writer.flush()
                   zos.closeEntry()
                 }
@@ -962,11 +1132,17 @@ class TranslatorViewModel(application: Application) : AndroidViewModel(applicati
 
       // Only update if this is still the latest request
       if (requestCounter.get() == thisRequestId) {
-        _networkSuggestion.value = NetworkSuggestionState(
-          entryKey = key,
-          requestId = thisRequestId,
-          results = if (result.isSuccess) listOf(result.getOrThrow()) else emptyList()
-        )
+        if (result.isSuccess) {
+          _networkSuggestion.value = NetworkSuggestionState(
+            entryKey = key,
+            requestId = thisRequestId,
+            results = listOf(result.getOrThrow())
+          )
+        } else {
+          _networkSuggestion.value = null
+          val friendly = engineManager.getFriendlyError(engineManager.getSelectedEngineId(), result.exceptionOrNull())
+          _uiEvents.send(UiEvent.ShowSnackbar(app.getString(R.string.engine_translate_fail, friendly)))
+        }
       }
     }
   }
@@ -1068,6 +1244,7 @@ class TranslatorViewModel(application: Application) : AndroidViewModel(applicati
     _stagedDeletions.value = emptySet()
     _createdLanguages.value = emptySet()
     _deletedItems.value = emptyList()
+    resetSearchState()
   }
 
   private fun regenerateEntries() {
@@ -1085,7 +1262,8 @@ class TranslatorViewModel(application: Application) : AndroidViewModel(applicati
       return
     }
 
-    viewModelScope.launch(Dispatchers.Default) {
+    regenerateJob?.cancel()
+    regenerateJob = viewModelScope.launch(Dispatchers.Default) {
       val sourceProps = group.languages[sourceCode]?.properties ?: Properties()
       val targetProps = group.languages[targetCode]?.properties ?: Properties()
 
@@ -1261,7 +1439,51 @@ class TranslatorViewModel(application: Application) : AndroidViewModel(applicati
     }
   }
 
+  private fun refreshDictionaryState() {
+    dictionaries.value = dictionaryManager.getDictionarySummaries()
+    selectedDictionaryId.value = dictionaryManager.getSelectedDictionaryId()
+    selectedDictionaryName.value = dictionaryManager.getSelectedDictionaryName()
+    dictionaryCount.value = dictionaryManager.getDictionaryCount()
+    canDeleteDictionary.value = dictionaryManager.canDeleteSelectedDictionary()
+    _dictEntryCount.value = dictionaryManager.getTotalCount()
+  }
+
+  private fun setCurrentSearchResultIndex(index: Int) {
+    val count = searchResultCount.value
+    if (count <= 0) {
+      resetSearchState()
+      return
+    }
+    val normalized = index.coerceIn(0, count - 1)
+    _currentSearchResultIndex.value = normalized
+    currentSearchResultKey.value = _searchResultKeys.value.getOrNull(normalized)
+    currentPage.value = normalized / pageSize + 1
+  }
+
+  private fun resetSearchState() {
+    searchQuery.value = ""
+    replaceQuery.value = ""
+    _searchResultKeys.value = emptyList()
+    searchResultCount.value = 0
+    _currentSearchResultIndex.value = -1
+    currentSearchResultKey.value = null
+    currentPage.value = 1
+  }
+
+  private fun loadSavedThemeColor(): ThemeColor {
+    val raw = prefs.getString("theme_color", ThemeColor.PIXEL_DUNGEON.name) ?: ThemeColor.PIXEL_DUNGEON.name
+    return runCatching { ThemeColor.valueOf(raw) }.getOrDefault(ThemeColor.PIXEL_DUNGEON)
+  }
+
   fun getLanguageDisplayName(code: String, context: Context): String {
     return LanguageUtils.getDisplayName(code, context)
+  }
+
+  override fun onCleared() {
+    dictionarySelectionRunner.cancel()
+    networkQueryJob?.cancel()
+    tmQueryJob?.cancel()
+    _uiEvents.close()
+    super.onCleared()
   }
 }

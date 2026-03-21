@@ -35,9 +35,7 @@ class DraftManager(private val context: Context) {
   suspend fun save(draft: DraftData) {
     withContext(Dispatchers.IO) {
       val json = gson.toJson(draft)
-      val tmpFile = File(context.filesDir, "draft.json.tmp")
-      tmpFile.writeText(json, Charsets.UTF_8)
-      tmpFile.renameTo(file)
+      writeTextAtomically(file, json)
     }
   }
 

@@ -1,25 +1,17 @@
 package com.example.pdtranslator
 
 import android.content.Context
-import com.google.gson.Gson
-import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.io.File
 
-data class DictEntry(
-  val sourceText: String? = null,
-  val translation: String,
-  val timestamp: Long
-)
-
 class DictionaryManager(private val context: Context) {
 
-  // Key format (new): "groupName|srcLang|tgtLang|propertyKey" (4 segments)
-  // Key format (old): "srcLang|tgtLang|propertyKey" (3 segments)
-  private val entries = mutableMapOf<String, DictEntry>()
-  private val gson = Gson()
   private val file: File get() = File(context.filesDir, "dictionary.json")
+  private val saveMutex = Mutex()
+  private val storeState = DictionaryStoreState(DictionaryStore.empty(defaultDictionaryName()))
 
   private fun newKey(groupName: String, srcLang: String, tgtLang: String, propKey: String): String {
     return "$groupName|$srcLang|$tgtLang|$propKey"
@@ -29,41 +21,93 @@ class DictionaryManager(private val context: Context) {
     return "$srcLang|$tgtLang|$propKey"
   }
 
-  /** Suffix used for cross-group matching: "srcLang|tgtLang|propKey" */
   private fun globalSuffix(srcLang: String, tgtLang: String, propKey: String): String {
     return "|$srcLang|$tgtLang|$propKey"
   }
 
-  fun addEntry(groupName: String, srcLang: String, tgtLang: String, propKey: String, sourceText: String, translation: String) {
-    if (translation.isBlank()) return
-    val nk = newKey(groupName, srcLang, tgtLang, propKey)
-    val ok = oldKey(srcLang, tgtLang, propKey)
-    entries.remove(ok)  // clean up old format
-    entries[nk] = DictEntry(
-      sourceText = sourceText,
-      translation = translation,
-      timestamp = System.currentTimeMillis()
-    )
+  private fun snapshotStore(): DictionaryStore = storeState.snapshot()
+
+  fun getDictionarySummaries(): List<NamedDictionary> {
+    return snapshotStore().dictionaries.values.sortedBy { it.name.lowercase() }
   }
 
-  /**
-   * Global entry lookup:
-   * 1. Try exact match with current groupName
-   * 2. Fallback to old 3-segment key
-   * 3. Search across ALL groups for matching srcLang|tgtLang|propKey (global)
-   */
+  fun getSelectedDictionaryId(): String = snapshotStore().selectedDictionaryId
+
+  fun getSelectedDictionaryName(): String = snapshotStore().selectedDictionary.name
+
+  fun getDictionaryCount(): Int = snapshotStore().dictionaries.size
+
+  fun canDeleteSelectedDictionary(): Boolean = snapshotStore().dictionaries.size > 1
+
+  fun selectDictionary(id: String) {
+    storeState.update { store ->
+      store.selectDictionary(id).normalized(defaultDictionaryName())
+    }
+  }
+
+  fun createDictionary(name: String) {
+    val trimmed = name.trim()
+    require(trimmed.isNotBlank()) { "blank_name" }
+    val store = snapshotStore()
+    require(store.dictionaries.values.none { it.name.equals(trimmed, ignoreCase = true) }) { "duplicate_name" }
+    storeState.update { current ->
+      current.createDictionary(trimmed).normalized(defaultDictionaryName())
+    }
+  }
+
+  fun renameSelectedDictionary(name: String) {
+    val trimmed = name.trim()
+    require(trimmed.isNotBlank()) { "blank_name" }
+    val store = snapshotStore()
+    require(
+      store.dictionaries.values.none {
+        it.id != store.selectedDictionaryId && it.name.equals(trimmed, ignoreCase = true)
+      }
+    ) { "duplicate_name" }
+    storeState.update { current ->
+      current.renameDictionary(selectedOnly = true, newName = trimmed).normalized(defaultDictionaryName())
+    }
+  }
+
+  fun deleteSelectedDictionary(): Boolean {
+    if (!canDeleteSelectedDictionary()) return false
+    storeState.update { store ->
+      store.deleteDictionary(store.selectedDictionaryId).normalized(defaultDictionaryName())
+    }
+    return true
+  }
+
+  private fun selectedEntries(): Map<String, DictEntry> = snapshotStore().selectedDictionary.entries
+
+  fun addEntry(groupName: String, srcLang: String, tgtLang: String, propKey: String, sourceText: String, translation: String) {
+    if (translation.isBlank()) return
+    storeState.update { store ->
+      val nk = newKey(groupName, srcLang, tgtLang, propKey)
+      val ok = oldKey(srcLang, tgtLang, propKey)
+      val cleanedEntries = LinkedHashMap(store.selectedDictionary.entries)
+      cleanedEntries.remove(ok)
+      cleanedEntries[nk] = DictEntry(
+        sourceText = sourceText,
+        translation = translation,
+        timestamp = System.currentTimeMillis()
+      )
+      val updatedDictionary = store.selectedDictionary.copy(entries = cleanedEntries)
+      store.copy(
+        dictionaries = LinkedHashMap(store.dictionaries).apply { put(updatedDictionary.id, updatedDictionary) }
+      ).normalized(defaultDictionaryName())
+    }
+  }
+
   fun getEntry(groupName: String, srcLang: String, tgtLang: String, propKey: String): DictEntry? {
-    // 1. Exact match with current group
+    val entries = selectedEntries()
     val nk = newKey(groupName, srcLang, tgtLang, propKey)
     entries[nk]?.let { return it }
-    // 2. Fallback to old key format
     val ok = oldKey(srcLang, tgtLang, propKey)
     entries[ok]?.let { return it }
-    // 3. Global: search all groups for this language pair + property key
     val suffix = globalSuffix(srcLang, tgtLang, propKey)
     return entries.entries
       .filter { it.key.endsWith(suffix) && it.key.count { c -> c == '|' } == 3 }
-      .maxByOrNull { it.value.timestamp }  // prefer most recently saved
+      .maxByOrNull { it.value.timestamp }
       ?.value
   }
 
@@ -71,7 +115,7 @@ class DictionaryManager(private val context: Context) {
     return getEntry(groupName, srcLang, tgtLang, propKey)?.translation
   }
 
-  fun getTotalCount(): Int = entries.keys.count { it.count { c -> c == '|' } == 3 }
+  fun getTotalCount(): Int = snapshotStore().selectedDictionary.entryCount
 
   fun importFromProperties(
     sourceProps: java.util.Properties,
@@ -93,9 +137,6 @@ class DictionaryManager(private val context: Context) {
     return count
   }
 
-  /**
-   * Apply dictionary globally — searches across all groups for matching translations.
-   */
   fun applyToEntries(
     entries: List<TranslationEntry>,
     groupName: String,
@@ -107,7 +148,8 @@ class DictionaryManager(private val context: Context) {
       if (entry.targetValue.isBlank() || entry.isMissing) {
         val dictEntry = getEntry(groupName, srcLang, tgtLang, entry.key)
         if (dictEntry != null &&
-            (dictEntry.sourceText == null || dictEntry.sourceText == entry.sourceValue)) {
+          (dictEntry.sourceText == null || dictEntry.sourceText == entry.sourceValue)
+        ) {
           applied[entry.key] = dictEntry.translation
         }
       }
@@ -116,32 +158,38 @@ class DictionaryManager(private val context: Context) {
   }
 
   suspend fun save() {
-    withContext(Dispatchers.IO) {
-      val json = gson.toJson(entries)
-      val tmpFile = File(context.filesDir, "dictionary.json.tmp")
-      tmpFile.writeText(json, Charsets.UTF_8)
-      tmpFile.renameTo(file)
-    }
-  }
-
-  suspend fun load() {
-    withContext(Dispatchers.IO) {
-      if (file.exists()) {
-        try {
-          val json = file.readText(Charsets.UTF_8)
-          val type = object : TypeToken<Map<String, DictEntry>>() {}.type
-          val loaded: Map<String, DictEntry> = gson.fromJson(json, type)
-          entries.clear()
-          entries.putAll(loaded)
-        } catch (_: Exception) {}
+    saveMutex.withLock {
+      val snapshot = snapshotStore()
+      withContext(Dispatchers.IO) {
+        val json = DictionaryStoreSerializer.toJson(snapshot)
+        writeTextAtomically(file, json)
       }
     }
   }
 
-  suspend fun clear() {
-    entries.clear()
-    withContext(Dispatchers.IO) {
-      if (file.exists()) file.delete()
+  suspend fun load() {
+    val loadedStore = withContext(Dispatchers.IO) {
+      if (file.exists()) {
+        try {
+          DictionaryStoreSerializer.fromJson(file.readText(Charsets.UTF_8), defaultDictionaryName())
+        } catch (_: Exception) {
+          DictionaryStore.empty(defaultDictionaryName())
+        }
+      } else {
+        DictionaryStore.empty(defaultDictionaryName())
+      }
     }
+    storeState.replace(loadedStore)
+  }
+
+  suspend fun clear() {
+    storeState.update { store ->
+      store.clearDictionary().normalized(defaultDictionaryName())
+    }
+    save()
+  }
+
+  private fun defaultDictionaryName(): String {
+    return runCatching { context.getString(R.string.dict_default_name) }.getOrDefault(DictionaryStore.DEFAULT_NAME)
   }
 }

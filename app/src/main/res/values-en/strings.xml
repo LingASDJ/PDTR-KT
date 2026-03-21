@@ -85,6 +85,7 @@
     <string name="import_overwrite_count">overwrote %1$d language files</string>
     <string name="import_ignore_count">%1$d ignored</string>
     <string name="import_fail_count">%1$d failed</string>
+    <string name="import_empty">No .properties files found</string>
 
     <!-- Draft -->
     <string name="draft_found_title">Draft Found</string>
@@ -109,7 +110,12 @@
     <string name="search_case_sensitive">Case Sensitive</string>
     <string name="search_exact_match">Exact Match</string>
     <string name="search_find_btn">Find</string>
+    <string name="search_prev_btn">Previous</string>
+    <string name="search_next_btn">Next</string>
+    <string name="search_replace_current_btn">Replace Current</string>
     <string name="search_replace_btn">Replace All</string>
+    <string name="search_result_status">%1$d / %2$d matches</string>
+    <string name="search_replace_current_done">Replaced %1$d current match</string>
     <string name="search_replace_done">Replaced %1$d entries</string>
 
     <!-- Export -->
@@ -138,7 +144,15 @@
     <!-- Dictionary -->
     <string name="dict_title">Dictionary</string>
     <string name="dict_subtitle">Save translations to reuse after source file updates.</string>
+    <string name="dict_default_name">Default Dictionary</string>
+    <string name="dict_select_label">Current Dictionary</string>
     <string name="dict_count">Dictionary entries: %1$d</string>
+    <string name="dict_count_short">%1$d entries</string>
+    <string name="dict_total">Dictionaries: %1$d</string>
+    <string name="dict_name_label">Dictionary Name</string>
+    <string name="dict_create">New Dictionary</string>
+    <string name="dict_rename">Rename</string>
+    <string name="dict_delete">Delete Dict</string>
     <string name="dict_save">Save to Dict</string>
     <string name="dict_apply">Apply Dict</string>
     <string name="dict_clear">Clear Dictionary</string>
@@ -146,6 +160,12 @@
     <string name="dict_apply_done">Applied %1$d entries from dictionary</string>
     <string name="dict_apply_none">No matching entries found in dictionary</string>
     <string name="dict_clear_done">Dictionary cleared</string>
+    <string name="dict_create_done">Created and selected dictionary \"%1$s\"</string>
+    <string name="dict_rename_done">Renamed dictionary to \"%1$s\"</string>
+    <string name="dict_delete_done">Dictionary deleted</string>
+    <string name="dict_delete_last_blocked">Keep at least one dictionary</string>
+    <string name="dict_name_exists">A dictionary with this name already exists</string>
+    <string name="dict_name_invalid">Dictionary name cannot be empty</string>
 
     <!-- Deleted Entries -->
     <string name="deleted_badge">Deleted</string>
@@ -170,6 +190,7 @@
     <string name="create_lang_title">Create Language</string>
     <string name="create_lang_subtitle">Create a new target language file for the selected group.</string>
     <string name="create_lang_code_label">Language Code</string>
+    <string name="create_lang_code_placeholder">zh-CN, fr, ja...</string>
     <string name="create_lang_done">Language \"%1$s\" created successfully</string>
     <string name="create_lang_exists">Language \"%1$s\" already exists</string>
     <string name="create_lang_no_group">Please select a language group first</string>
@@ -203,6 +224,9 @@
     <string name="engine_test_success_short">Success:</string>
     <string name="engine_test_fail">Connection failed: %1$s</string>
     <string name="engine_test_fail_short">Failed:</string>
+    <string name="engine_status_untested">Untested</string>
+    <string name="engine_status_verified">Verified</string>
+    <string name="engine_status_failed">Failed</string>
     <string name="engine_error_unknown">Unknown error</string>
     <string name="engine_error_network">Network unavailable, check your connection</string>
     <string name="engine_error_timeout">Connection timed out</string>
@@ -217,6 +241,7 @@
     <string name="engine_translate_button">Translate</string>
     <string name="engine_base_lang_override">Base language for engine</string>
     <string name="engine_base_lang_override_hint">Leave empty to use source language</string>
+    <string name="engine_base_lang_override_placeholder">en, zh-CN...</string>
 
     <!-- Pixel Dungeon Easter Egg -->
     <string name="pd_dungeon_section">Dungeon Status</string>

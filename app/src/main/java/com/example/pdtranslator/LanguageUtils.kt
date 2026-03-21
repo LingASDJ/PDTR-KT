@@ -21,7 +21,8 @@ object LanguageUtils {
    * @param context   Android Context — used to get app's current locale from resources
    */
   fun getDisplayName(langCode: String, context: Context): String {
-    val appLocale = context.resources.configuration.locales[0]
+    val locales = context.resources.configuration.locales
+    val appLocale = if (locales.isEmpty) Locale.getDefault() else locales[0]
 
     // Special code: "base"
     if (langCode == "base") {

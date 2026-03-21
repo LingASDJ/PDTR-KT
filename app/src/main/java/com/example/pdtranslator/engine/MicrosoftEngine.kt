@@ -11,9 +11,6 @@ import io.ktor.http.contentType
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.jsonArray
-import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 
 class MicrosoftEngine(
@@ -48,8 +45,7 @@ class MicrosoftEngine(
       }.body()
 
       val json = Json.parseToJsonElement(response)
-      val translated = json.jsonArray[0].jsonObject["translations"]?.jsonArray?.get(0)
-        ?.jsonObject?.get("text")?.jsonPrimitive?.content
+      val translated = EngineJsonParser.extractMicrosoftTranslatedText(json)
         ?: return Result.failure(Exception("Unexpected response format"))
 
       Result.success(TranslationResult(translated, "Microsoft"))

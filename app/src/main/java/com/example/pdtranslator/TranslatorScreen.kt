@@ -1,6 +1,7 @@
 package com.example.pdtranslator
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -16,6 +17,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -85,7 +87,15 @@ fun TranslatorScreen(viewModel: TranslatorViewModel) {
   val sourceLangCode by viewModel.sourceLangCode.collectAsState()
   val targetLangCode by viewModel.targetLangCode.collectAsState()
   val availableLanguages by viewModel.availableLanguages.collectAsState()
+  val currentSearchResultKey by viewModel.currentSearchResultKey.collectAsState()
+  val searchQuery by viewModel.searchQuery.collectAsState()
   val context = LocalContext.current
+  val searchListState = rememberLazyListState()
+
+  LaunchedEffect(displayEntries, currentSearchResultKey) {
+    val targetIndex = findSearchResultScrollIndex(displayEntries, currentSearchResultKey) ?: return@LaunchedEffect
+    searchListState.animateScrollToItem(targetIndex)
+  }
 
   // Empty state: no files loaded
   if (languageGroupNames.isEmpty()) {
@@ -215,6 +225,7 @@ fun TranslatorScreen(viewModel: TranslatorViewModel) {
 
           LazyColumn(
             modifier = Modifier.weight(1f),
+            state = searchListState,
             verticalArrangement = Arrangement.spacedBy(8.dp)
           ) {
             items(pagedDeletedItems, key = { it.key }) { item ->
@@ -256,6 +267,8 @@ fun TranslatorScreen(viewModel: TranslatorViewModel) {
               DiffTranslationCard(
                 entry = entry,
                 highlightKeywords = highlightKeywords,
+                searchHighlightQuery = searchQuery,
+                isCurrentSearchResult = currentSearchResultKey == entry.key,
                 onSave = { newText -> viewModel.stageChange(entry.key, newText) },
                 onRevertToDict = {
                   entry.dictValue?.let { viewModel.stageChange(entry.key, it) }
@@ -275,12 +288,15 @@ fun TranslatorScreen(viewModel: TranslatorViewModel) {
       else -> {
         LazyColumn(
           modifier = Modifier.weight(1f),
+          state = searchListState,
           verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
           items(displayEntries, key = { it.key }) { entry ->
             NewTranslationCard(
               entry = entry,
               highlightKeywords = highlightKeywords,
+              searchHighlightQuery = searchQuery,
+              isCurrentSearchResult = currentSearchResultKey == entry.key,
               tmSuggestions = tmSuggestions,
               networkSuggestion = networkSuggestion,
               onSave = { newText -> viewModel.stageChange(entry.key, newText) },
@@ -330,6 +346,8 @@ fun SearchReplaceControls(viewModel: TranslatorViewModel) {
   val replaceQuery by viewModel.replaceQuery.collectAsState()
   val isCaseSensitive by viewModel.isCaseSensitive.collectAsState()
   val isExactMatch by viewModel.isExactMatch.collectAsState()
+  val searchResultCount by viewModel.searchResultCount.collectAsState()
+  val currentSearchResultIndex by viewModel.currentSearchResultIndex.collectAsState()
   val themeColor by viewModel.themeColor.collectAsState()
   val isPD = themeColor == ThemeColor.PIXEL_DUNGEON
   val context = LocalContext.current
@@ -377,16 +395,47 @@ fun SearchReplaceControls(viewModel: TranslatorViewModel) {
           Text(stringResource(R.string.search_exact_match), style = MaterialTheme.typography.bodySmall)
         }
       }
-      // Action buttons row
+
+      if (searchQuery.isNotBlank()) {
+        Row(
+          modifier = Modifier.fillMaxWidth(),
+          verticalAlignment = Alignment.CenterVertically,
+          horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+          Text(
+            text = stringResource(
+              R.string.search_result_status,
+              if (currentSearchResultIndex >= 0) currentSearchResultIndex + 1 else 0,
+              searchResultCount
+            ),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+          )
+          Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedButton(
+              onClick = { viewModel.previousSearchResult() },
+              enabled = searchResultCount > 0
+            ) {
+              Text(stringResource(R.string.search_prev_btn), maxLines = 1)
+            }
+            OutlinedButton(
+              onClick = { viewModel.nextSearchResult() },
+              enabled = searchResultCount > 0
+            ) {
+              Text(stringResource(R.string.search_next_btn), maxLines = 1)
+            }
+          }
+        }
+      }
+
       Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(8.dp)
       ) {
-        // Find button
         OutlinedButton(
-          onClick = { viewModel.setFilter(FilterState.ALL) },
+          onClick = { viewModel.focusFirstSearchResult() },
           modifier = Modifier.weight(1f).height(36.dp),
-          enabled = searchQuery.isNotBlank(),
+          enabled = searchQuery.isNotBlank() && searchResultCount > 0,
           colors = if (isPD) ButtonDefaults.outlinedButtonColors(
             contentColor = MaterialTheme.colorScheme.secondary
           ) else ButtonDefaults.outlinedButtonColors()
@@ -397,7 +446,24 @@ fun SearchReplaceControls(viewModel: TranslatorViewModel) {
           }
           Text(stringResource(R.string.search_find_btn), style = MaterialTheme.typography.labelMedium, maxLines = 1)
         }
-        // Replace All button
+        Button(
+          onClick = {
+            val count = viewModel.replaceCurrentMatch()
+            android.widget.Toast.makeText(
+              context,
+              context.getString(R.string.search_replace_current_done, count),
+              android.widget.Toast.LENGTH_SHORT
+            ).show()
+          },
+          modifier = Modifier.weight(1f).height(36.dp),
+          enabled = searchQuery.isNotBlank() && replaceQuery.isNotEmpty() && searchResultCount > 0,
+          colors = if (isPD) ButtonDefaults.buttonColors(
+            containerColor = MaterialTheme.colorScheme.secondary,
+            contentColor = MaterialTheme.colorScheme.onSecondary
+          ) else ButtonDefaults.buttonColors()
+        ) {
+          Text(stringResource(R.string.search_replace_current_btn), style = MaterialTheme.typography.labelMedium, maxLines = 1)
+        }
         Button(
           onClick = {
             val count = viewModel.replaceAllMatching()
@@ -430,6 +496,8 @@ fun SearchReplaceControls(viewModel: TranslatorViewModel) {
 fun NewTranslationCard(
   entry: TranslationEntry,
   highlightKeywords: Set<String>,
+  searchHighlightQuery: String,
+  isCurrentSearchResult: Boolean,
   tmSuggestions: List<TmSuggestion>,
   networkSuggestion: NetworkSuggestionState?,
   onSave: (String) -> Unit,
@@ -443,14 +511,26 @@ fun NewTranslationCard(
 ) {
   var currentText by remember(entry.key, entry.targetValue) { mutableStateOf(entry.targetValue) }
   var isFocused by remember { mutableStateOf(false) }
+  val mergedHighlights = remember(highlightKeywords, searchHighlightQuery) {
+    buildSet {
+      addAll(highlightKeywords)
+      if (searchHighlightQuery.isNotBlank()) add(searchHighlightQuery)
+    }
+  }
 
-  val cardColors = if (entry.isModified) {
+  val cardColors = if (isCurrentSearchResult) {
+    CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.65f))
+  } else if (entry.isModified) {
     CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer)
   } else {
     CardDefaults.cardColors()
   }
 
-  Card(modifier = Modifier.fillMaxWidth(), colors = cardColors) {
+  Card(
+    modifier = Modifier.fillMaxWidth(),
+    colors = cardColors,
+    border = if (isCurrentSearchResult) BorderStroke(1.dp, MaterialTheme.colorScheme.secondary) else null
+  ) {
     Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
       // Key row with badges
       Row(verticalAlignment = Alignment.CenterVertically) {
@@ -496,7 +576,7 @@ fun NewTranslationCard(
           .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
           .padding(horizontal = 10.dp, vertical = 8.dp)
       ) {
-        HighlightedText(text = entry.sourceValue, keywords = highlightKeywords)
+        HighlightedText(text = entry.sourceValue, keywords = mergedHighlights)
       }
 
       // Translation input
@@ -523,7 +603,7 @@ fun NewTranslationCard(
             },
           label = { Text(stringResource(id = R.string.common_translation)) },
           visualTransformation = keywordHighlightVisualTransformation(
-            keywords = highlightKeywords,
+            keywords = mergedHighlights,
             highlightColor = Color.Yellow
           )
         )
@@ -767,16 +847,29 @@ fun StagedDeletedCard(
 fun DiffTranslationCard(
   entry: TranslationEntry,
   highlightKeywords: Set<String>,
+  searchHighlightQuery: String,
+  isCurrentSearchResult: Boolean,
   onSave: (String) -> Unit,
   onRevertToDict: () -> Unit
 ) {
   var currentText by remember(entry.key, entry.targetValue) { mutableStateOf(entry.targetValue) }
+  val mergedHighlights = remember(highlightKeywords, searchHighlightQuery) {
+    buildSet {
+      addAll(highlightKeywords)
+      if (searchHighlightQuery.isNotBlank()) add(searchHighlightQuery)
+    }
+  }
 
   Card(
     modifier = Modifier.fillMaxWidth(),
     colors = CardDefaults.cardColors(
-      containerColor = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.3f)
-    )
+      containerColor = if (isCurrentSearchResult) {
+        MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.55f)
+      } else {
+        MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.3f)
+      }
+    ),
+    border = if (isCurrentSearchResult) BorderStroke(1.dp, MaterialTheme.colorScheme.secondary) else null
   ) {
     Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
       // Key row
@@ -832,7 +925,7 @@ fun DiffTranslationCard(
           .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
           .padding(horizontal = 10.dp, vertical = 8.dp)
       ) {
-        HighlightedText(text = entry.sourceValue, keywords = highlightKeywords)
+        HighlightedText(text = entry.sourceValue, keywords = mergedHighlights)
       }
 
       // Dictionary translation (for reference)
@@ -870,7 +963,7 @@ fun DiffTranslationCard(
           },
         label = { Text(stringResource(R.string.diff_current_value)) },
         visualTransformation = keywordHighlightVisualTransformation(
-          keywords = highlightKeywords,
+          keywords = mergedHighlights,
           highlightColor = Color.Yellow
         )
       )

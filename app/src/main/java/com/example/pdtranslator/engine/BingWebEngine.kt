@@ -12,9 +12,6 @@ import io.ktor.http.contentType
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.jsonArray
-import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 
 class BingWebEngine(
   private val client: HttpClient
@@ -77,27 +74,7 @@ class BingWebEngine(
       val json = Json { ignoreUnknownKeys = true }.parseToJsonElement(response)
 
       // Response can be JsonArray or JsonObject depending on endpoint version
-      val translated = when (json) {
-        is JsonArray -> {
-          json[0].jsonObject["translations"]?.jsonArray?.get(0)
-            ?.jsonObject?.get("text")?.jsonPrimitive?.content
-        }
-        is JsonObject -> {
-          // Some versions return {statusCode: 200, ...} or direct translations
-          json.jsonObject["translations"]?.jsonArray?.get(0)
-            ?.jsonObject?.get("text")?.jsonPrimitive?.content
-            // Or nested under first element
-            ?: json.jsonObject.entries.firstNotNullOfOrNull { (_, v) ->
-              try {
-                if (v is JsonArray) {
-                  v[0].jsonObject["translations"]?.jsonArray?.get(0)
-                    ?.jsonObject?.get("text")?.jsonPrimitive?.content
-                } else null
-              } catch (_: Exception) { null }
-            }
-        }
-        else -> null
-      }
+      val translated = EngineJsonParser.extractBingWebTranslatedText(json)
 
       if (translated.isNullOrBlank()) {
         return Result.failure(Exception("Unexpected response format"))

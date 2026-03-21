@@ -6,8 +6,21 @@ import com.example.pdtranslator.R
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.android.Android
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.client.plugins.cookies.AcceptAllCookiesStorage
+import io.ktor.client.plugins.cookies.HttpCookies
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.json.Json
+
+enum class EngineVerificationState {
+  UNTESTED,
+  VERIFIED,
+  FAILED
+}
+
+data class EngineHealthStatus(
+  val state: EngineVerificationState,
+  val message: String = ""
+)
 
 class TranslationEngineManager(private val context: Context) {
 
@@ -15,6 +28,9 @@ class TranslationEngineManager(private val context: Context) {
 
   val httpClient: HttpClient by lazy {
     HttpClient(Android) {
+      install(HttpCookies) {
+        storage = AcceptAllCookiesStorage()
+      }
       install(ContentNegotiation) {
         json(Json {
           ignoreUnknownKeys = true
@@ -33,7 +49,6 @@ class TranslationEngineManager(private val context: Context) {
     GoogleWebEngine.CONFIG,
     BingWebEngine.CONFIG,
     YoudaoWebEngine.CONFIG,
-    BaiduWebEngine.CONFIG,
     DeepLXEngine.CONFIG,
     GoogleCloudEngine.CONFIG,
     DeepLEngine.CONFIG,
@@ -42,10 +57,12 @@ class TranslationEngineManager(private val context: Context) {
     MicrosoftEngine.CONFIG
   )
 
+  @Volatile
   private var currentEngine: TranslationEngine? = null
 
   fun getSelectedEngineId(): String {
-    return prefs.getString("selected_engine", "") ?: ""
+    val selected = prefs.getString("selected_engine", "") ?: ""
+    return if (selected.isBlank() || availableEngines.any { it.id == selected }) selected else ""
   }
 
   fun setSelectedEngine(engineId: String) {
@@ -108,24 +125,44 @@ class TranslationEngineManager(private val context: Context) {
       "google_web" -> GoogleWebEngine(httpClient)
       "youdao_web" -> YoudaoWebEngine(httpClient)
       "bing_web" -> BingWebEngine(httpClient)
-      "baidu_web" -> BaiduWebEngine(httpClient)
       else -> null
     }
   }
 
   suspend fun translate(text: String, sourceLang: String, targetLang: String): Result<TranslationResult> {
-    val engine = getEngine() ?: return Result.failure(IllegalStateException(context.getString(R.string.engine_not_configured)))
+    val engine = getReadyEngineForTranslation().getOrElse { return Result.failure(it) }
     return engine.translate(text, sourceLang, targetLang)
   }
 
   suspend fun translateBatch(texts: List<String>, sourceLang: String, targetLang: String): Result<List<TranslationResult>> {
-    val engine = getEngine() ?: return Result.failure(IllegalStateException(context.getString(R.string.engine_not_configured)))
+    val engine = getReadyEngineForTranslation().getOrElse { return Result.failure(it) }
     return engine.translateBatch(texts, sourceLang, targetLang)
   }
 
   suspend fun testConnection(): Result<String> {
+    val selectedId = getSelectedEngineId()
     val engine = getEngine() ?: return Result.failure(IllegalStateException(context.getString(R.string.engine_not_configured)))
-    return engine.testConnection()
+    val result = engine.testConnection()
+    if (selectedId.isNotBlank()) {
+      if (result.isSuccess) {
+        recordEngineHealth(selectedId, EngineVerificationState.VERIFIED, result.getOrThrow())
+      } else {
+        val message = getFriendlyError(selectedId, result.exceptionOrNull())
+        recordEngineHealth(selectedId, EngineVerificationState.FAILED, message)
+      }
+    }
+    return result
+  }
+
+  fun getEngineHealthStatus(engineId: String): EngineHealthStatus {
+    val state = runCatching {
+      EngineVerificationState.valueOf(
+        prefs.getString("engine_status_$engineId", EngineVerificationState.UNTESTED.name)
+          ?: EngineVerificationState.UNTESTED.name
+      )
+    }.getOrDefault(EngineVerificationState.UNTESTED)
+    val message = prefs.getString("engine_status_msg_$engineId", "") ?: ""
+    return EngineHealthStatus(state = state, message = message)
   }
 
   fun getFriendlyError(engineId: String, error: Throwable?): String {
@@ -170,5 +207,28 @@ class TranslationEngineManager(private val context: Context) {
     // Fallback: truncate raw message
     val clean = msg.take(80).replace(Regex("<[^>]*>"), "").trim()
     return if (clean.isNotBlank()) clean else context.getString(R.string.engine_error_unknown)
+  }
+
+  private fun recordEngineHealth(engineId: String, state: EngineVerificationState, message: String) {
+    prefs.edit()
+      .putString("engine_status_$engineId", state.name)
+      .putString("engine_status_msg_$engineId", message)
+      .apply()
+  }
+
+  private fun getReadyEngineForTranslation(): Result<TranslationEngine> {
+    val engine = getEngine() ?: return Result.failure(IllegalStateException(context.getString(R.string.engine_not_configured)))
+    val selectedId = getSelectedEngineId()
+    if (selectedId.isBlank()) return Result.success(engine)
+
+    val blockedMessage = EngineUsagePolicy.blockedTranslationMessage(
+      healthStatus = getEngineHealthStatus(selectedId),
+      fallbackMessage = context.getString(R.string.engine_status_failed)
+    )
+    return if (blockedMessage != null) {
+      Result.failure(IllegalStateException(blockedMessage))
+    } else {
+      Result.success(engine)
+    }
   }
 }

@@ -31,7 +31,7 @@ interface TranslationEngine {
     val results = mutableListOf<TranslationResult>()
     for (t in texts) {
       val r = translate(t, sourceLang, targetLang)
-      if (r.isFailure) return Result.failure(r.exceptionOrNull()!!)
+      if (r.isFailure) return Result.failure(r.exceptionOrNull() ?: Exception("Translation failed"))
       results.add(r.getOrThrow())
     }
     return Result.success(results)
