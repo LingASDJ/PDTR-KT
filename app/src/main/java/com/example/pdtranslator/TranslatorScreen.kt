@@ -62,6 +62,7 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.OutlinedButton
 import com.google.accompanist.flowlayout.FlowRow
 import androidx.compose.ui.platform.LocalContext
 
@@ -329,10 +330,13 @@ fun SearchReplaceControls(viewModel: TranslatorViewModel) {
   val replaceQuery by viewModel.replaceQuery.collectAsState()
   val isCaseSensitive by viewModel.isCaseSensitive.collectAsState()
   val isExactMatch by viewModel.isExactMatch.collectAsState()
+  val themeColor by viewModel.themeColor.collectAsState()
+  val isPD = themeColor == ThemeColor.PIXEL_DUNGEON
   val context = LocalContext.current
 
   Card {
     Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+      // Search + Replace text fields
       Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         OutlinedTextField(
           value = searchQuery,
@@ -349,6 +353,7 @@ fun SearchReplaceControls(viewModel: TranslatorViewModel) {
           singleLine = true
         )
       }
+      // Checkbox options
       Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(4.dp)
@@ -371,15 +376,26 @@ fun SearchReplaceControls(viewModel: TranslatorViewModel) {
           Checkbox(checked = isExactMatch, onCheckedChange = { viewModel.setExactMatch(it) })
           Text(stringResource(R.string.search_exact_match), style = MaterialTheme.typography.bodySmall)
         }
-        Spacer(modifier = Modifier.weight(1f))
-        // Find button — triggers search filter
-        Button(
+      }
+      // Action buttons row
+      Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+      ) {
+        // Find button
+        OutlinedButton(
           onClick = { viewModel.setFilter(FilterState.ALL) },
-          modifier = Modifier.height(32.dp),
-          contentPadding = ButtonDefaults.TextButtonContentPadding,
-          enabled = searchQuery.isNotBlank()
+          modifier = Modifier.weight(1f).height(36.dp),
+          enabled = searchQuery.isNotBlank(),
+          colors = if (isPD) ButtonDefaults.outlinedButtonColors(
+            contentColor = MaterialTheme.colorScheme.secondary
+          ) else ButtonDefaults.outlinedButtonColors()
         ) {
-          Text(stringResource(R.string.search_find_btn), style = MaterialTheme.typography.labelSmall)
+          if (isPD) {
+            Icon(painterResource(R.drawable.ic_pd_scroll), null, Modifier.size(14.dp))
+            Spacer(Modifier.width(4.dp))
+          }
+          Text(stringResource(R.string.search_find_btn), style = MaterialTheme.typography.labelMedium, maxLines = 1)
         }
         // Replace All button
         Button(
@@ -391,11 +407,18 @@ fun SearchReplaceControls(viewModel: TranslatorViewModel) {
               android.widget.Toast.LENGTH_SHORT
             ).show()
           },
-          modifier = Modifier.height(32.dp),
-          contentPadding = ButtonDefaults.TextButtonContentPadding,
-          enabled = searchQuery.isNotBlank() && replaceQuery.isNotEmpty()
+          modifier = Modifier.weight(1f).height(36.dp),
+          enabled = searchQuery.isNotBlank() && replaceQuery.isNotEmpty(),
+          colors = if (isPD) ButtonDefaults.buttonColors(
+            containerColor = MaterialTheme.colorScheme.tertiary,
+            contentColor = MaterialTheme.colorScheme.onTertiaryContainer
+          ) else ButtonDefaults.buttonColors()
         ) {
-          Text(stringResource(R.string.search_replace_btn), style = MaterialTheme.typography.labelSmall)
+          if (isPD) {
+            Icon(painterResource(R.drawable.ic_pd_wand), null, Modifier.size(14.dp))
+            Spacer(Modifier.width(4.dp))
+          }
+          Text(stringResource(R.string.search_replace_btn), style = MaterialTheme.typography.labelMedium, maxLines = 1)
         }
       }
     }

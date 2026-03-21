@@ -87,8 +87,14 @@ enum class ThemeColor {
 class TranslatorViewModel(application: Application) : AndroidViewModel(application) {
 
   companion object {
+    // Include both old and new ISO 639 codes for complete coverage
     private val isoLanguages: Set<String> by lazy {
-      java.util.Locale.getISOLanguages().toSet()
+      val base = java.util.Locale.getISOLanguages().toMutableSet()
+      // Ensure modern BCP 47 codes are present (Java returns old codes)
+      base.addAll(listOf("id", "he", "yi", "jv", "ro"))
+      // Ensure legacy codes are present too
+      base.addAll(listOf("in", "iw", "ji", "jw", "mo"))
+      base
     }
     // Legacy ISO 639 codes that Locale.forLanguageTag() cannot parse (BCP 47 replacements)
     private val legacyLangCodes = mapOf(
@@ -1217,14 +1223,17 @@ class TranslatorViewModel(application: Application) : AndroidViewModel(applicati
 
     for (take in minOf(3, tokens.size - 1) downTo 1) {
       val candidate = tokens.takeLast(take).joinToString("-")
+      val candidateLower = candidate.lowercase()
       // Handle legacy ISO 639 codes (e.g., "in" → "id" for Indonesian)
-      val normalized = legacyLangCodes[candidate.lowercase()] ?: candidate
+      val isLegacy = legacyLangCodes.containsKey(candidateLower)
+      val normalized = legacyLangCodes[candidateLower] ?: candidate
       val locale = java.util.Locale.forLanguageTag(normalized)
       if (locale.language.isNotEmpty() && locale.language != "und" &&
-          (isoLanguages.contains(locale.language) || isoLanguages.contains(candidate.lowercase()))) {
+          (isoLanguages.contains(locale.language) || isoLanguages.contains(candidateLower))) {
         val baseName = reconstructBaseName(nameWithoutExt, take)
         if (baseName.isNotEmpty()) {
-          val langCode = locale.toLanguageTag()
+          // For legacy codes, use the original suffix as langCode to keep file matching consistent
+          val langCode = if (isLegacy) candidateLower else locale.toLanguageTag()
           return Pair(baseName, langCode)
         }
       }
