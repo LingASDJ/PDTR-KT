@@ -155,7 +155,7 @@ fun TranslatorScreen(viewModel: TranslatorViewModel) {
         }
       }
       LinearProgressIndicator(
-        progress = { translationProgress },
+        progress = translationProgress,
         modifier = Modifier
           .fillMaxWidth()
           .height(6.dp)

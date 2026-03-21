@@ -643,8 +643,8 @@ class TranslatorViewModel(application: Application) : AndroidViewModel(applicati
       if (group == null) return@launch
 
       // A4: Validate language code (with legacy code support)
-      val normalizedCode = legacyLangCodes[langCode.lowercase()] ?: langCode
-      val locale = java.util.Locale.forLanguageTag(normalizedCode)
+      val legacyResolved = legacyLangCodes[langCode.lowercase()] ?: langCode
+      val locale = java.util.Locale.forLanguageTag(legacyResolved)
       if (locale.language.isEmpty() || locale.language == "und" ||
           (!isoLanguages.contains(locale.language) && !isoLanguages.contains(langCode.lowercase()))) {
         _uiEvents.send(UiEvent.ShowSnackbar(app.getString(R.string.create_lang_invalid, langCode)))
