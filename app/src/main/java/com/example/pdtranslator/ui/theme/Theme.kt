@@ -119,20 +119,20 @@ fun PDTranslatorTheme(
       val tint = currentTimeTint()
       val base = PixelDungeonThemeColors.darkColorScheme
       base.copy(
-        // Tint primary with zone accent — buttons, titles shift color
-        primary = lerp(base.primary, tint.accent2, 0.15f),
-        // Tint secondary (cyan) with zone accent
-        secondary = lerp(base.secondary, tint.accent1, 0.2f),
-        secondaryContainer = lerp(base.secondaryContainer, tint.surfaceTint, 0.25f),
-        // Tint tertiary with the current zone accent
-        tertiary = lerp(base.tertiary, tint.accent1, 0.4f),
-        tertiaryContainer = lerp(base.tertiaryContainer, tint.surfaceTint, 0.3f),
-        // Tint outline with zone color for brick-edge feel
-        outline = lerp(base.outline, tint.accent1, 0.2f),
-        outlineVariant = lerp(base.outlineVariant, tint.accent1, 0.15f),
-        // Tint primaryContainer (bottom nav bar) with zone
-        primaryContainer = lerp(base.primaryContainer, tint.accent1, 0.12f),
-        onPrimaryContainer = lerp(base.onPrimaryContainer, tint.accent2, 0.1f),
+        // Strong zone tinting — visible color shift every 4 hours
+        primary = lerp(base.primary, tint.accent2, 0.35f),
+        secondary = lerp(base.secondary, tint.accent1, 0.4f),
+        secondaryContainer = lerp(base.secondaryContainer, tint.surfaceTint, 0.4f),
+        tertiary = lerp(base.tertiary, tint.accent1, 0.6f),
+        tertiaryContainer = lerp(base.tertiaryContainer, tint.surfaceTint, 0.5f),
+        outline = lerp(base.outline, tint.accent1, 0.35f),
+        outlineVariant = lerp(base.outlineVariant, tint.accent1, 0.3f),
+        primaryContainer = lerp(base.primaryContainer, tint.accent1, 0.25f),
+        onPrimaryContainer = lerp(base.onPrimaryContainer, tint.accent2, 0.2f),
+        // Also tint background/surface so standalone screens show zone color
+        background = lerp(base.background, tint.surfaceTint, 0.5f),
+        surface = lerp(base.surface, tint.surfaceTint, 0.3f),
+        surfaceVariant = lerp(base.surfaceVariant, tint.surfaceTint, 0.3f),
       )
     }
   }

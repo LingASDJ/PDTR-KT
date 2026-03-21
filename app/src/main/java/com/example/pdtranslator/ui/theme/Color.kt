@@ -215,10 +215,10 @@ object PixelDungeonThemeColors {
     tertiaryContainer   = Color(0xFF3D1E00),  // Dark ember
     onTertiaryContainer = Color(0xFFFFBB44),  // Warm flame
 
-    // SURFACES — semi-transparent to show brick background through cards
-    background     = Color(0x00000000),  // Transparent — brick wall shows through
+    // SURFACES — dark stone, opaque for standalone screens, semi-transparent for cards
+    background     = Color(0xFF080604),  // Very dark stone (fallback for screens without brick bg)
     onBackground   = Color(0xFFFFFFAA),  // StatusPane exp text — pale gold readability
-    surface        = Color(0xCC12100C),  // Dark stone floor with alpha (cards)
+    surface        = Color(0xCC12100C),  // Dark stone floor with alpha (cards over brick)
     onSurface      = Color(0xFFE0D4B8),  // Parchment white — main text
     surfaceVariant = Color(0xCC1E1810),  // Slightly lighter stone with alpha (input fields)
     onSurfaceVariant = Color(0xFFB2B25F), // TEXT_WIN[1] — muted gold secondary text

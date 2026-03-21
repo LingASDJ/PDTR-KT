@@ -42,7 +42,7 @@ fun getChangelog(): List<ChangelogItem> {
 @Composable
 fun ChangelogScreen() {
     val changelog = getChangelog()
-    Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+    Surface(modifier = Modifier.fillMaxSize()) {
         Column(
             modifier = Modifier
                 .fillMaxSize()

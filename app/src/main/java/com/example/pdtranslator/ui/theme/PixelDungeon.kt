@@ -123,8 +123,10 @@ fun pdNavIcons(): Triple<Int, Int, Int> {
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// Cached brick wall bitmap
+// Global brick wall bitmap cache — survives navigation
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+private var cachedBrickBitmap: ImageBitmap? = null
+private var cachedBrickKey: Triple<Int, Int, Int>? = null // (seg, w, h)
 
 private fun generateBrickBitmap(w: Int, h: Int, palette: ZonePalette): ImageBitmap {
   val bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
@@ -188,8 +190,15 @@ fun PixelBrickBackground(modifier: Modifier = Modifier) {
   // Regenerate when time segment (4hr block) changes
   val seg = (tick / 240).coerceIn(0, 5)
 
-  val brickBitmap = remember(seg, widthPx, heightPx) {
-    generateBrickBitmap(widthPx, heightPx, currentZonePalette())
+  // Global cache — bitmap survives navigation, only regenerates on segment change
+  val key = Triple(seg, widthPx, heightPx)
+  val brickBitmap = if (cachedBrickKey == key && cachedBrickBitmap != null) {
+    cachedBrickBitmap!!
+  } else {
+    generateBrickBitmap(widthPx, heightPx, currentZonePalette()).also {
+      cachedBrickBitmap = it
+      cachedBrickKey = key
+    }
   }
 
   Canvas(modifier.fillMaxSize()) {
