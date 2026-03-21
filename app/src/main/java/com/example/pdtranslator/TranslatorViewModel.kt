@@ -127,7 +127,7 @@ class TranslatorViewModel(application: Application) : AndroidViewModel(applicati
   private val _stagedChanges = MutableStateFlow<Map<String, String>>(emptyMap())
   private val _stagedDeletions = MutableStateFlow<Set<String>>(emptySet())
   private val _showAboutDialog = MutableStateFlow(false)
-  private val _themeColor = MutableStateFlow(ThemeColor.DEFAULT)
+  private val _themeColor = MutableStateFlow(ThemeColor.PIXEL_DUNGEON)
   private val _isSearchCardVisible = MutableStateFlow(true)
   private val _missingEntriesCount = MutableStateFlow(0)
   private val _deletedEntriesCount = MutableStateFlow(0)
