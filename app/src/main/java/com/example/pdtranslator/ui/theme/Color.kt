@@ -148,71 +148,95 @@ object ModernThemeColors {
   )
 }
 
-// --- Pixel Dungeon Theme ---
-// Authentic colors extracted from Shattered Pixel Dungeon & Magic Ling Pixel Dungeon source:
-//   Window.java  TITLE_COLOR = 0xFFFF44 (SPD gold), 0x00FFFF (MLPD cyan)
-//   Window.java  TEXT_WIN = {0xFFFF88, 0xB2B25F} (gold gradient pair)
-//   Window.java  SHPX_COLOR = 0x33BB33 (brand green)
-//   Toolbar.java BGCOLOR = 0x7B8073 (grey-green stone)
-//   Toolbar.java arrow tint = 0x3D2E18 (deep brown)
-//   StatusPane   exp text = 0xFFFFAA (pale gold), warning = 0x660000 / 0xCC0000
-//   HealthBar    HP = 0x00EE00, BG = 0xCC0000, Shield = 0xFFFFFF
-//   CharSprite   WARNING = 0xFF8800, POSITIVE = 0x00FF00, NEGATIVE = 0xFF0000
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// Pixel Dungeon Theme — Magic Ling Pixel Dungeon style
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// Source: Window.java, Toolbar.java, CharSprite.java, StatusPane.java, FogOfWar.java
+//
+//   MLPD_COLOR / TITLE_COLOR  = 0x00FFFF  cyan        ← signature accent
+//   SPD  TITLE_COLOR           = 0xFFFF44  gold-yellow ← title / primary
+//   SHPX_COLOR                 = 0x33BB33  green       ← health / positive
+//   TEXT_WIN                   = 0xFFFF88 / 0xB2B25F   ← gold text gradient
+//   Toolbar BGCOLOR            = 0x7B8073              ← stone grey-green
+//   Toolbar arrow              = 0x3D2E18              ← deep brown
+//   StatusPane exp             = 0xFFFFAA              ← pale gold
+//   CharSprite WARNING         = 0xFF8800              ← torch fire orange
+//   HealthBar HP / BG          = 0x00EE00 / 0xCC0000   ← green / red
+//   FogOfWar mapped            = 0x193366              ← deep navy
+//   Sewers color1/2            = 0x48763C / 0x59994A   ← dungeon moss
+//   Halls  color1/2            = 0x801500 / 0xA68521   ← lava + gold
+
 object PixelDungeonThemeColors {
 
-  // --- Light: Parchment scroll / dungeon map aesthetic ---
+  // ── Light: Sepia parchment / dungeon map ──
+  // (kept as a safe fallback, but PD should always force dark)
   val lightColorScheme = lightColorScheme(
-    primary = Color(0xFFB2942E),           // Muted dungeon gold (from TEXT_WIN 0xB2B25F)
+    primary = Color(0xFF6B5B2E),
     onPrimary = Color.White,
-    primaryContainer = Color(0xFFF5E6B8),  // Parchment gold
-    onPrimaryContainer = Color(0xFF3D2E18),// Toolbar brown
-    secondary = Color(0xFF33BB33),         // SHPX_COLOR brand green
+    primaryContainer = Color(0xFFEADBA5),
+    onPrimaryContainer = Color(0xFF3D2E18),
+    secondary = Color(0xFF48763C),
     onSecondary = Color.White,
-    secondaryContainer = Color(0xFFD4EDDA),
+    secondaryContainer = Color(0xFFCDE0C4),
     onSecondaryContainer = Color(0xFF1B4332),
-    tertiary = Color(0xFFCC0000),          // HealthBar BG red
+    tertiary = Color(0xFF801500),
     tertiaryContainer = Color(0xFFFFDAD4),
-    onTertiaryContainer = Color(0xFF660000),// StatusPane dark red warning
-    background = Color(0xFFF0E6D2),        // Aged parchment
+    onTertiaryContainer = Color(0xFF660000),
+    background = Color(0xFFF0E6D2),
     onBackground = Color(0xFF2D1F14),
-    surface = Color(0xFFE8DABE),           // Scroll surface
+    surface = Color(0xFFE8DABE),
     onSurface = Color(0xFF2D1F14),
-    surfaceVariant = Color(0xFFDDD0B8),
+    surfaceVariant = Color(0xFFD8CCB0),
     onSurfaceVariant = Color(0xFF5D4E37),
-    outline = Color(0xFF7B8073),           // Toolbar BGCOLOR stone grey
+    outline = Color(0xFF7B8073),
     error = Color(0xFFCC0000),
     errorContainer = Color(0xFFFFDAD4),
     onErrorContainer = Color(0xFF660000),
   )
 
-  // --- Dark: Deep dungeon / torch-lit stone aesthetic ---
+  // ── Dark: THE dungeon experience ──
+  // Deep cave lit by torches (orange) and magical energy (cyan).
+  // Gold text floats over near-black stone.
   val darkColorScheme = darkColorScheme(
-    primary = Color(0xFFFFFF44),           // SPD TITLE_COLOR — the iconic golden yellow
-    onPrimary = Color(0xFF1A120B),
-    primaryContainer = Color(0xFF5D4A1F),  // Deep gold-brown cavern
-    onPrimaryContainer = Color(0xFFFFFF88),// TEXT_WIN[0] bright gold
-    secondary = Color(0xFF00FFFF),         // MLPD TITLE_COLOR / SKYBULE_COLOR — iconic cyan
-    onSecondary = Color(0xFF001A1A),
-    secondaryContainer = Color(0xFF1A3D3D),// Dark teal cavern
-    onSecondaryContainer = Color(0xFF55AAFF),// WATA_COLOR water blue
-    tertiary = Color(0xFFFF8800),          // CharSprite WARNING orange (torch fire)
-    tertiaryContainer = Color(0xFF5D2E00),
-    onTertiaryContainer = Color(0xFFFFA500),// ORAGNECOLOR
-    background = Color(0xFF0D0A07),        // Near-black dungeon depth
-    onBackground = Color(0xFFFFFFAA),      // StatusPane exp text pale gold
-    surface = Color(0xFF1A120B),           // Dark stone floor
-    onSurface = Color(0xFFE8DCC8),         // Warm parchment text
-    surfaceVariant = Color(0xFF2D1F14),    // Slightly lighter stone (wall)
-    onSurfaceVariant = Color(0xFFB2B25F),  // TEXT_WIN[1] muted gold
-    outline = Color(0xFF7B8073),           // Toolbar BGCOLOR
-    outlineVariant = Color(0xFF3D2E18),    // Toolbar arrow brown
-    error = Color(0xFFCC0000),             // HealthBar COLOR_BG
-    onError = Color.White,
-    errorContainer = Color(0xFF660000),    // StatusPane dark warning
-    onErrorContainer = Color(0xFFFF5252),
-    inverseSurface = Color(0xFFE8DCC8),
-    inverseOnSurface = Color(0xFF1A120B),
-    inversePrimary = Color(0xFF8D6E1F),
-    scrim = Color(0xFF000000),
+    // PRIMARY = Gold — titles, buttons, active indicators
+    primary            = Color(0xFFFFFF44),  // SPD TITLE_COLOR — blazing gold
+    onPrimary          = Color(0xFF1C1200),  // near-black on gold buttons
+    primaryContainer   = Color(0xFF3D2E18),  // Toolbar brown — stone button bg
+    onPrimaryContainer = Color(0xFFFFFF88),  // TEXT_WIN bright gold
+
+    // SECONDARY = Cyan — the MLPD signature magic glow
+    secondary            = Color(0xFF00FFFF),  // MLPD_COLOR — pure cyan
+    onSecondary          = Color(0xFF001A1A),
+    secondaryContainer   = Color(0xFF0A2626),  // Deep dark teal cave
+    onSecondaryContainer = Color(0xFF66FFFF),  // Brighter cyan
+
+    // TERTIARY = Torch fire orange — warnings, accents
+    tertiary            = Color(0xFFFF8800),  // CharSprite WARNING
+    tertiaryContainer   = Color(0xFF3D1E00),  // Dark ember
+    onTertiaryContainer = Color(0xFFFFBB44),  // Warm flame
+
+    // SURFACES — dark stone, opaque for standalone screens, semi-transparent for cards
+    background     = Color(0xFF080604),  // Very dark stone (fallback for screens without brick bg)
+    onBackground   = Color(0xFFFFFFAA),  // StatusPane exp text — pale gold readability
+    surface        = Color(0xCC12100C),  // Dark stone floor with alpha (cards over brick)
+    onSurface      = Color(0xFFE0D4B8),  // Parchment white — main text
+    surfaceVariant = Color(0xCC1E1810),  // Slightly lighter stone with alpha (input fields)
+    onSurfaceVariant = Color(0xFFB2B25F), // TEXT_WIN[1] — muted gold secondary text
+
+    // OUTLINES — weathered stone edges
+    outline        = Color(0xFF4A4038),  // Visible stone border
+    outlineVariant = Color(0xFF2E2418),  // Subtle separator
+
+    // ERROR — Demon Halls lava/blood
+    error            = Color(0xFFFF0000),  // CharSprite NEGATIVE — pure red
+    onError          = Color(0xFF1C0000),
+    errorContainer   = Color(0xFF4A0000),  // Deep blood
+    onErrorContainer = Color(0xFFFF6666),  // Lighter red text
+
+    // INVERSE — for snackbars etc
+    inverseSurface   = Color(0xFFE0D4B8),
+    inverseOnSurface = Color(0xFF12100C),
+    inversePrimary   = Color(0xFF8D6E1F),
+    scrim            = Color(0xFF000000),
   )
 }

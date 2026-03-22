@@ -25,6 +25,7 @@ data class TmSuggestion(
 
 class TranslationMemory(private val context: Context) {
 
+  private val lock = Any()
   private val entries = mutableMapOf<String, TmEntry>()
   private val gson = Gson()
   private val file: File get() = File(context.filesDir, "tm.json")
@@ -39,22 +40,24 @@ class TranslationMemory(private val context: Context) {
   fun addEntry(sourceText: String, targetText: String, srcLang: String, tgtLang: String) {
     if (sourceText.isBlank() || targetText.isBlank()) return
     val key = tmKey(sourceText, srcLang, tgtLang)
-    val existing = entries[key]
-    if (existing != null) {
-      entries[key] = existing.copy(
-        targetText = targetText,
-        usageCount = existing.usageCount + 1,
-        lastUsed = System.currentTimeMillis()
-      )
-    } else {
-      entries[key] = TmEntry(
-        sourceText = sourceText,
-        targetText = targetText,
-        sourceLang = srcLang,
-        targetLang = tgtLang,
-        usageCount = 1,
-        lastUsed = System.currentTimeMillis()
-      )
+    synchronized(lock) {
+      val existing = entries[key]
+      if (existing != null) {
+        entries[key] = existing.copy(
+          targetText = targetText,
+          usageCount = existing.usageCount + 1,
+          lastUsed = System.currentTimeMillis()
+        )
+      } else {
+        entries[key] = TmEntry(
+          sourceText = sourceText,
+          targetText = targetText,
+          sourceLang = srcLang,
+          targetLang = tgtLang,
+          usageCount = 1,
+          lastUsed = System.currentTimeMillis()
+        )
+      }
     }
   }
 
@@ -69,13 +72,17 @@ class TranslationMemory(private val context: Context) {
 
     // Exact match first
     val exactKey = tmKey(sourceText, srcLang, tgtLang)
-    val exact = entries[exactKey]
-    if (exact != null) {
-      return listOf(TmSuggestion(exact.targetText, 1.0f, exact.usageCount))
+    val snapshot: Map<String, TmEntry>
+    synchronized(lock) {
+      val exact = entries[exactKey]
+      if (exact != null) {
+        return listOf(TmSuggestion(exact.targetText, 1.0f, exact.usageCount))
+      }
+      snapshot = entries.toMap()
     }
 
     val sourceLen = sourceText.length
-    return entries.values
+    return snapshot.values
       .filter { it.sourceLang == srcLang && it.targetLang == tgtLang }
       .filter { entry ->
         // Length difference filter: skip if lengths differ by more than 50%
@@ -108,11 +115,12 @@ class TranslationMemory(private val context: Context) {
   }
 
   suspend fun save() {
+    val json: String
+    synchronized(lock) {
+      json = gson.toJson(entries)
+    }
     withContext(Dispatchers.IO) {
-      val json = gson.toJson(entries)
-      val tmpFile = File(context.filesDir, "tm.json.tmp")
-      tmpFile.writeText(json, Charsets.UTF_8)
-      tmpFile.renameTo(file)
+      writeTextAtomically(file, json)
     }
   }
 
@@ -123,8 +131,10 @@ class TranslationMemory(private val context: Context) {
           val json = file.readText(Charsets.UTF_8)
           val type = object : TypeToken<Map<String, TmEntry>>() {}.type
           val loaded: Map<String, TmEntry> = gson.fromJson(json, type)
-          entries.clear()
-          entries.putAll(loaded)
+          synchronized(lock) {
+            entries.clear()
+            entries.putAll(loaded)
+          }
         } catch (_: Exception) {
           // Corrupted TM file, ignore
         }

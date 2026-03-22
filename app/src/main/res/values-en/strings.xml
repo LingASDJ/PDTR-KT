@@ -62,8 +62,7 @@
 
     <!-- Translator Screen -->
     <string name="translator_complete_missing">Complete Missing Fields</string>
-    <string name="translator_progress_info">Total entries in language group: %1$d</string>
-    <string name="translator_translation_progress">Translation Progress: %1$d%%</string>
+    <string name="translator_translation_progress">%1$s%% (%2$d entries)</string>
     <string name="translator_identical_warning">(Source and target text are identical)</string>
 
     <!-- Common Composables -->
@@ -86,6 +85,7 @@
     <string name="import_overwrite_count">overwrote %1$d language files</string>
     <string name="import_ignore_count">%1$d ignored</string>
     <string name="import_fail_count">%1$d failed</string>
+    <string name="import_empty">No .properties files found</string>
 
     <!-- Draft -->
     <string name="draft_found_title">Draft Found</string>
@@ -109,9 +109,19 @@
     <string name="replace_label">Replace</string>
     <string name="search_case_sensitive">Case Sensitive</string>
     <string name="search_exact_match">Exact Match</string>
+    <string name="search_find_btn">Find</string>
+    <string name="search_prev_btn">Previous</string>
+    <string name="search_next_btn">Next</string>
+    <string name="search_replace_current_btn">Replace Current</string>
+    <string name="search_replace_btn">Replace All</string>
+    <string name="search_result_status">%1$d / %2$d matches</string>
+    <string name="search_replace_current_done">Replaced %1$d current match</string>
+    <string name="search_replace_done">Replaced %1$d entries</string>
 
     <!-- Export -->
     <string name="export_success">Exported successfully</string>
+    <string name="export_fail_no_stream">Export failed: cannot open output file</string>
+    <string name="export_fail_write">Export failed: error writing ZIP file</string>
     <string name="export_tm_recorded">TM recorded %1$d entries</string>
 
     <!-- Empty States -->
@@ -127,6 +137,118 @@
     <string name="fill_missing_done">Filled %1$d missing fields. Switched to \"Untranslated\" view.</string>
     <string name="fill_missing_already_staged">All missing fields are already staged. Switched to \"Untranslated\" view.</string>
 
+    <!-- Filter States (new) -->
+    <string name="filter_diff">Diff</string>
+    <string name="filter_deleted">Deleted</string>
+
+    <!-- Dictionary -->
+    <string name="dict_title">Dictionary</string>
+    <string name="dict_subtitle">Save translations to reuse after source file updates.</string>
+    <string name="dict_default_name">Default Dictionary</string>
+    <string name="dict_select_label">Current Dictionary</string>
+    <string name="dict_count">Dictionary entries: %1$d</string>
+    <string name="dict_count_short">%1$d entries</string>
+    <string name="dict_total">Dictionaries: %1$d</string>
+    <string name="dict_name_label">Dictionary Name</string>
+    <string name="dict_create">New Dictionary</string>
+    <string name="dict_rename">Rename</string>
+    <string name="dict_delete">Delete Dict</string>
+    <string name="dict_save">Save to Dict</string>
+    <string name="dict_apply">Apply Dict</string>
+    <string name="dict_clear">Clear Dictionary</string>
+    <string name="dict_save_done">Saved %1$d entries to dictionary</string>
+    <string name="dict_apply_done">Applied %1$d entries from dictionary</string>
+    <string name="dict_apply_none">No matching entries found in dictionary</string>
+    <string name="dict_clear_done">Dictionary cleared</string>
+    <string name="dict_create_done">Created and selected dictionary \"%1$s\"</string>
+    <string name="dict_rename_done">Renamed dictionary to \"%1$s\"</string>
+    <string name="dict_delete_done">Dictionary deleted</string>
+    <string name="dict_delete_last_blocked">Keep at least one dictionary</string>
+    <string name="dict_name_exists">A dictionary with this name already exists</string>
+    <string name="dict_name_invalid">Dictionary name cannot be empty</string>
+
+    <!-- Deleted Entries -->
+    <string name="deleted_badge">Deleted</string>
+    <string name="deleted_delete_all">Delete All (%1$d)</string>
+    <string name="deleted_delete_single">Delete</string>
+    <string name="deleted_all_done">Staged %1$d entries for deletion</string>
+    <string name="deleted_empty">No deleted entries found</string>
+    <string name="deleted_staged_badge">Pending Deletion</string>
+    <string name="deleted_undo">Undo</string>
+
+    <!-- Diff Entries -->
+    <string name="diff_badge">Diff</string>
+    <string name="diff_old_source">Old source text (from dictionary):</string>
+    <string name="diff_new_source">New source text (current):</string>
+    <string name="diff_dict_value">Dictionary translation:</string>
+    <string name="diff_current_value">Current translation</string>
+    <string name="diff_revert_to_dict">Revert to Dict</string>
+    <string name="diff_empty">No source text changes detected compared to dictionary</string>
+
+    <!-- Create Language -->
+    <string name="create_lang_invalid">Invalid language code: %1$s</string>
+    <string name="create_lang_title">Create Language</string>
+    <string name="create_lang_subtitle">Create a new target language file for the selected group.</string>
+    <string name="create_lang_code_label">Language Code</string>
+    <string name="create_lang_code_placeholder">zh-CN, fr, ja...</string>
+    <string name="create_lang_done">Language \"%1$s\" created successfully</string>
+    <string name="create_lang_exists">Language \"%1$s\" already exists</string>
+    <string name="create_lang_no_group">Please select a language group first</string>
+    <string name="create_lang_copy_from">Copy from</string>
+    <string name="create_lang_copy_none">Empty (no copy)</string>
+
+    <!-- Translation Engine -->
+    <string name="engine_not_configured">Translation engine not configured</string>
+    <string name="engine_google_cloud">Google Cloud Translation</string>
+    <string name="engine_deepl">DeepL API</string>
+    <string name="engine_deeplx">DeepLX (Self-hosted)</string>
+    <string name="engine_baidu">Baidu Translate</string>
+    <string name="engine_youdao_api">Youdao API</string>
+    <string name="engine_microsoft">Microsoft Translator</string>
+    <string name="engine_google_web">Google Translate Web (Experimental)</string>
+    <string name="engine_youdao_web">Youdao Web (Experimental)</string>
+    <string name="engine_bing_web">Bing Translate Web (Experimental)</string>
+    <string name="engine_baidu_web">Baidu Translate Web (Experimental)</string>
+    <string name="engine_experimental_tag">Experimental</string>
+    <string name="engine_select_title">Translation Engine</string>
+    <string name="engine_select_none">None</string>
+    <string name="engine_api_key_label">API Key</string>
+    <string name="engine_api_key_hint_baidu">AppID|SecretKey</string>
+    <string name="engine_api_key_hint_youdao">AppKey|AppSecret</string>
+    <string name="engine_api_key_hint_microsoft">Key|Region (region optional)</string>
+    <string name="engine_endpoint_label">Endpoint URL</string>
+    <string name="engine_endpoint_hint_deeplx">http://localhost:1188</string>
+    <string name="engine_deeplx_http_note">Supports HTTP/HTTPS</string>
+    <string name="engine_test_connection">Test Connection</string>
+    <string name="engine_testing">Testing…</string>
+    <string name="engine_test_success">Connection successful: %1$s</string>
+    <string name="engine_test_success_short">Success:</string>
+    <string name="engine_test_fail">Connection failed: %1$s</string>
+    <string name="engine_test_fail_short">Failed:</string>
+    <string name="engine_status_untested">Untested</string>
+    <string name="engine_status_verified">Verified</string>
+    <string name="engine_status_failed">Failed</string>
+    <string name="engine_error_unknown">Unknown error</string>
+    <string name="engine_error_network">Network unavailable, check your connection</string>
+    <string name="engine_error_timeout">Connection timed out</string>
+    <string name="engine_error_refused">Connection refused, check endpoint address</string>
+    <string name="engine_error_server">Server returned an unexpected response</string>
+    <string name="engine_error_auth">Authentication failed, check your API key</string>
+    <string name="engine_error_forbidden">Access denied, check your API key permissions</string>
+    <string name="engine_error_no_key">Please enter your API key first</string>
+    <string name="engine_error_no_endpoint">Please enter the endpoint URL first</string>
+    <string name="engine_translate_fail">Translation failed: %1$s</string>
+    <string name="engine_batch_done">Batch translated %1$d entries</string>
+    <string name="engine_translate_button">Translate</string>
+    <string name="engine_base_lang_override">Base language for engine</string>
+    <string name="engine_base_lang_override_hint">Leave empty to use source language</string>
+    <string name="engine_base_lang_override_placeholder">en, zh-CN...</string>
+
+    <!-- Pixel Dungeon Easter Egg -->
+    <string name="pd_dungeon_section">Dungeon Status</string>
+    <string name="pd_current_zone">Current Zone: %1$s</string>
+    <string name="pd_depth">Depth: %1$d</string>
+
     <!-- Language Display -->
     <string name="lang_base">Base</string>
 
@@ -140,5 +262,18 @@
 
     <!-- Changelog 0.1.9 -->
     <string name="changelog_version_0_1_9">v0.1.9</string>
+    <!-- Changelog 0.2.0 -->
+    <string name="changelog_version_0_2_0">v0.2.0</string>
+    <string name="changelog_content_0_2_0">[New Features]\n- Translation engines: 10 engines supported (5 free web engines + 5 official API engines).\n- New Baidu Web Translate engine (BaiduWebEngine): uses fanyi.baidu.com web API with full token/gtk signing, no API key needed.\n- DeepLX zero-config: built-in public endpoints (api.deeplx.org), works without any user configuration.\n- Engine reordering: 5 free web engines listed first, start translating immediately without setup.\n- Global dictionary: cross-group translation lookup — searches current group → legacy format → all groups globally (most recent timestamp wins).\n- Translation progress bar: LinearProgressIndicator + percentage (2 decimal places, e.g. 56.78%), always visible.\n- Search and Replace buttons: new Find and Replace All buttons, supports case-sensitive and exact match modes.\n- Dungeon-themed search buttons: scroll/wand pixel icons + dungeon accent colors in PD theme.\n- One-click translate per entry via current engine, results shown as chips.\n- Per-group base language override for engine source language.\n- DELETED view supports undo: staged deletions shown as grey cards with undo button.\n\n[Pixel Dungeon Theme]\n- Default theme changed to Pixel Dungeon — dungeon experience from first launch.\n- 24-hour color system: expanded from 6 time zones to 24 hourly zones, each with unique dungeon scene colors.\n- All colors sourced from real MLPD game data (Window.java / CharSprite.java / FistSprite / Level sources).\n- Scenes include: Sewers, Goo, Garden, Prison, Tengu, Caves, Crystal Caves, Dwarf City, Dwarf King, Demon Halls, Evil Eyes, Scorpio Nest, Yog-Dzewa, all Fists, Last Level.\n- Enhanced brick wall textures: moss, blood stains, crystal deposits based on zone color2.\n- 24 unique flame color palettes (hellfire red, toxic green, lantern yellow, crystal blue, arcane purple, etc.).\n- Bottom magic pool glow varies by chapter (lava, sewer water, candlelight, crystal reflection, MLPD cyan magic, blood pool).\n- Navigation icons: 6 icon sets covering all 24 hours.\n- Real pixel fonts (fusion_pixel.ttf + pixel_font.ttf).\n- 13 pixel vector icons (16×16 viewport, pixel-perfect).\n- Easter egg: dungeon zone name and depth shown in settings.\n\n[Improvements]\n- Dictionary keys include group name dimension — multi-group dictionaries no longer conflict.\n- Snackbar events work globally across all screens.\n- UI polish: ElevatedCard sections, unified icon headers, scrollable engine config dialog.\n- Search/Replace button layout: checkboxes and buttons on separate rows, buttons equal-width.\n- Import button uses FilledTonalButton, export button in dedicated card.\n\n[Bug Fixes]\n- Fixed legacy language code recognition: _in (Indonesian), _iw (Hebrew), _ji (Yiddish) etc. now correctly join language groups.\n- Export failure protection: ZIP write errors no longer silently clear staged changes.\n- Language code validation and auto-normalization, invalid codes (e.g. xxx) are blocked.\n- Draft validation includes source text SHA-256 digest for stricter mismatch detection.\n- No-op staged changes no longer enable save button or trigger auto-save.\n- Fixed LinearProgressIndicator parameter type error.\n- Fixed normalizedCode variable name conflict causing compilation error.</string>
+
     <string name="changelog_content_0_1_9">- Added batch import for multiple .properties files.\n- Added auto-save draft system with SHA-256 validation.\n- Added Translation Memory (TM) with fuzzy matching suggestions.\n- Improved language selector: displays localized names via Locale API.\n- Supports mixed filename formats (underscore/hyphen/script tags).\n- Filter buttons upgraded to Material 3 FilterChip.\n- Pagination controls compacted with icon buttons.\n- Added empty state guidance for translator screen.\n- All hardcoded strings moved to resources for full i18n support.\n- Export now shows success Snackbar feedback.</string>
+    <string name="lib_gson_name">Gson</string>
+    <string name="lib_gson_desc">A Java library for serializing and deserializing JSON.</string>
+    <string name="lib_kotlinx_serialization_name">kotlinx.serialization</string>
+    <string name="lib_kotlinx_serialization_desc">Kotlin multiplatform serialization library used for JSON parsing.</string>
+    <string name="lib_kotlinx_coroutines_name">kotlinx.coroutines</string>
+    <string name="lib_kotlinx_coroutines_desc">Kotlin support for coroutines, flows, and structured concurrency.</string>
+    <string name="lib_material3_name">Material 3</string>
+    <string name="lib_material3_desc">Compose components and theming implementation for Material Design 3.</string>
+    <string name="engine_error_youdao_web_unsupported">Youdao Web does not currently support this language pair. Try Auto source or another engine.</string>
 </resources>

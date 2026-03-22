@@ -1,0 +1,28 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="16"
+    android:viewportHeight="16">
+    <!-- Pixel art potion bottle — 16x16 grid -->
+    <!-- Cork -->
+    <path android:fillColor="#8B6914"
+        android:pathData="M7,1h2v2h-2z"/>
+    <!-- Bottle neck -->
+    <path android:fillColor="#88CCFF"
+        android:pathData="M7,3h2v2h-2z"/>
+    <!-- Bottle body -->
+    <path android:fillColor="#55AAFF"
+        android:pathData="M5,5h6v1h-6zM4,6h8v6h-8zM5,12h6v1h-6z"/>
+    <!-- Liquid highlight -->
+    <path android:fillColor="#88DDFF"
+        android:pathData="M5,7h2v4h-2z"/>
+    <!-- Liquid deep -->
+    <path android:fillColor="#3388CC"
+        android:pathData="M9,8h2v3h-2z"/>
+    <!-- Bottle outline -->
+    <path android:fillColor="#1A3D3D"
+        android:pathData="M4,5h1v1h-1zM11,5h1v1h-1zM3,6h1v6h-1zM12,6h1v6h-1zM4,12h1v1h-1zM11,12h1v1h-1z"/>
+    <!-- Sparkle -->
+    <path android:fillColor="#FFFFFF"
+        android:pathData="M6,7h1v1h-1z"/>
+</vector>

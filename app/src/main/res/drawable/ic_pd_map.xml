@@ -1,0 +1,12 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp" android:height="24dp"
+    android:viewportWidth="16" android:viewportHeight="16">
+    <!-- Pixel dungeon map — changelog -->
+    <path android:fillColor="#E8DABE" android:pathData="M3,2h10v12h-10z"/>
+    <path android:fillColor="#B2942E" android:pathData="M3,2h10v1h-10zM3,13h10v1h-10z"/>
+    <path android:fillColor="#48763C" android:pathData="M5,4h2v2h-2zM9,4h2v2h-2z"/>
+    <path android:fillColor="#6A723D" android:pathData="M5,7h6v1h-6z"/>
+    <path android:fillColor="#801500" android:pathData="M7,9h2v2h-2z"/>
+    <path android:fillColor="#3D2E18" android:pathData="M4,5h1v1h-1zM11,5h1v1h-1zM7,4h2v1h-2zM5,9h2v1h-2z"/>
+    <path android:fillColor="#FF8800" android:pathData="M10,10h1v1h-1z"/>
+</vector>
