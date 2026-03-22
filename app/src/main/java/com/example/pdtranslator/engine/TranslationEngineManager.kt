@@ -121,7 +121,10 @@ class TranslationEngineManager(private val context: Context) {
         val parts = apiKey.split("|", limit = 2)
         if (parts.size == 2) YoudaoApiEngine(httpClient, parts[0], parts[1]) else null
       }
-      "microsoft" -> MicrosoftEngine(httpClient, apiKey)
+      "microsoft" -> {
+        val credentials = MicrosoftCredentials.parse(apiKey)
+        if (credentials.apiKey.isBlank()) null else MicrosoftEngine(httpClient, credentials.apiKey, credentials.region)
+      }
       "google_web" -> GoogleWebEngine(httpClient)
       "youdao_web" -> YoudaoWebEngine(httpClient)
       "bing_web" -> BingWebEngine(httpClient)
@@ -140,29 +143,8 @@ class TranslationEngineManager(private val context: Context) {
   }
 
   suspend fun testConnection(): Result<String> {
-    val selectedId = getSelectedEngineId()
     val engine = getEngine() ?: return Result.failure(IllegalStateException(context.getString(R.string.engine_not_configured)))
-    val result = engine.testConnection()
-    if (selectedId.isNotBlank()) {
-      if (result.isSuccess) {
-        recordEngineHealth(selectedId, EngineVerificationState.VERIFIED, result.getOrThrow())
-      } else {
-        val message = getFriendlyError(selectedId, result.exceptionOrNull())
-        recordEngineHealth(selectedId, EngineVerificationState.FAILED, message)
-      }
-    }
-    return result
-  }
-
-  fun getEngineHealthStatus(engineId: String): EngineHealthStatus {
-    val state = runCatching {
-      EngineVerificationState.valueOf(
-        prefs.getString("engine_status_$engineId", EngineVerificationState.UNTESTED.name)
-          ?: EngineVerificationState.UNTESTED.name
-      )
-    }.getOrDefault(EngineVerificationState.UNTESTED)
-    val message = prefs.getString("engine_status_msg_$engineId", "") ?: ""
-    return EngineHealthStatus(state = state, message = message)
+    return engine.testConnection()
   }
 
   fun getFriendlyError(engineId: String, error: Throwable?): String {
@@ -193,6 +175,13 @@ class TranslationEngineManager(private val context: Context) {
       return context.getString(R.string.engine_error_forbidden)
     }
 
+    if (
+      engineId == YoudaoWebEngine.CONFIG.id &&
+      (YoudaoWebLanguagePolicy.isErrorCode50(msg) || msg.contains("Youdao Web does not currently support"))
+    ) {
+      return context.getString(R.string.engine_error_youdao_web_unsupported)
+    }
+
     // Engine-specific: missing config
     val config = availableEngines.find { it.id == engineId }
     if (config != null) {
@@ -209,26 +198,8 @@ class TranslationEngineManager(private val context: Context) {
     return if (clean.isNotBlank()) clean else context.getString(R.string.engine_error_unknown)
   }
 
-  private fun recordEngineHealth(engineId: String, state: EngineVerificationState, message: String) {
-    prefs.edit()
-      .putString("engine_status_$engineId", state.name)
-      .putString("engine_status_msg_$engineId", message)
-      .apply()
-  }
-
   private fun getReadyEngineForTranslation(): Result<TranslationEngine> {
     val engine = getEngine() ?: return Result.failure(IllegalStateException(context.getString(R.string.engine_not_configured)))
-    val selectedId = getSelectedEngineId()
-    if (selectedId.isBlank()) return Result.success(engine)
-
-    val blockedMessage = EngineUsagePolicy.blockedTranslationMessage(
-      healthStatus = getEngineHealthStatus(selectedId),
-      fallbackMessage = context.getString(R.string.engine_status_failed)
-    )
-    return if (blockedMessage != null) {
-      Result.failure(IllegalStateException(blockedMessage))
-    } else {
-      Result.success(engine)
-    }
+    return Result.success(engine)
   }
 }

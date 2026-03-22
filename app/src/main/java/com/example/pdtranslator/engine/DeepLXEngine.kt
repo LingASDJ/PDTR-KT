@@ -23,7 +23,7 @@ class DeepLXEngine(
     val CONFIG = EngineConfig(
       id = "deeplx",
       nameResId = R.string.engine_deeplx,
-      isExperimental = true,
+      isExperimental = false,
       requiresApiKey = false,
       requiresEndpoint = true
     )

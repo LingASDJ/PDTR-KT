@@ -14,7 +14,7 @@ class GoogleWebEngine(
     val CONFIG = EngineConfig(
       id = "google_web",
       nameResId = R.string.engine_google_web,
-      isExperimental = true,
+      isExperimental = false,
       requiresApiKey = false
     )
   }

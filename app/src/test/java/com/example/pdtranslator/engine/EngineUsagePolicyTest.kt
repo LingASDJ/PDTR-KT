@@ -1,7 +1,6 @@
 package com.example.pdtranslator.engine
 
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -9,7 +8,7 @@ import org.junit.Test
 class EngineUsagePolicyTest {
 
   @Test
-  fun `blocks translation when last verification failed`() {
+  fun `never blocks translation based on remembered verification state`() {
     val blockedMessage = EngineUsagePolicy.blockedTranslationMessage(
       healthStatus = EngineHealthStatus(
         state = EngineVerificationState.FAILED,
@@ -18,11 +17,11 @@ class EngineUsagePolicyTest {
       fallbackMessage = "Last verification failed"
     )
 
-    assertEquals("Connection timed out", blockedMessage)
+    assertNull(blockedMessage)
   }
 
   @Test
-  fun `uses fallback message when failed status has no detail`() {
+  fun `ignores fallback message when verification is disabled`() {
     val blockedMessage = EngineUsagePolicy.blockedTranslationMessage(
       healthStatus = EngineHealthStatus(
         state = EngineVerificationState.FAILED,
@@ -31,25 +30,21 @@ class EngineUsagePolicyTest {
       fallbackMessage = "Last verification failed"
     )
 
-    assertEquals("Last verification failed", blockedMessage)
+    assertNull(blockedMessage)
   }
 
   @Test
-  fun `allows translation and base language override for non failed engines`() {
+  fun `shows base language override whenever an engine is selected`() {
     val verified = EngineHealthStatus(EngineVerificationState.VERIFIED, "ok")
+    val failed = EngineHealthStatus(EngineVerificationState.FAILED, "bad key")
     val untested = EngineHealthStatus(EngineVerificationState.UNTESTED, "")
 
     assertNull(EngineUsagePolicy.blockedTranslationMessage(verified, "fallback"))
     assertNull(EngineUsagePolicy.blockedTranslationMessage(untested, "fallback"))
+    assertNull(EngineUsagePolicy.blockedTranslationMessage(failed, "fallback"))
     assertTrue(EngineUsagePolicy.shouldShowBaseLangOverride("google_web", verified))
     assertTrue(EngineUsagePolicy.shouldShowBaseLangOverride("google_web", untested))
-  }
-
-  @Test
-  fun `hides base language override when engine is missing or failed`() {
-    val failed = EngineHealthStatus(EngineVerificationState.FAILED, "bad key")
-
-    assertFalse(EngineUsagePolicy.shouldShowBaseLangOverride("", failed))
-    assertFalse(EngineUsagePolicy.shouldShowBaseLangOverride("google_web", failed))
+    assertTrue(EngineUsagePolicy.shouldShowBaseLangOverride("google_web", failed))
+    assertTrue(!EngineUsagePolicy.shouldShowBaseLangOverride("", failed))
   }
 }

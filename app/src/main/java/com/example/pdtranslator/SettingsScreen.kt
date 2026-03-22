@@ -44,7 +44,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import com.example.pdtranslator.engine.EngineConfig
-import com.example.pdtranslator.engine.EngineVerificationState
 import com.example.pdtranslator.ui.theme.currentZoneName
 import com.example.pdtranslator.ui.theme.rememberTimeTick
 
@@ -274,7 +273,6 @@ fun TranslationEngineDialog(
                 ) {
                     // Engine selection
                     engines.forEach { engine ->
-                        val healthStatus = engineManager.getEngineHealthStatus(engine.id)
                         Row(
                             Modifier
                                 .fillMaxWidth()
@@ -294,46 +292,7 @@ fun TranslationEngineDialog(
                         ) {
                             RadioButton(selected = (engine.id == selectedId), onClick = null)
                             Spacer(Modifier.width(8.dp))
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(stringResource(engine.nameResId), style = MaterialTheme.typography.bodyMedium)
-                                if (engine.isExperimental) {
-                                    Spacer(Modifier.width(6.dp))
-                                    Text(
-                                        text = stringResource(R.string.engine_experimental_tag),
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.error,
-                                        modifier = Modifier
-                                            .clip(RoundedCornerShape(4.dp))
-                                            .background(MaterialTheme.colorScheme.errorContainer)
-                                            .padding(horizontal = 4.dp, vertical = 1.dp)
-                                    )
-                                }
-                                Spacer(Modifier.width(6.dp))
-                                val statusLabel = when (healthStatus.state) {
-                                    EngineVerificationState.VERIFIED -> stringResource(R.string.engine_status_verified)
-                                    EngineVerificationState.FAILED -> stringResource(R.string.engine_status_failed)
-                                    EngineVerificationState.UNTESTED -> stringResource(R.string.engine_status_untested)
-                                }
-                                val statusColor = when (healthStatus.state) {
-                                    EngineVerificationState.VERIFIED -> MaterialTheme.colorScheme.primary
-                                    EngineVerificationState.FAILED -> MaterialTheme.colorScheme.error
-                                    EngineVerificationState.UNTESTED -> MaterialTheme.colorScheme.onSurfaceVariant
-                                }
-                                val statusBackground = when (healthStatus.state) {
-                                    EngineVerificationState.VERIFIED -> MaterialTheme.colorScheme.primaryContainer
-                                    EngineVerificationState.FAILED -> MaterialTheme.colorScheme.errorContainer
-                                    EngineVerificationState.UNTESTED -> MaterialTheme.colorScheme.surfaceVariant
-                                }
-                                Text(
-                                    text = statusLabel,
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = statusColor,
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(4.dp))
-                                        .background(statusBackground)
-                                        .padding(horizontal = 4.dp, vertical = 1.dp)
-                                )
-                            }
+                            Text(stringResource(engine.nameResId), style = MaterialTheme.typography.bodyMedium)
                         }
                     }
 
@@ -368,6 +327,7 @@ fun TranslationEngineDialog(
                             val hint = when (selectedConfig.id) {
                                 "baidu" -> stringResource(R.string.engine_api_key_hint_baidu)
                                 "youdao_api" -> stringResource(R.string.engine_api_key_hint_youdao)
+                                "microsoft" -> stringResource(R.string.engine_api_key_hint_microsoft)
                                 else -> ""
                             }
                             OutlinedTextField(
@@ -469,19 +429,6 @@ fun TranslationEngineDialog(
                             )
                         }
 
-                        val selectedHealth = engineManager.getEngineHealthStatus(selectedId)
-                        if (testResult == null && selectedHealth.message.isNotBlank()) {
-                            Spacer(Modifier.height(8.dp))
-                            Text(
-                                text = selectedHealth.message,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = if (selectedHealth.state == EngineVerificationState.FAILED) {
-                                    MaterialTheme.colorScheme.error
-                                } else {
-                                    MaterialTheme.colorScheme.onSurfaceVariant
-                                }
-                            )
-                        }
                     }
                 }
 

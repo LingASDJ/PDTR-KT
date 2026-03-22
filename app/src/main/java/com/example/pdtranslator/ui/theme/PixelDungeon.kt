@@ -33,6 +33,7 @@ import androidx.compose.ui.unit.dp
 import com.example.pdtranslator.R
 import java.util.Calendar
 import kotlin.math.sin
+import kotlin.random.Random
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // Zone palettes — sourced from MLPD level sources,
@@ -342,7 +343,58 @@ fun pdNavIcons(): Triple<Int, Int, Int> {
 // Global brick wall bitmap cache — survives navigation
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 private var cachedBrickBitmap: ImageBitmap? = null
-private var cachedBrickKey: Triple<Int, Int, Int>? = null // (hour, w, h)
+private var cachedBrickKey: BrickCacheKey? = null
+
+private const val BRICK_WIDTH_PX = 28
+private const val BRICK_HEIGHT_PX = 14
+private const val BRICK_GAP_PX = 2
+private val BRICK_LAYOUT_SEED = Random.nextInt()
+private val BRICK_ROW_OFFSET_STEPS = intArrayOf(
+  0,
+  BRICK_WIDTH_PX / 4,
+  BRICK_WIDTH_PX / 2,
+  (BRICK_WIDTH_PX * 3) / 4
+)
+
+data class BrickTextureSpec(
+  val textureWidthPx: Int,
+  val textureHeightPx: Int
+)
+
+fun brickTextureSpec(screenWidthPx: Int, screenHeightPx: Int): BrickTextureSpec {
+  return BrickTextureSpec(
+    textureWidthPx = (BRICK_WIDTH_PX * 16).coerceAtMost(screenWidthPx.coerceAtLeast(BRICK_WIDTH_PX * 16)),
+    textureHeightPx = (BRICK_HEIGHT_PX * 18).coerceAtMost(screenHeightPx.coerceAtLeast(BRICK_HEIGHT_PX * 18))
+  )
+}
+
+private fun brickPatternHash(row: Int, col: Int, hour: Int, layoutSeed: Int = BRICK_LAYOUT_SEED, salt: Int = 0): Int {
+  val mixed = (row + 37) * 137 + (col + 73) * 269 + (hour + 11) * 97 + salt * 53 + layoutSeed * 17
+  return mixed and 0xFF
+}
+
+private fun wallRuleHash(row: Int, col: Int, hour: Int, layoutSeed: Int = BRICK_LAYOUT_SEED, salt: Int = 0): Int {
+  var mixed = layoutSeed
+  mixed = mixed xor ((row + 1) * 0x45D9F3B)
+  mixed = mixed xor ((col + 11) * 0x27D4EB2D)
+  mixed = mixed xor ((hour + 7) * 0x165667B1)
+  mixed = mixed xor (salt * 0x9E3779B9.toInt())
+  mixed = mixed xor (mixed ushr 16)
+  return mixed and Int.MAX_VALUE
+}
+
+fun brickRowOffset(row: Int, hour: Int, layoutSeed: Int = BRICK_LAYOUT_SEED): Int {
+  val theme = resolveWallTheme(hour)
+  val offsetSteps = if (theme.template.offsetSteps.isNotEmpty()) {
+    theme.template.offsetSteps
+  } else {
+    BRICK_ROW_OFFSET_STEPS.toList()
+  }
+  val randomOffset = offsetSteps[
+    wallRuleHash(row = row, col = -1, hour = hour, layoutSeed = layoutSeed, salt = 17) % offsetSteps.size
+  ]
+  return randomOffset % BRICK_WIDTH_PX
+}
 
 /**
  * Zone-specific decoration types — controls what details are painted on bricks.
@@ -350,7 +402,7 @@ private var cachedBrickKey: Triple<Int, Int, Int>? = null // (hour, w, h)
  * Sewers=moss/water, Prison=torch_scorch/chains, Caves=ore/cracks,
  * City=engravings/smoke, Halls=bones/lava, Bosses=themed.
  */
-private enum class WallDeco {
+internal enum class WallDeco {
   MOSS,           // Sewers: green moss patches, dripping water stains
   VINES,          // Garden: hanging vines, leaf litter
   TORCH_SCORCH,   // Prison: torch burn marks, chain bolts
@@ -368,37 +420,647 @@ private enum class WallDeco {
   GOLD_TRIM       // Last level: golden inlays, amulet symbols
 }
 
-private fun getZoneDecos(hour: Int): List<WallDeco> = when (hour) {
-  0, 16       -> listOf(WallDeco.BONES, WallDeco.LAVA_DRIP)        // Demon Halls
-  1           -> listOf(WallDeco.LAVA_DRIP, WallDeco.TORCH_SCORCH)  // Burning Fist
-  2           -> listOf(WallDeco.CORRUPTION, WallDeco.MOSS)         // Rotting Fist
-  3           -> listOf(WallDeco.FROST, WallDeco.CRYSTAL)           // Ice Fist
-  4, 5        -> listOf(WallDeco.MOSS, WallDeco.CORRUPTION)         // Sewers / Goo
-  6           -> listOf(WallDeco.VINES, WallDeco.MOSS)              // Garden
-  7, 8        -> listOf(WallDeco.TORCH_SCORCH, WallDeco.CRACKS)     // Prison
-  9           -> listOf(WallDeco.TORCH_SCORCH, WallDeco.BONES)      // Tengu
-  10, 11      -> listOf(WallDeco.CRACKS, WallDeco.TORCH_SCORCH)     // Caves / Deep Mines
-  12          -> listOf(WallDeco.CRYSTAL, WallDeco.CRACKS)          // Crystal Caves
-  13, 14      -> listOf(WallDeco.ENGRAVINGS, WallDeco.ARCANE)       // Dwarf City
-  15          -> listOf(WallDeco.ARCANE, WallDeco.ENGRAVINGS)       // Dwarf King
-  17          -> listOf(WallDeco.ARCANE, WallDeco.CORRUPTION)       // Evil Eyes
-  18          -> listOf(WallDeco.CORRUPTION, WallDeco.BONES)        // Scorpio
-  19          -> listOf(WallDeco.LAVA_DRIP, WallDeco.BONES)         // Yog
-  20          -> listOf(WallDeco.HOLY, WallDeco.ENGRAVINGS)         // Bright Fist
-  21          -> listOf(WallDeco.SHADOW, WallDeco.ARCANE)           // Dark Fist
-  22          -> listOf(WallDeco.RUSTED, WallDeco.CRACKS)           // Rusted Fist
-  23          -> listOf(WallDeco.GOLD_TRIM, WallDeco.LAVA_DRIP)     // Last Level
-  else        -> listOf(WallDeco.CRACKS)
+internal enum class WallChapter {
+  SEWERS,
+  PRISON,
+  CAVES,
+  CRYSTAL_CAVES,
+  CITY,
+  HALLS
+}
+
+internal data class ChapterWallTemplate(
+  val chapter: WallChapter,
+  val segmentWidths: List<Int>,
+  val offsetSteps: List<Int>,
+  val courseHeightPx: Int,
+  val mortarThicknessPx: Int,
+  val highlightDepthPx: Int,
+  val shadowDepthPx: Int,
+  val moistureBias: Int = 0,
+  val engravingBias: Int = 0,
+  val damageBias: Int = 0,
+  val crackBias: Int = 0,
+  val runeBias: Int = 0,
+  val sootBias: Int = 0,
+  val wallDecos: List<WallDeco>
+)
+
+internal data class HourWallVariant(
+  val wallDecos: List<WallDeco> = emptyList(),
+  val moistureBoost: Int = 0,
+  val engravingBoost: Int = 0,
+  val damageBoost: Int = 0,
+  val crackBoost: Int = 0,
+  val runeBoost: Int = 0,
+  val scorchBoost: Int = 0,
+  val lavaBoost: Int = 0,
+  val corruptionBoost: Int = 0,
+  val frostBoost: Int = 0,
+  val crystalBoost: Int = 0,
+  val holyBoost: Int = 0,
+  val shadowBoost: Int = 0,
+  val rustBoost: Int = 0
+)
+
+internal data class ResolvedWallTheme(
+  val chapter: WallChapter,
+  val template: ChapterWallTemplate,
+  val variant: HourWallVariant
+)
+
+internal data class BrickRowPlan(
+  val offsetPx: Int,
+  val courseHeightPx: Int,
+  val mortarThicknessPx: Int,
+  val highlightDepthPx: Int,
+  val shadowDepthPx: Int,
+  val segmentWidths: List<Int>
+)
+
+private data class BrickCacheKey(
+  val hour: Int,
+  val layoutSeed: Int
+)
+
+private enum class BrickRole {
+  NORMAL,
+  CHIPPED,
+  WET,
+  ENGRAVED,
+  CRACKED,
+  SCORCHED,
+  ORE_VEIN,
+  RUNE_CUT,
+  CORRODED,
+  CRYSTALLIZED,
+  HOLY_SCAR,
+  SHADOWED,
+  RUST_STAINED,
+  LAVA_SCAR
+}
+
+private fun resolveBrickRole(hash: Int, hash2: Int, theme: ResolvedWallTheme): BrickRole {
+  val variantRoll = (hash + hash2) % 100
+  return when {
+    theme.variant.holyBoost > 0 && variantRoll < theme.variant.holyBoost -> BrickRole.HOLY_SCAR
+    theme.variant.shadowBoost > 0 && variantRoll < theme.variant.shadowBoost -> BrickRole.SHADOWED
+    theme.variant.rustBoost > 0 && variantRoll < theme.variant.rustBoost -> BrickRole.RUST_STAINED
+    theme.variant.lavaBoost > 0 && variantRoll < theme.variant.lavaBoost -> BrickRole.LAVA_SCAR
+    theme.variant.crystalBoost > 0 && variantRoll < theme.variant.crystalBoost -> BrickRole.CRYSTALLIZED
+    theme.variant.corruptionBoost > 0 && variantRoll < theme.variant.corruptionBoost -> BrickRole.CORRODED
+    theme.variant.scorchBoost > 0 && variantRoll < theme.variant.scorchBoost -> BrickRole.SCORCHED
+    else -> when (theme.chapter) {
+      WallChapter.SEWERS -> when {
+        variantRoll < theme.template.moistureBias + theme.variant.moistureBoost -> BrickRole.WET
+        variantRoll < theme.template.moistureBias + theme.variant.moistureBoost + 18 -> BrickRole.CORRODED
+        variantRoll < theme.template.moistureBias + theme.template.damageBias + 18 -> BrickRole.CHIPPED
+        else -> BrickRole.NORMAL
+      }
+      WallChapter.PRISON -> when {
+        variantRoll < theme.template.sootBias + 10 -> BrickRole.SCORCHED
+        variantRoll < theme.template.sootBias + theme.template.crackBias + 8 -> BrickRole.CRACKED
+        variantRoll < theme.template.sootBias + theme.template.crackBias + theme.template.damageBias + 10 -> BrickRole.CHIPPED
+        else -> BrickRole.NORMAL
+      }
+      WallChapter.CAVES -> when {
+        variantRoll < theme.template.crackBias + theme.variant.crackBoost -> BrickRole.CRACKED
+        variantRoll < theme.template.crackBias + theme.variant.crackBoost + 18 -> BrickRole.ORE_VEIN
+        variantRoll < theme.template.crackBias + theme.variant.crackBoost + theme.template.damageBias + 12 -> BrickRole.CHIPPED
+        else -> BrickRole.NORMAL
+      }
+      WallChapter.CRYSTAL_CAVES -> when {
+        variantRoll < 18 + theme.variant.crystalBoost -> BrickRole.CRYSTALLIZED
+        variantRoll < 18 + theme.variant.crystalBoost + theme.template.crackBias -> BrickRole.CRACKED
+        variantRoll < 18 + theme.variant.crystalBoost + theme.template.crackBias + 14 -> BrickRole.ORE_VEIN
+        else -> BrickRole.NORMAL
+      }
+      WallChapter.CITY -> when {
+        variantRoll < theme.template.engravingBias + theme.variant.engravingBoost -> BrickRole.ENGRAVED
+        variantRoll < theme.template.engravingBias + theme.variant.engravingBoost + theme.template.runeBias + theme.variant.runeBoost -> BrickRole.RUNE_CUT
+        variantRoll < theme.template.engravingBias + theme.variant.engravingBoost + theme.template.runeBias + theme.variant.runeBoost + 12 -> BrickRole.CHIPPED
+        else -> BrickRole.NORMAL
+      }
+      WallChapter.HALLS -> when {
+        variantRoll < theme.template.sootBias + 8 -> BrickRole.SCORCHED
+        variantRoll < theme.template.sootBias + 8 + theme.template.damageBias -> BrickRole.CHIPPED
+        variantRoll < theme.template.sootBias + 8 + theme.template.damageBias + theme.template.crackBias -> BrickRole.CRACKED
+        else -> BrickRole.NORMAL
+      }
+    }
+  }
+}
+
+private fun paintBrickRole(
+  role: BrickRole,
+  bx: Int,
+  by: Int,
+  brickW: Int,
+  brickH: Int,
+  gap: Int,
+  innerW: Int,
+  innerH: Int,
+  bodyArgb: Int,
+  lightArgb: Int,
+  darkArgb: Int,
+  mortarArgb: Int,
+  palette: ZonePalette,
+  hash: Int,
+  hash2: Int,
+  px: (Int, Int, Int) -> Unit
+) {
+  when (role) {
+    BrickRole.NORMAL -> Unit
+
+    BrickRole.CHIPPED -> {
+      val chip = hash % 4
+      when (chip) {
+        0 -> {
+          px(bx + gap, by + gap, mortarArgb)
+          px(bx + gap + 1, by + gap, mortarArgb)
+          px(bx + gap, by + gap + 1, mortarArgb)
+          px(bx + gap + 1, by + gap + 1, darkArgb)
+        }
+        1 -> {
+          px(bx + brickW - gap - 1, by + gap, mortarArgb)
+          px(bx + brickW - gap - 2, by + gap, mortarArgb)
+          px(bx + brickW - gap - 1, by + gap + 1, mortarArgb)
+          px(bx + brickW - gap - 2, by + gap + 1, darkArgb)
+        }
+        2 -> {
+          px(bx + gap, by + brickH - gap - 1, mortarArgb)
+          px(bx + gap, by + brickH - gap - 2, mortarArgb)
+          px(bx + gap + 1, by + brickH - gap - 1, mortarArgb)
+          px(bx + gap + 1, by + brickH - gap - 2, darkArgb)
+        }
+        else -> {
+          px(bx + brickW - gap - 1, by + brickH - gap - 1, mortarArgb)
+          px(bx + brickW - gap - 2, by + brickH - gap - 1, mortarArgb)
+          px(bx + brickW - gap - 1, by + brickH - gap - 2, mortarArgb)
+          px(bx + brickW - gap - 2, by + brickH - gap - 2, darkArgb)
+        }
+      }
+    }
+
+    BrickRole.WET -> {
+      val wetColor = blendColors(bodyArgb, mortarArgb, 0.35f)
+      val sheenColor = shiftBrightness(wetColor, 14)
+      for (x in (bx + gap + 1) until (bx + brickW - gap - 1)) {
+        px(x, by + brickH - gap - 3, wetColor)
+        px(x, by + brickH - gap - 2, wetColor)
+      }
+      for (x in (bx + gap + 2) until (bx + brickW - gap - 2) step 3) {
+        px(x, by + brickH - gap - 4, sheenColor)
+      }
+    }
+
+    BrickRole.ENGRAVED -> {
+      val groove = shiftBrightness(darkArgb, 6)
+      val glyph = shiftBrightness(lightArgb, -10)
+      val midY = by + gap + innerH / 2
+      for (x in (bx + gap + 3) until (bx + brickW - gap - 3) step 2) {
+        px(x, midY, groove)
+      }
+      px(bx + brickW / 2, midY - 1, glyph)
+      px(bx + brickW / 2 - 1, midY, glyph)
+      px(bx + brickW / 2 + 1, midY, glyph)
+    }
+
+    BrickRole.CRACKED -> {
+      val crack = shiftBrightness(darkArgb, -8)
+      val startX = bx + gap + 1 + hash2 % (innerW - 2).coerceAtLeast(1)
+      val startY = by + gap + 1
+      for (i in 0 until minOf(5, innerW - 1, innerH - 1)) {
+        px(startX + (i / 2), startY + i, crack)
+        if (i % 2 == 0) px(startX + (i / 2) + 1, startY + i, crack)
+      }
+    }
+
+    BrickRole.SCORCHED -> {
+      val soot = shiftBrightness(darkArgb, -18)
+      val hotAsh = shiftBrightness(soot, 10)
+      val cx = bx + brickW / 2
+      px(cx, by + gap + 1, soot)
+      px(cx - 1, by + gap + 1, soot)
+      px(cx + 1, by + gap + 1, soot)
+      px(cx, by + gap + 2, hotAsh)
+      px(cx - 1, by + gap + 2, soot)
+      px(cx + 1, by + gap + 2, soot)
+    }
+
+    BrickRole.ORE_VEIN -> {
+      val vein = blendColors(palette.color2.toArgb(), 0xFFFFE08A.toInt(), 0.4f)
+      val startX = bx + gap + 2
+      val startY = by + gap + 2 + hash % (innerH - 3).coerceAtLeast(1)
+      for (i in 0 until minOf(5, innerW - 2)) {
+        px(startX + i, startY + (i % 2), if (i % 2 == 0) vein else shiftBrightness(vein, -10))
+      }
+    }
+
+    BrickRole.RUNE_CUT -> {
+      val rune = blendColors(palette.color1.toArgb(), lightArgb, 0.35f)
+      val slot = shiftBrightness(darkArgb, -4)
+      val cx = bx + brickW / 2
+      val cy = by + brickH / 2
+      px(cx, cy - 2, rune)
+      px(cx - 1, cy - 1, slot); px(cx + 1, cy - 1, slot)
+      px(cx - 1, cy, rune); px(cx + 1, cy, rune)
+      px(cx, cy + 1, slot); px(cx, cy + 2, rune)
+    }
+
+    BrickRole.CORRODED -> {
+      val rot = blendColors(bodyArgb, palette.color2.toArgb(), 0.45f)
+      for (x in 0..2) {
+        px(bx + gap + 1 + x, by + brickH - gap - 2, rot)
+        px(bx + brickW - gap - 2 - x, by + brickH - gap - 2, shiftBrightness(rot, x * 6))
+      }
+      px(bx + brickW / 2, by + brickH - gap - 3, shiftBrightness(rot, 12))
+      px(bx + brickW / 2 - 1, by + brickH - gap - 2, mortarArgb)
+    }
+
+    BrickRole.CRYSTALLIZED -> {
+      val crystal = blendColors(palette.color1.toArgb(), 0xFFAADDFF.toInt(), 0.55f)
+      val crystalTip = shiftBrightness(crystal, 20)
+      val cx = bx + gap + 3 + hash2 % (innerW - 4).coerceAtLeast(1)
+      val cy = by + brickH - gap - 2
+      px(cx, cy, crystal)
+      px(cx, cy - 1, crystal)
+      px(cx, cy - 2, crystalTip)
+      px(cx - 1, cy, shiftBrightness(crystal, -10))
+      px(cx + 1, cy, crystalTip)
+    }
+
+    BrickRole.HOLY_SCAR -> {
+      val gold = 0xFFFFDD66.toInt()
+      val bright = 0xFFFFFFCC.toInt()
+      val startX = bx + gap + 2
+      val startY = by + gap + 2
+      for (i in 0 until minOf(4, innerW - 2, innerH - 2)) {
+        px(startX + i, startY + i, if (i % 2 == 0) gold else bright)
+      }
+      px(startX + 1, startY, bright)
+    }
+
+    BrickRole.SHADOWED -> {
+      val void = 0xFF0A0610.toInt()
+      val edge = blendColors(bodyArgb, void, 0.55f)
+      val cx = bx + brickW / 2
+      val cy = by + brickH / 2
+      px(cx, cy, void)
+      px(cx + 1, cy, void)
+      px(cx, cy + 1, void)
+      px(cx - 1, cy, edge)
+      px(cx + 1, cy + 1, edge)
+    }
+
+    BrickRole.RUST_STAINED -> {
+      val rust = blendColors(0xFFAA5500.toInt(), palette.color2.toArgb(), 0.25f)
+      val rx = bx + gap + 2 + hash % (innerW - 4).coerceAtLeast(1)
+      for (i in 0 until minOf(4, innerH - 2)) {
+        px(rx + (i % 2), by + gap + 1 + i, shiftBrightness(rust, i * 4))
+      }
+    }
+
+    BrickRole.LAVA_SCAR -> {
+      val lava = 0xFFFF5500.toInt()
+      val glow = 0xFFFFAA44.toInt()
+      val crackY = by + brickH / 2
+      for (x in (bx + gap + 1) until (bx + brickW - gap - 1) step 2) {
+        px(x, crackY, if ((x + hash) % 3 == 0) glow else lava)
+      }
+      px(bx + brickW / 2, crackY - 1, glow)
+    }
+  }
+}
+
+private fun paintChapterGeometry(
+  theme: ResolvedWallTheme,
+  bx: Int,
+  by: Int,
+  brickW: Int,
+  brickH: Int,
+  gap: Int,
+  innerW: Int,
+  innerH: Int,
+  bodyArgb: Int,
+  lightArgb: Int,
+  darkArgb: Int,
+  mortarArgb: Int,
+  palette: ZonePalette,
+  hash: Int,
+  hash2: Int,
+  px: (Int, Int, Int) -> Unit
+) {
+  when (theme.chapter) {
+    WallChapter.SEWERS -> {
+      val damp = blendColors(bodyArgb, mortarArgb, 0.38f)
+      val slime = blendColors(palette.color2.toArgb(), damp, 0.4f)
+      for (x in (bx + gap + 1) until (bx + brickW - gap - 1)) {
+        px(x, by + brickH - gap - 3, damp)
+        px(x, by + brickH - gap - 2, if ((x + hash) % 4 == 0) slime else damp)
+      }
+      if (hash % 3 == 0) {
+        val notchX = bx + gap + 2 + hash2 % (innerW - 3).coerceAtLeast(1)
+        px(notchX, by + brickH - gap - 1, mortarArgb)
+        px(notchX + 1, by + brickH - gap - 1, mortarArgb)
+      }
+    }
+
+    WallChapter.PRISON -> {
+      val groove = blendColors(darkArgb, mortarArgb, 0.2f)
+      val strap = 0xFF8A8A8A.toInt()
+      val bandY = by + gap + innerH / 2
+      for (x in (bx + gap + 2) until (bx + brickW - gap - 2)) {
+        px(x, bandY, groove)
+      }
+      px(bx + gap + 2, bandY, strap)
+      px(bx + brickW - gap - 3, bandY, strap)
+    }
+
+    WallChapter.CAVES -> {
+      val chasm = shiftBrightness(darkArgb, -8)
+      val notchX = bx + gap + 1 + hash % (innerW - 2).coerceAtLeast(1)
+      px(notchX, by + gap, mortarArgb)
+      px(notchX + 1, by + gap, mortarArgb)
+      for (i in 0 until minOf(4, innerW - 2, innerH - 2)) {
+        px(bx + gap + 2 + i, by + gap + 1 + i, chasm)
+      }
+    }
+
+    WallChapter.CRYSTAL_CAVES -> {
+      val seam = shiftBrightness(darkArgb, -6)
+      val glint = blendColors(palette.color1.toArgb(), 0xFFAADDFF.toInt(), 0.55f)
+      for (i in 0 until minOf(4, innerW - 2, innerH - 2)) {
+        px(bx + gap + 2 + i, by + gap + 1 + i, seam)
+      }
+      px(bx + brickW / 2, by + gap + 1, glint)
+      px(bx + brickW / 2 + 1, by + gap + 2, glint)
+    }
+
+    WallChapter.CITY -> {
+      val inset = shiftBrightness(darkArgb, 10)
+      val plaque = shiftBrightness(lightArgb, -14)
+      val left = bx + gap + 2
+      val right = bx + brickW - gap - 3
+      val top = by + gap + 1
+      val bottom = by + brickH - gap - 2
+      for (x in left..right) {
+        px(x, top, inset)
+        px(x, bottom, inset)
+      }
+      for (y in top..bottom) {
+        px(left, y, inset)
+        px(right, y, inset)
+      }
+      for (x in (left + 2) until right step 2) {
+        px(x, by + brickH / 2, plaque)
+      }
+    }
+
+    WallChapter.HALLS -> {
+      val abyss = shiftBrightness(darkArgb, -18)
+      val ember = blendColors(palette.color1.toArgb(), 0xFFFF6600.toInt(), 0.25f)
+      for (x in (bx + gap) until (bx + brickW - gap)) {
+        px(x, by + brickH - gap - 2, abyss)
+        px(x, by + brickH - gap - 1, abyss)
+      }
+      for (y in (by + gap) until (by + brickH - gap)) {
+        px(bx + brickW - gap - 2, y, abyss)
+      }
+      if (hash % 2 == 0) {
+        val slitX = bx + brickW / 2
+        for (y in (by + gap + 1) until (by + brickH - gap - 1)) {
+          px(slitX, y, if ((y + hash2) % 3 == 0) ember else abyss)
+        }
+      }
+    }
+  }
+}
+
+private val SEWERS_TEMPLATE = ChapterWallTemplate(
+  chapter = WallChapter.SEWERS,
+  segmentWidths = listOf(20, 30, 24, 32, 22, 28),
+  offsetSteps = listOf(0, 7, 14, 21),
+  courseHeightPx = 18,
+  mortarThicknessPx = 3,
+  highlightDepthPx = 1,
+  shadowDepthPx = 1,
+  moistureBias = 24,
+  damageBias = 18,
+  crackBias = 10,
+  wallDecos = listOf(WallDeco.MOSS, WallDeco.CORRUPTION)
+)
+
+private val PRISON_TEMPLATE = ChapterWallTemplate(
+  chapter = WallChapter.PRISON,
+  segmentWidths = listOf(28, 28, 30, 28, 28, 30),
+  offsetSteps = listOf(0, 7, 14),
+  courseHeightPx = 12,
+  mortarThicknessPx = 2,
+  highlightDepthPx = 1,
+  shadowDepthPx = 1,
+  damageBias = 14,
+  crackBias = 16,
+  sootBias = 14,
+  wallDecos = listOf(WallDeco.TORCH_SCORCH, WallDeco.CRACKS)
+)
+
+private val CAVES_TEMPLATE = ChapterWallTemplate(
+  chapter = WallChapter.CAVES,
+  segmentWidths = listOf(22, 34, 24, 30, 26, 32),
+  offsetSteps = listOf(0, 7, 14),
+  courseHeightPx = 16,
+  mortarThicknessPx = 2,
+  highlightDepthPx = 1,
+  shadowDepthPx = 2,
+  damageBias = 18,
+  crackBias = 28,
+  wallDecos = listOf(WallDeco.CRACKS)
+)
+
+private val CRYSTAL_CAVES_TEMPLATE = ChapterWallTemplate(
+  chapter = WallChapter.CRYSTAL_CAVES,
+  segmentWidths = listOf(24, 32, 22, 34, 26, 30),
+  offsetSteps = listOf(0, 7, 14),
+  courseHeightPx = 16,
+  mortarThicknessPx = 2,
+  highlightDepthPx = 1,
+  shadowDepthPx = 2,
+  damageBias = 16,
+  crackBias = 22,
+  runeBias = 10,
+  wallDecos = listOf(WallDeco.CRYSTAL, WallDeco.CRACKS)
+)
+
+private val CITY_TEMPLATE = ChapterWallTemplate(
+  chapter = WallChapter.CITY,
+  segmentWidths = listOf(30, 30, 28, 32, 30, 28),
+  offsetSteps = listOf(0, 7, 14),
+  courseHeightPx = 12,
+  mortarThicknessPx = 2,
+  highlightDepthPx = 1,
+  shadowDepthPx = 2,
+  engravingBias = 24,
+  damageBias = 8,
+  runeBias = 18,
+  wallDecos = listOf(WallDeco.ENGRAVINGS, WallDeco.ARCANE)
+)
+
+private val HALLS_TEMPLATE = ChapterWallTemplate(
+  chapter = WallChapter.HALLS,
+  segmentWidths = listOf(24, 30, 26, 34, 22, 28),
+  offsetSteps = listOf(0, 7, 14),
+  courseHeightPx = 20,
+  mortarThicknessPx = 2,
+  highlightDepthPx = 1,
+  shadowDepthPx = 3,
+  damageBias = 24,
+  crackBias = 20,
+  sootBias = 22,
+  wallDecos = listOf(WallDeco.BONES, WallDeco.LAVA_DRIP)
+)
+
+internal fun resolveWallTheme(hour: Int): ResolvedWallTheme {
+  val normalizedHour = hour.coerceIn(0, 23)
+  return when (normalizedHour) {
+    0, 16 -> ResolvedWallTheme(WallChapter.HALLS, HALLS_TEMPLATE, HourWallVariant())
+    1 -> ResolvedWallTheme(
+      WallChapter.HALLS,
+      HALLS_TEMPLATE,
+      HourWallVariant(wallDecos = listOf(WallDeco.TORCH_SCORCH), scorchBoost = 20, lavaBoost = 26)
+    )
+    2 -> ResolvedWallTheme(
+      WallChapter.SEWERS,
+      SEWERS_TEMPLATE,
+      HourWallVariant(corruptionBoost = 24, moistureBoost = 8, damageBoost = 6)
+    )
+    3 -> ResolvedWallTheme(
+      WallChapter.CRYSTAL_CAVES,
+      CRYSTAL_CAVES_TEMPLATE,
+      HourWallVariant(wallDecos = listOf(WallDeco.FROST), frostBoost = 26, crystalBoost = 16)
+    )
+    4 -> ResolvedWallTheme(WallChapter.SEWERS, SEWERS_TEMPLATE, HourWallVariant(moistureBoost = 10))
+    5 -> ResolvedWallTheme(
+      WallChapter.SEWERS,
+      SEWERS_TEMPLATE,
+      HourWallVariant(corruptionBoost = 22, moistureBoost = 14, damageBoost = 8)
+    )
+    6 -> ResolvedWallTheme(
+      WallChapter.SEWERS,
+      SEWERS_TEMPLATE,
+      HourWallVariant(wallDecos = listOf(WallDeco.VINES), moistureBoost = 12)
+    )
+    7, 8 -> ResolvedWallTheme(WallChapter.PRISON, PRISON_TEMPLATE, HourWallVariant())
+    9 -> ResolvedWallTheme(
+      WallChapter.PRISON,
+      PRISON_TEMPLATE,
+      HourWallVariant(wallDecos = listOf(WallDeco.BONES), scorchBoost = 12, damageBoost = 12)
+    )
+    10, 11 -> ResolvedWallTheme(
+      WallChapter.CAVES,
+      CAVES_TEMPLATE,
+      HourWallVariant(wallDecos = listOf(WallDeco.TORCH_SCORCH), crackBoost = 10)
+    )
+    12 -> ResolvedWallTheme(
+      WallChapter.CRYSTAL_CAVES,
+      CRYSTAL_CAVES_TEMPLATE,
+      HourWallVariant(crystalBoost = 20, frostBoost = 8)
+    )
+    13, 14 -> ResolvedWallTheme(WallChapter.CITY, CITY_TEMPLATE, HourWallVariant())
+    15 -> ResolvedWallTheme(
+      WallChapter.CITY,
+      CITY_TEMPLATE,
+      HourWallVariant(engravingBoost = 6, runeBoost = 18)
+    )
+    17 -> ResolvedWallTheme(
+      WallChapter.HALLS,
+      HALLS_TEMPLATE,
+      HourWallVariant(wallDecos = listOf(WallDeco.ARCANE, WallDeco.SHADOW), runeBoost = 18, shadowBoost = 24)
+    )
+    18 -> ResolvedWallTheme(
+      WallChapter.CAVES,
+      CAVES_TEMPLATE,
+      HourWallVariant(wallDecos = listOf(WallDeco.CORRUPTION, WallDeco.BONES), corruptionBoost = 20)
+    )
+    19 -> ResolvedWallTheme(
+      WallChapter.HALLS,
+      HALLS_TEMPLATE,
+      HourWallVariant(scorchBoost = 18, lavaBoost = 28, damageBoost = 10)
+    )
+    20 -> ResolvedWallTheme(
+      WallChapter.CITY,
+      CITY_TEMPLATE,
+      HourWallVariant(wallDecos = listOf(WallDeco.HOLY), holyBoost = 24, engravingBoost = 6)
+    )
+    21 -> ResolvedWallTheme(
+      WallChapter.HALLS,
+      HALLS_TEMPLATE,
+      HourWallVariant(wallDecos = listOf(WallDeco.SHADOW, WallDeco.ARCANE), shadowBoost = 26, runeBoost = 14)
+    )
+    22 -> ResolvedWallTheme(
+      WallChapter.CAVES,
+      CAVES_TEMPLATE,
+      HourWallVariant(wallDecos = listOf(WallDeco.RUSTED), rustBoost = 28, damageBoost = 8)
+    )
+    23 -> ResolvedWallTheme(
+      WallChapter.HALLS,
+      HALLS_TEMPLATE,
+      HourWallVariant(wallDecos = listOf(WallDeco.GOLD_TRIM), lavaBoost = 12, engravingBoost = 10)
+    )
+    else -> ResolvedWallTheme(WallChapter.CAVES, CAVES_TEMPLATE, HourWallVariant())
+  }
+}
+
+private fun resolvedWallDecos(theme: ResolvedWallTheme): List<WallDeco> {
+  return (theme.template.wallDecos + theme.variant.wallDecos).distinct()
+}
+
+internal fun brickRowPlan(
+  row: Int,
+  hour: Int,
+  theme: ResolvedWallTheme = resolveWallTheme(hour),
+  layoutSeed: Int = BRICK_LAYOUT_SEED
+): BrickRowPlan {
+  val template = theme.template
+  val rotation = wallRuleHash(row = row, col = -3, hour = hour, layoutSeed = layoutSeed, salt = 41) % template.segmentWidths.size
+  val varianceRange = when (theme.chapter) {
+    WallChapter.PRISON -> 0
+    WallChapter.CITY -> 1
+    WallChapter.CRYSTAL_CAVES -> 2
+    WallChapter.CAVES, WallChapter.HALLS -> 3
+    WallChapter.SEWERS -> 4
+  }
+  val segmentWidths = template.segmentWidths.indices.map { index ->
+    val base = template.segmentWidths[(index + rotation) % template.segmentWidths.size]
+    val jitter = (((wallRuleHash(row = row, col = index, hour = hour, layoutSeed = layoutSeed, salt = 97) % 5) - 2) * 2)
+      .coerceIn(-varianceRange * 2, varianceRange * 2)
+    val chippedPenalty = if (wallRuleHash(row = row, col = index, hour = hour, layoutSeed = layoutSeed, salt = 131) % 100 <
+      template.damageBias + theme.variant.damageBoost) {
+      2
+    } else {
+      0
+    }
+    (base + jitter - chippedPenalty).coerceIn(18, 36)
+  }
+  return BrickRowPlan(
+    offsetPx = brickRowOffset(row = row, hour = hour, layoutSeed = layoutSeed),
+    courseHeightPx = template.courseHeightPx,
+    mortarThicknessPx = template.mortarThicknessPx.coerceIn(1, 3),
+    highlightDepthPx = template.highlightDepthPx.coerceIn(1, 2),
+    shadowDepthPx = template.shadowDepthPx.coerceIn(1, 3),
+    segmentWidths = segmentWidths
+  )
 }
 
 private fun generateBrickBitmap(w: Int, h: Int, palette: ZonePalette, hour: Int = 0): ImageBitmap {
   val bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
-  val brickW = 28; val brickH = 14; val gap = 2
+  val theme = resolveWallTheme(hour)
+  val baseBrickH = theme.template.courseHeightPx
   val mortarArgb = palette.mortar.toArgb()
   val wallArgb = palette.wall.toArgb()
   val lightArgb = palette.wallLight.toArgb()
   val darkArgb = palette.wallDark.toArgb()
-  val decos = getZoneDecos(hour)
+  val decos = resolvedWallDecos(theme)
 
   // Fill mortar
   bmp.eraseColor(mortarArgb)
@@ -406,18 +1068,25 @@ private fun generateBrickBitmap(w: Int, h: Int, palette: ZonePalette, hour: Int 
   // Helper to safely set a pixel
   fun px(x: Int, y: Int, c: Int) { if (x in 0 until w && y in 0 until h) bmp.setPixel(x, y, c) }
 
-  val rows = h / brickH + 2; val cols = w / brickW + 2
+  val rows = h / baseBrickH + 2
   for (row in 0 until rows) {
-    val offX = if (row % 2 == 1) brickW / 2 else 0
-    for (col in -1 until cols) {
-      val bx = col * brickW + offX; val by = row * brickH
-      val hash = (row * 137 + col * 269) and 0xFF
-      val hash2 = (row * 53 + col * 197 + 91) and 0xFF
-      val innerW = brickW - gap * 2; val innerH = brickH - gap * 2
+    val rowPlan = brickRowPlan(row = row, hour = hour, theme = theme)
+    val brickH = rowPlan.courseHeightPx
+    val gap = rowPlan.mortarThicknessPx
+    var bx = -BRICK_WIDTH_PX + rowPlan.offsetPx
+    var segmentIndex = 0
+    while (bx < w + BRICK_WIDTH_PX) {
+      val brickW = rowPlan.segmentWidths[segmentIndex % rowPlan.segmentWidths.size]
+      val by = row * brickH
+      val hash = brickPatternHash(row = row, col = segmentIndex - 2, hour = hour, salt = rowPlan.offsetPx + brickW)
+      val hash2 = brickPatternHash(row = row, col = segmentIndex - 2, hour = hour, salt = 91 + rowPlan.offsetPx + brickW)
+      val innerW = (brickW - gap * 2).coerceAtLeast(6)
+      val innerH = (brickH - gap * 2).coerceAtLeast(4)
 
       // ── Brick body with subtle per-brick color variation ──
       val variation = ((hash % 7) - 3) * 2  // -6..+6 brightness shift
       val bodyArgb = shiftBrightness(wallArgb, variation)
+      val role = resolveBrickRole(hash = hash, hash2 = hash2, theme = theme)
       for (py in (by + gap) until (by + brickH - gap)) {
         if (py !in 0 until h) continue
         for (ppx in (bx + gap) until (bx + brickW - gap)) {
@@ -427,13 +1096,22 @@ private fun generateBrickBitmap(w: Int, h: Int, palette: ZonePalette, hour: Int 
 
       // ── Highlight top + left edge ──
       val topY = by + gap; val leftX = bx + gap
-      if (topY in 0 until h) for (ppx in (bx + gap) until (bx + brickW - gap)) { if (ppx in 0 until w) bmp.setPixel(ppx, topY, lightArgb) }
-      if (leftX in 0 until w) for (py in (by + gap) until (by + brickH - gap)) { if (py in 0 until h) bmp.setPixel(leftX, py, lightArgb) }
+      for (depth in 0 until rowPlan.highlightDepthPx) {
+        val highlightY = topY + depth
+        val highlightX = leftX + depth
+        if (highlightY in 0 until h) for (ppx in (bx + gap + depth) until (bx + brickW - gap - depth)) { if (ppx in 0 until w) bmp.setPixel(ppx, highlightY, lightArgb) }
+        if (highlightX in 0 until w) for (py in (by + gap + depth) until (by + brickH - gap - depth)) { if (py in 0 until h) bmp.setPixel(highlightX, py, lightArgb) }
+      }
 
       // ── Shadow bottom + right edge ──
       val botY = by + brickH - gap - 1; val rightX = bx + brickW - gap - 1
-      if (botY in 0 until h) for (ppx in (bx + gap) until (bx + brickW - gap)) { if (ppx in 0 until w) bmp.setPixel(ppx, botY, darkArgb) }
-      if (rightX in 0 until w) for (py in (by + gap) until (by + brickH - gap)) { if (py in 0 until h) bmp.setPixel(rightX, py, darkArgb) }
+      for (depth in 0 until rowPlan.shadowDepthPx) {
+        val shadowY = botY - depth
+        val shadowX = rightX - depth
+        val shadowColor = shiftBrightness(darkArgb, -depth * 6)
+        if (shadowY in 0 until h) for (ppx in (bx + gap + depth) until (bx + brickW - gap - depth)) { if (ppx in 0 until w) bmp.setPixel(ppx, shadowY, shadowColor) }
+        if (shadowX in 0 until w) for (py in (by + gap + depth) until (by + brickH - gap - depth)) { if (py in 0 until h) bmp.setPixel(shadowX, py, shadowColor) }
+      }
 
       // ── Inner surface texture: 50% common alt, 5% rare alt (like MLPD tile variance) ──
       if (hash >= 128) {
@@ -454,6 +1132,44 @@ private fun generateBrickBitmap(w: Int, h: Int, palette: ZonePalette, hour: Int 
       }
 
       // ━━━━ Zone-specific decorations ━━━━
+      paintBrickRole(
+        role = role,
+        bx = bx,
+        by = by,
+        brickW = brickW,
+        brickH = brickH,
+        gap = gap,
+        innerW = innerW,
+        innerH = innerH,
+        bodyArgb = bodyArgb,
+        lightArgb = lightArgb,
+        darkArgb = darkArgb,
+        mortarArgb = mortarArgb,
+        palette = palette,
+        hash = hash,
+        hash2 = hash2,
+        px = ::px
+      )
+
+      paintChapterGeometry(
+        theme = theme,
+        bx = bx,
+        by = by,
+        brickW = brickW,
+        brickH = brickH,
+        gap = gap,
+        innerW = innerW,
+        innerH = innerH,
+        bodyArgb = bodyArgb,
+        lightArgb = lightArgb,
+        darkArgb = darkArgb,
+        mortarArgb = mortarArgb,
+        palette = palette,
+        hash = hash,
+        hash2 = hash2,
+        px = ::px
+      )
+
       for (deco in decos) {
         when (deco) {
           WallDeco.MOSS -> {
@@ -714,6 +1430,8 @@ private fun generateBrickBitmap(w: Int, h: Int, palette: ZonePalette, hour: Int 
           }
         }
       }
+      bx += brickW
+      segmentIndex++
     }
   }
   return bmp.asImageBitmap()
@@ -754,20 +1472,31 @@ fun PixelBrickBackground(modifier: Modifier = Modifier) {
   val heightPx = with(density) { config.screenHeightDp.dp.toPx().toInt() }.coerceAtLeast(1)
   val tick = rememberTimeTick()
   val hour = (tick / 60).coerceIn(0, 23)
+  val spec = brickTextureSpec(widthPx, heightPx)
 
   // Global cache — bitmap survives navigation, only regenerates on hour change
-  val key = Triple(hour, widthPx, heightPx)
+  val key = BrickCacheKey(hour = hour, layoutSeed = BRICK_LAYOUT_SEED)
   val brickBitmap = if (cachedBrickKey == key && cachedBrickBitmap != null) {
     cachedBrickBitmap!!
   } else {
-    generateBrickBitmap(widthPx, heightPx, currentZonePalette(), hour).also {
+    generateBrickBitmap(spec.textureWidthPx, spec.textureHeightPx, currentZonePalette(), hour).also {
       cachedBrickBitmap = it
       cachedBrickKey = key
     }
   }
 
   Canvas(modifier.fillMaxSize()) {
-    drawImage(brickBitmap)
+    val textureWidth = brickBitmap.width
+    val textureHeight = brickBitmap.height
+    var y = 0
+    while (y < size.height.toInt()) {
+      var x = 0
+      while (x < size.width.toInt()) {
+        drawImage(brickBitmap, topLeft = Offset(x.toFloat(), y.toFloat()))
+        x += textureWidth
+      }
+      y += textureHeight
+    }
   }
 }
 

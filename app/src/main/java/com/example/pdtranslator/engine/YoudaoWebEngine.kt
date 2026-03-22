@@ -25,7 +25,7 @@ class YoudaoWebEngine(
     val CONFIG = EngineConfig(
       id = "youdao_web",
       nameResId = R.string.engine_youdao_web,
-      isExperimental = true,
+      isExperimental = false,
       requiresApiKey = false
     )
 
@@ -62,30 +62,48 @@ class YoudaoWebEngine(
         return Result.failure(IllegalArgumentException("Text is blank"))
       }
 
-      val from = mapLang(sourceLang)
-      val to = mapLang(targetLang)
+      val attempts = YoudaoWebLanguagePolicy.buildAttemptPairs(sourceLang, targetLang)
+      val primaryPair = attempts.firstOrNull() ?: LangPair(
+        YoudaoWebLanguagePolicy.mapLang(sourceLang),
+        YoudaoWebLanguagePolicy.mapLang(targetLang)
+      )
+      var lastFailureMessage: String? = null
+      var sawUnsupportedPair = false
 
-      val primary = translateViaWebtranslate(normalizedText, from, to, forceRefresh = false)
-      val recovered = if (primary.translation.isBlank()) {
-        translateViaWebtranslate(normalizedText, from, to, forceRefresh = true)
-      } else {
-        primary
+      for (pair in attempts) {
+        val primary = translateViaWebtranslate(normalizedText, pair.from, pair.to, forceRefresh = false)
+        val pairAttempts = if (primary.translation.isBlank()) {
+          listOf(
+            primary,
+            translateViaWebtranslate(normalizedText, pair.from, pair.to, forceRefresh = true)
+          )
+        } else {
+          listOf(primary)
+        }
+
+        val success = pairAttempts.firstOrNull { it.translation.isNotBlank() }
+        if (success != null) {
+          return Result.success(TranslationResult(success.translation, "Youdao Web"))
+        }
+
+        if (pairAttempts.any { YoudaoWebLanguagePolicy.isErrorCode50(it.message) }) {
+          sawUnsupportedPair = true
+        }
+        lastFailureMessage = pairAttempts.lastOrNull { !it.message.isNullOrBlank() }?.message ?: lastFailureMessage
       }
 
-      if (recovered.translation.isNotBlank()) {
-        return Result.success(TranslationResult(recovered.translation, "Youdao Web"))
-      }
-
-      if (shouldUseDictionaryFallback(normalizedText, from, to)) {
+      if (shouldUseDictionaryFallback(normalizedText, primaryPair.from, primaryPair.to)) {
         val dictionaryTranslation = translateViaDictionary(normalizedText)
         if (dictionaryTranslation.isSuccess) {
           return dictionaryTranslation
         }
       }
 
-      val message = recovered.message
-        ?: primary.message
-        ?: "Youdao webtranslate returned no translation"
+      val message = if (sawUnsupportedPair) {
+        YoudaoWebLanguagePolicy.buildUnsupportedMessage(sourceLang, targetLang)
+      } else {
+        lastFailureMessage ?: "Youdao webtranslate returned no translation"
+      }
       Result.failure(Exception(message))
     } catch (e: Exception) {
       Result.failure(e)
@@ -242,14 +260,6 @@ class YoudaoWebEngine(
     return from == "en" &&
       to.startsWith("zh") &&
       text.matches(Regex("^[A-Za-z][A-Za-z'\\-]*$"))
-  }
-
-  private fun mapLang(lang: String): String {
-    return when {
-      lang == "base" -> "en"
-      lang.startsWith("zh") -> if (lang.contains("TW") || lang.contains("Hant")) "zh-CHT" else "zh-CHS"
-      else -> lang.substringBefore("-")
-    }
   }
 
   private fun md5Hex(input: String): String {

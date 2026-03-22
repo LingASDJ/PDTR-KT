@@ -15,7 +15,8 @@ import kotlinx.serialization.json.put
 
 class MicrosoftEngine(
   private val client: HttpClient,
-  private val apiKey: String
+  private val apiKey: String,
+  private val region: String? = null
 ) : TranslationEngine {
 
   companion object {
@@ -40,6 +41,9 @@ class MicrosoftEngine(
 
       val response: String = client.post("https://api.cognitive.microsofttranslator.com/translate?api-version=3.0&from=$from&to=$to") {
         header("Ocp-Apim-Subscription-Key", apiKey)
+        if (!region.isNullOrBlank()) {
+          header("Ocp-Apim-Subscription-Region", region)
+        }
         contentType(ContentType.parse("application/json; charset=UTF-8"))
         setBody(body.toString())
       }.body()

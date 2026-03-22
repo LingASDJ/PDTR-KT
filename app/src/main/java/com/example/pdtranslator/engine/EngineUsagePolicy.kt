@@ -6,14 +6,13 @@ object EngineUsagePolicy {
     healthStatus: EngineHealthStatus,
     fallbackMessage: String
   ): String? {
-    if (healthStatus.state != EngineVerificationState.FAILED) return null
-    return healthStatus.message.ifBlank { fallbackMessage }
+    return null
   }
 
   fun shouldShowBaseLangOverride(
     selectedEngineId: String,
     healthStatus: EngineHealthStatus
   ): Boolean {
-    return selectedEngineId.isNotBlank() && healthStatus.state != EngineVerificationState.FAILED
+    return selectedEngineId.isNotBlank()
   }
 }

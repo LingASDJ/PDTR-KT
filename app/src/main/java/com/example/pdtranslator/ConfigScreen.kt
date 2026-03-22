@@ -64,7 +64,6 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.example.pdtranslator.engine.EngineUsagePolicy
 import com.google.accompanist.flowlayout.FlowRow
 import java.util.Locale
 
@@ -121,7 +120,6 @@ fun ConfigScreen(viewModel: TranslatorViewModel) {
   val dictionaryCount by viewModel.dictionaryCount.collectAsState()
   val canDeleteDictionary by viewModel.canDeleteDictionary.collectAsState()
   val selectedEngineId = viewModel.engineManager.getSelectedEngineId()
-  val selectedEngineHealth = if (selectedEngineId.isBlank()) null else viewModel.engineManager.getEngineHealthStatus(selectedEngineId)
   val currentLocales = context.resources.configuration.locales
   val currentLocaleTag = if (currentLocales.isEmpty) Locale.getDefault().toLanguageTag() else currentLocales[0].toLanguageTag()
   val languageCodeOptions = remember(availableLanguages, currentLocaleTag) {
@@ -218,20 +216,13 @@ fun ConfigScreen(viewModel: TranslatorViewModel) {
     }
 
     // ── Base Language Override (only when engine is configured) ──
-    if (selectedGroupName != null && selectedEngineId.isNotBlank() && selectedEngineHealth != null) {
-      if (EngineUsagePolicy.shouldShowBaseLangOverride(selectedEngineId, selectedEngineHealth)) {
-        BaseLangOverrideCard(
-          groupName = selectedGroupName!!,
-          viewModel = viewModel,
-          languageCodeOptions = languageCodeOptions,
-          isPD = isPD
-        )
-      } else {
-        EngineFailedWarningCard(
-          message = selectedEngineHealth.message,
-          isPD = isPD
-        )
-      }
+    if (selectedGroupName != null && selectedEngineId.isNotBlank()) {
+      BaseLangOverrideCard(
+        groupName = selectedGroupName!!,
+        viewModel = viewModel,
+        languageCodeOptions = languageCodeOptions,
+        isPD = isPD
+      )
     }
 
     // ── Export ──
