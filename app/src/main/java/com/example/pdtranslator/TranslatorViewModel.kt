@@ -135,6 +135,7 @@ class TranslatorViewModel(application: Application) : AndroidViewModel(applicati
   private val _allEntries = MutableStateFlow<List<TranslationEntry>>(emptyList())
   private val _stagedChanges = MutableStateFlow<Map<String, String>>(emptyMap())
   private val _stagedDeletions = MutableStateFlow<Set<String>>(emptySet())
+  private val _scopedWorkspaceState = MutableStateFlow(ScopedWorkspaceState())
   private val _showAboutDialog = MutableStateFlow(false)
   private val _themeColor = MutableStateFlow(loadSavedThemeColor())
   private val _isSearchCardVisible = MutableStateFlow(true)
@@ -148,6 +149,8 @@ class TranslatorViewModel(application: Application) : AndroidViewModel(applicati
   val draftData = _draftData.asStateFlow()
   private val _draftValidation = MutableStateFlow(DraftValidation.NO_DRAFT)
   val draftValidation = _draftValidation.asStateFlow()
+  private val _createLanguageSuccessSerial = MutableStateFlow(0L)
+  val createLanguageSuccessSerial = _createLanguageSuccessSerial.asStateFlow()
 
   // --- TM State ---
   private val _tmSuggestions = MutableStateFlow<List<TmSuggestion>>(emptyList())
@@ -322,24 +325,22 @@ class TranslatorViewModel(application: Application) : AndroidViewModel(applicati
       }.collect {}
     }
 
-    // A6: isSaveEnabled uses hasEffectiveChanges()
+    // A6: isSaveEnabled considers all scoped workspace changes
     viewModelScope.launch {
-      combine(_stagedChanges, _stagedDeletions, _createdLanguages) { staged, deletions, created ->
-        Triple(staged, deletions, created)
-      }.collect {
-        isSaveEnabled.value = hasEffectiveChanges() || _stagedDeletions.value.isNotEmpty() || _createdLanguages.value.isNotEmpty()
+      combine(_scopedWorkspaceState, _languageGroups) { workspace, groups ->
+        hasPendingWorkspaceChanges(workspace, groups)
+      }.collect { hasChanges ->
+        isSaveEnabled.value = hasChanges
       }
     }
 
-    // Auto-save: debounce staged changes, deletions, and created languages
+    // Auto-save: debounce workspace changes across all scopes
     viewModelScope.launch {
       @OptIn(kotlinx.coroutines.FlowPreview::class)
-      combine(_stagedChanges, _stagedDeletions, _createdLanguages) { staged, deletions, created ->
-        Triple(staged, deletions, created)
-      }
+      _scopedWorkspaceState
         .debounce(3000)
-        .collectLatest { (staged, deletions, created) ->
-          if (_autoSaveEnabled && (hasEffectiveChanges() || deletions.isNotEmpty() || created.isNotEmpty())) {
+        .collectLatest { workspace ->
+          if (_autoSaveEnabled && hasPendingWorkspaceChanges(workspace, _languageGroups.value)) {
             autoSaveDraft()
           }
         }
@@ -365,17 +366,202 @@ class TranslatorViewModel(application: Application) : AndroidViewModel(applicati
 
   // A6: Check if staged changes have any effective difference from original
   private fun hasEffectiveChanges(): Boolean {
-    val staged = _stagedChanges.value
-    if (staged.isEmpty()) return false
-    val group = _languageGroups.value.find { it.name == selectedGroupName.value } ?: return false
-    val targetCode = targetLangCode.value ?: return false
-    val targetProps = group.languages[targetCode]?.properties ?: Properties()
+    return hasEffectiveChanges(activeEditScope(), _stagedChanges.value, _languageGroups.value)
+  }
+
+  private fun hasEffectiveChanges(
+    scope: EditScope?,
+    staged: Map<String, String>,
+    groups: List<LanguageGroup>
+  ): Boolean {
+    if (scope == null || staged.isEmpty()) return false
+    val group = groups.find { it.name == scope.groupName } ?: return false
+    val targetProps = group.languages[scope.targetLangCode]?.properties ?: Properties()
 
     return staged.any { (key, value) ->
       val originalValue = targetProps.getProperty(key, "")
       val existsInTarget = targetProps.containsKey(key)
       value != originalValue || !existsInTarget
     }
+  }
+
+  private fun hasPendingWorkspaceChanges(
+    workspace: ScopedWorkspaceState = _scopedWorkspaceState.value,
+    groups: List<LanguageGroup> = _languageGroups.value
+  ): Boolean {
+    return workspace.stagedChangesByScope.any { (scope, staged) ->
+      hasEffectiveChanges(scope, staged, groups)
+    } ||
+      workspace.stagedDeletionsByScope.values.any { it.isNotEmpty() } ||
+      workspace.createdLanguagesByGroup.values.any { it.isNotEmpty() }
+  }
+
+  private fun primaryDraftScope(workspace: ScopedWorkspaceState): EditScope? {
+    activeEditScope()?.let { return it }
+    workspace.stagedChangesByScope.keys.firstOrNull()?.let { return it }
+    workspace.stagedDeletionsByScope.keys.firstOrNull()?.let { return it }
+
+    val groupName = workspace.createdLanguagesByGroup.keys.firstOrNull() ?: return null
+    val group = _languageGroups.value.find { it.name == groupName } ?: return null
+    val sourceCode = sourceLangCode.value?.takeIf { group.languages.containsKey(it) }
+      ?: group.languages.keys.sorted().firstOrNull()
+      ?: return null
+    val targetCode = targetLangCode.value?.takeIf { group.languages.containsKey(it) && it != sourceCode }
+      ?: workspace.createdLanguages(groupName).firstOrNull { it != sourceCode }
+      ?: group.languages.keys.sorted().firstOrNull { it != sourceCode }
+      ?: sourceCode
+
+    return EditScope(groupName = groupName, sourceLangCode = sourceCode, targetLangCode = targetCode)
+  }
+
+  private fun currentConcreteGroupName(groupName: String? = selectedGroupName.value): String? {
+    return groupName?.takeUnless { AggregateLanguageGroup.isAllGroup(it) }
+  }
+
+  private fun activeEditScope(
+    groupName: String? = currentConcreteGroupName(),
+    sourceCode: String? = sourceLangCode.value,
+    targetCode: String? = targetLangCode.value
+  ): EditScope? {
+    if (groupName == null || sourceCode == null || targetCode == null) return null
+    return EditScope(groupName = groupName, sourceLangCode = sourceCode, targetLangCode = targetCode)
+  }
+
+  private fun syncActiveWorkspaceState(
+    groupName: String? = currentConcreteGroupName(),
+    sourceCode: String? = sourceLangCode.value,
+    targetCode: String? = targetLangCode.value
+  ) {
+    val scope = activeEditScope(groupName, sourceCode, targetCode)
+    val workspace = _scopedWorkspaceState.value
+    _stagedChanges.value = workspace.stagedChanges(scope)
+    _stagedDeletions.value = workspace.stagedDeletions(scope)
+    _createdLanguages.value = workspace.createdLanguages(groupName)
+  }
+
+  private fun updateActiveStagedChanges(newChanges: Map<String, String>) {
+    _stagedChanges.value = newChanges
+    _scopedWorkspaceState.update { workspace ->
+      workspace.withStagedChanges(activeEditScope(), newChanges)
+    }
+  }
+
+  private fun updateActiveStagedDeletions(newDeletions: Set<String>) {
+    _stagedDeletions.value = newDeletions
+    _scopedWorkspaceState.update { workspace ->
+      workspace.withStagedDeletions(activeEditScope(), newDeletions)
+    }
+  }
+
+  private fun updateCreatedLanguagesForGroup(groupName: String?, languages: Set<String>) {
+    _createdLanguages.value = languages
+    _scopedWorkspaceState.update { workspace ->
+      workspace.withCreatedLanguages(groupName, languages)
+    }
+  }
+
+  private fun scopedChangesFor(groupName: String, targetLangCode: String): Map<String, String> {
+    val merged = linkedMapOf<String, String>()
+    _scopedWorkspaceState.value.stagedChangesByScope.forEach { (scope, staged) ->
+      if (scope.groupName == groupName && scope.targetLangCode == targetLangCode) {
+        merged.putAll(staged)
+      }
+    }
+    return merged
+  }
+
+  private fun scopedDeletionsFor(groupName: String, targetLangCode: String): Set<String> {
+    val deletions = linkedSetOf<String>()
+    _scopedWorkspaceState.value.stagedDeletionsByScope.forEach { (scope, staged) ->
+      if (scope.groupName == groupName && scope.targetLangCode == targetLangCode) {
+        deletions += staged
+      }
+    }
+    return deletions
+  }
+
+  private fun effectiveTargetProperties(group: LanguageGroup, targetLangCode: String): Properties {
+    val targetProps = group.languages[targetLangCode]?.properties ?: Properties()
+    val mergedTarget = Properties()
+    mergedTarget.putAll(targetProps)
+    scopedChangesFor(group.name, targetLangCode).forEach { (key, value) ->
+      if (value.isNotBlank()) {
+        mergedTarget.setProperty(key, value)
+      }
+    }
+    scopedDeletionsFor(group.name, targetLangCode).forEach { key ->
+      mergedTarget.remove(key)
+    }
+    return mergedTarget
+  }
+
+  private fun selectedGroupsFor(sourceCode: String, targetCode: String): List<LanguageGroup> {
+    return if (AggregateLanguageGroup.isAllGroup(selectedGroupName.value)) {
+      _languageGroups.value.filter { group ->
+        group.languages.containsKey(sourceCode) && group.languages.containsKey(targetCode)
+      }
+    } else {
+      _languageGroups.value.filter { it.name == selectedGroupName.value }
+    }
+  }
+
+  private fun applyDictionaryToGroup(
+    group: LanguageGroup,
+    sourceCode: String,
+    targetCode: String
+  ): Map<String, String> {
+    val sourceProps = group.languages[sourceCode]?.properties ?: return emptyMap()
+    val targetProps = group.languages[targetCode]?.properties ?: Properties()
+    val stagedChanges = scopedChangesFor(group.name, targetCode)
+    val stagedDeletions = scopedDeletionsFor(group.name, targetCode)
+
+    val entries = ((sourceProps.keys + targetProps.keys).mapNotNull { it as? String } + stagedChanges.keys)
+      .distinct()
+      .sorted()
+      .mapNotNull { key ->
+        if (stagedDeletions.contains(key)) {
+          return@mapNotNull null
+        }
+        val sourceValue = sourceProps.getProperty(key, "")
+        val originalTargetValue = if (targetProps.containsKey(key)) targetProps.getProperty(key, "") else ""
+        TranslationEntry(
+          key = key,
+          sourceValue = sourceValue,
+          targetValue = stagedChanges[key] ?: originalTargetValue,
+          originalTargetValue = originalTargetValue,
+          isUntranslated = false,
+          isMissing = !targetProps.containsKey(key) && sourceProps.containsKey(key),
+          isDeleted = targetProps.containsKey(key) && !sourceProps.containsKey(key)
+        )
+      }
+
+    return dictionaryManager.applyToEntries(entries, group.name, sourceCode, targetCode)
+  }
+
+  private suspend fun recordTranslationMemoryForWorkspaceChanges() {
+    val groupsByName = _languageGroups.value.associateBy { it.name }
+    for ((scope, staged) in _scopedWorkspaceState.value.stagedChangesByScope) {
+      if (staged.isEmpty()) continue
+      val group = groupsByName[scope.groupName] ?: continue
+      val sourceProps = group.languages[scope.sourceLangCode]?.properties ?: continue
+      val targetProps = group.languages[scope.targetLangCode]?.properties ?: continue
+      val sourceMap = mutableMapOf<String, String>()
+      val targetMap = mutableMapOf<String, String>()
+      sourceProps.forEach { (key, value) -> sourceMap[key as String] = value as String }
+      targetProps.forEach { (key, value) -> targetMap[key as String] = value as String }
+      staged.forEach { (key, value) -> targetMap[key] = value }
+      scopedDeletionsFor(scope.groupName, scope.targetLangCode).forEach { key -> targetMap.remove(key) }
+      translationMemory.importFromEntries(sourceMap, targetMap, scope.sourceLangCode, scope.targetLangCode)
+    }
+    translationMemory.save()
+  }
+
+  private fun clearEntryState() {
+    _allEntries.value = emptyList()
+    _missingEntriesCount.value = 0
+    _deletedEntriesCount.value = 0
+    _diffEntriesCount.value = 0
+    _deletedItems.value = emptyList()
   }
 
   // --- Public Intent Functions ---
@@ -470,29 +656,27 @@ class TranslatorViewModel(application: Application) : AndroidViewModel(applicati
     val entriesByKey = _allEntries.value.associateBy { it.key }
     var count = 0
 
-    _stagedChanges.update { currentStaged ->
-      val newStaged = currentStaged.toMutableMap()
-      for (key in matchKeys) {
-        val entry = entriesByKey[key] ?: continue
-        if (entry.isDeleted) continue
-        val current = newStaged[entry.key] ?: entry.targetValue
-        if (current.isBlank()) continue
+    val newStaged = _stagedChanges.value.toMutableMap()
+    for (key in matchKeys) {
+      val entry = entriesByKey[key] ?: continue
+      if (entry.isDeleted) continue
+      val current = newStaged[entry.key] ?: entry.targetValue
+      if (current.isBlank()) continue
 
-        val replaced = SearchReplaceUtils.replaceTarget(
-          original = current,
-          search = search,
-          replacement = replace,
-          caseSensitive = caseSensitive,
-          exactMatch = exact
-        )
+      val replaced = SearchReplaceUtils.replaceTarget(
+        original = current,
+        search = search,
+        replacement = replace,
+        caseSensitive = caseSensitive,
+        exactMatch = exact
+      )
 
-        if (replaced != current) {
-          newStaged[entry.key] = replaced
-          count++
-        }
+      if (replaced != current) {
+        newStaged[entry.key] = replaced
+        count++
       }
-      newStaged
     }
+    updateActiveStagedChanges(newStaged)
 
     return count
   }
@@ -625,44 +809,48 @@ class TranslatorViewModel(application: Application) : AndroidViewModel(applicati
 
   fun selectGroup(name: String) {
     selectedGroupName.value = name
-    sourceLangCode.value = null
-    targetLangCode.value = null
-    _allEntries.value = emptyList()
-    _stagedChanges.value = emptyMap()
-    _stagedDeletions.value = emptySet()
-    _createdLanguages.value = emptySet()
-    _deletedItems.value = emptyList()
+    val nextAvailableLanguages = AggregateLanguageGroup.availableLanguages(_languageGroups.value, name)
+    val preservedSource = sourceLangCode.value?.takeIf { it in nextAvailableLanguages && it != targetLangCode.value }
+    val preservedTarget = targetLangCode.value?.takeIf { it in nextAvailableLanguages && it != preservedSource }
+    sourceLangCode.value = preservedSource
+    targetLangCode.value = preservedTarget
+    syncActiveWorkspaceState(
+      groupName = currentConcreteGroupName(name),
+      sourceCode = preservedSource,
+      targetCode = preservedTarget
+    )
+    clearEntryState()
     resetSearchState()
-    availableLanguages.value = _languageGroups.value.find { it.name == name }
-      ?.languages?.keys?.sorted() ?: emptyList()
+    availableLanguages.value = nextAvailableLanguages
+    if (preservedSource != null && preservedTarget != null) {
+      regenerateEntries()
+    }
   }
 
   fun selectSourceLanguage(code: String) {
     if (code == targetLangCode.value) return
     sourceLangCode.value = code
-    if (targetLangCode.value != null) regenerateEntries()
+    syncActiveWorkspaceState(sourceCode = code)
+    if (targetLangCode.value != null) regenerateEntries() else clearEntryState()
   }
 
   fun selectTargetLanguage(code: String) {
     if (code == sourceLangCode.value) return
     targetLangCode.value = code
-    if (sourceLangCode.value != null) regenerateEntries()
+    syncActiveWorkspaceState(targetCode = code)
+    if (sourceLangCode.value != null) regenerateEntries() else clearEntryState()
   }
 
   fun stageChange(key: String, newTargetValue: String) {
-    _stagedChanges.update { currentStaged ->
-      val newStaged = currentStaged.toMutableMap()
-      newStaged[key] = newTargetValue
-      newStaged
-    }
+    val newStaged = _stagedChanges.value.toMutableMap()
+    newStaged[key] = newTargetValue
+    updateActiveStagedChanges(newStaged)
   }
 
   fun unstageChange(key: String) {
-    _stagedChanges.update { currentStaged ->
-      val newStaged = currentStaged.toMutableMap()
-      newStaged.remove(key)
-      newStaged
-    }
+    val newStaged = _stagedChanges.value.toMutableMap()
+    newStaged.remove(key)
+    updateActiveStagedChanges(newStaged)
   }
 
   fun selectDictionary(id: String) {
@@ -728,7 +916,7 @@ class TranslatorViewModel(application: Application) : AndroidViewModel(applicati
   // --- Deletion Functions ---
 
   fun stageDeleteEntry(key: String) {
-    _stagedDeletions.update { it + key }
+    updateActiveStagedDeletions(_stagedDeletions.value + key)
     // A3: Update deletedItems to reflect staged status
     _deletedItems.update { items ->
       items.map { if (it.key == key) it.copy(isStagedForDeletion = true) else it }
@@ -737,7 +925,7 @@ class TranslatorViewModel(application: Application) : AndroidViewModel(applicati
 
   // A3: Unstage a deletion
   fun unstageDeleteEntry(key: String) {
-    _stagedDeletions.update { it - key }
+    updateActiveStagedDeletions(_stagedDeletions.value - key)
     _deletedItems.update { items ->
       items.map { if (it.key == key) it.copy(isStagedForDeletion = false) else it }
     }
@@ -747,7 +935,7 @@ class TranslatorViewModel(application: Application) : AndroidViewModel(applicati
     viewModelScope.launch {
       val items = _deletedItems.value
       val unstagedKeys = items.filter { !it.isStagedForDeletion }.map { it.key }.toSet()
-      _stagedDeletions.update { it + unstagedKeys }
+      updateActiveStagedDeletions(_stagedDeletions.value + unstagedKeys)
       _deletedItems.update { items ->
         items.map { it.copy(isStagedForDeletion = true) }
       }
@@ -761,19 +949,15 @@ class TranslatorViewModel(application: Application) : AndroidViewModel(applicati
     viewModelScope.launch(Dispatchers.IO) {
       val sourceCode = sourceLangCode.value ?: return@launch
       val targetCode = targetLangCode.value ?: return@launch
-      val groupName = selectedGroupName.value ?: return@launch
-      val group = _languageGroups.value.find { it.name == groupName } ?: return@launch
+      val groups = selectedGroupsFor(sourceCode, targetCode)
+      if (groups.isEmpty()) return@launch
 
-      val sourceProps = group.languages[sourceCode]?.properties ?: return@launch
-      val targetProps = group.languages[targetCode]?.properties ?: Properties()
-
-      // Merge staged changes into target
-      val mergedTarget = Properties()
-      mergedTarget.putAll(targetProps)
-      _stagedChanges.value.forEach { (k, v) -> if (v.isNotBlank()) mergedTarget.setProperty(k, v) }
-
-      // A1: pass groupName
-      val count = dictionaryManager.importFromProperties(sourceProps, mergedTarget, groupName, sourceCode, targetCode)
+      var count = 0
+      groups.forEach { group ->
+        val sourceProps = group.languages[sourceCode]?.properties ?: return@forEach
+        val mergedTarget = effectiveTargetProperties(group, targetCode)
+        count += dictionaryManager.importFromProperties(sourceProps, mergedTarget, group.name, sourceCode, targetCode)
+      }
       dictionaryManager.save()
       refreshDictionaryState()
 
@@ -785,24 +969,33 @@ class TranslatorViewModel(application: Application) : AndroidViewModel(applicati
     viewModelScope.launch(Dispatchers.Default) {
       val sourceCode = sourceLangCode.value ?: return@launch
       val targetCode = targetLangCode.value ?: return@launch
-      val groupName = selectedGroupName.value ?: return@launch
-      val entries = _allEntries.value
+      val groups = selectedGroupsFor(sourceCode, targetCode)
+      if (groups.isEmpty()) return@launch
 
-      // A1: pass groupName
-      val applied = dictionaryManager.applyToEntries(entries, groupName, sourceCode, targetCode)
-      if (applied.isEmpty()) {
+      var appliedCount = 0
+      groups.forEach { group ->
+        val applied = applyDictionaryToGroup(group, sourceCode, targetCode)
+        if (applied.isEmpty()) return@forEach
+
+        val scope = EditScope(group.name, sourceCode, targetCode)
+        val merged = linkedMapOf<String, String>()
+        merged.putAll(_scopedWorkspaceState.value.stagedChanges(scope))
+        applied.forEach { (key, value) -> merged[key] = value }
+        _scopedWorkspaceState.update { workspace ->
+          workspace.withStagedChanges(scope, merged)
+        }
+        appliedCount += applied.size
+      }
+
+      if (appliedCount == 0) {
         _uiEvents.send(UiEvent.ShowSnackbar(app.getString(R.string.dict_apply_none)))
         return@launch
       }
 
-      _stagedChanges.update { current ->
-        val newStaged = current.toMutableMap()
-        applied.forEach { (k, v) -> newStaged[k] = v }
-        newStaged
-      }
+      syncActiveWorkspaceState()
       regenerateEntries()
 
-      _uiEvents.send(UiEvent.ShowSnackbar(app.getString(R.string.dict_apply_done, applied.size)))
+      _uiEvents.send(UiEvent.ShowSnackbar(app.getString(R.string.dict_apply_done, appliedCount)))
     }
   }
 
@@ -829,6 +1022,17 @@ class TranslatorViewModel(application: Application) : AndroidViewModel(applicati
   fun setDictionaryPreviewQuery(query: String) {
     dictionaryPreviewQuery.value = query
     dictionaryPreviewEntries.value = dictionaryManager.getPreviewEntries(query)
+  }
+
+  fun updateDictionaryPreviewEntry(rawKey: String, sourceText: String, translation: String) {
+    if (translation.isBlank()) return
+    viewModelScope.launch(Dispatchers.IO) {
+      dictionaryManager.updatePreviewEntry(rawKey, sourceText, translation)
+      dictionaryManager.save()
+      refreshDictionaryState()
+      regenerateEntries()
+      _uiEvents.send(UiEvent.ShowSnackbar(app.getString(R.string.dict_preview_save_done)))
+    }
   }
 
   fun currentDictionaryExportFileName(): String = dictionaryManager.currentDictionaryExportFileName()
@@ -928,7 +1132,7 @@ class TranslatorViewModel(application: Application) : AndroidViewModel(applicati
   // A4: Language code validation + normalization
   fun createLanguage(langCode: String, copyFromLang: String? = null) {
     viewModelScope.launch {
-      val groupName = selectedGroupName.value
+      val groupName = currentConcreteGroupName()
       if (groupName == null) {
         _uiEvents.send(UiEvent.ShowSnackbar(app.getString(R.string.create_lang_no_group)))
         return@launch
@@ -972,9 +1176,14 @@ class TranslatorViewModel(application: Application) : AndroidViewModel(applicati
       _languageGroups.update { groups ->
         groups.map { if (it.name == groupName) newGroup else it }
       }
-      availableLanguages.value = newGroup.languages.keys.sorted()
-      _createdLanguages.update { it + normalizedCode }
+      availableLanguages.value = AggregateLanguageGroup.availableLanguages(_languageGroups.value, selectedGroupName.value)
+      updateCreatedLanguagesForGroup(groupName, _createdLanguages.value + normalizedCode)
 
+      if (sourceLangCode.value != normalizedCode) {
+        selectTargetLanguage(normalizedCode)
+      }
+
+      _createLanguageSuccessSerial.value += 1
       _uiEvents.send(UiEvent.ShowSnackbar(app.getString(R.string.create_lang_done, normalizedCode)))
     }
   }
@@ -987,14 +1196,10 @@ class TranslatorViewModel(application: Application) : AndroidViewModel(applicati
       try {
         _autoSaveEnabled = false
 
-        val groupName = selectedGroupName.value ?: return@launch
-        val group = _languageGroups.value.find { it.name == groupName } ?: return@launch
-        val targetCode = targetLangCode.value ?: return@launch
-        val sourceCode = sourceLangCode.value ?: return@launch
-
-        val staged = _stagedChanges.value
-        val deletions = _stagedDeletions.value
-        val createdLangs = _createdLanguages.value
+        val groups = _languageGroups.value
+        if (groups.isEmpty() || !hasPendingWorkspaceChanges()) {
+          return@launch
+        }
 
         // A2: Check outputStream is not null
         val outputStream = resolver.openOutputStream(uri)
@@ -1007,34 +1212,27 @@ class TranslatorViewModel(application: Application) : AndroidViewModel(applicati
         val zipSuccess = try {
           outputStream.use { os ->
             ZipOutputStream(os).use { zos ->
-              group.languages.forEach { (langCode, langData) ->
-                val isTarget = langCode == targetCode
-                val isNewlyCreated = createdLangs.contains(langCode)
-
-                if (isTarget) {
-                  val effectiveStaged = staged.filter { (key, value) ->
+              groups.forEach { group ->
+                val createdLangs = _scopedWorkspaceState.value.createdLanguages(group.name)
+                group.languages.forEach { (langCode, langData) ->
+                  val effectiveStaged = scopedChangesFor(group.name, langCode).filter { (key, value) ->
                     val originalValue = langData.properties.getProperty(key, "")
                     val existsInTarget = langData.properties.containsKey(key)
                     value != originalValue || !existsInTarget
                   }
+                  val deletions = scopedDeletionsFor(group.name, langCode)
+                  val isNewlyCreated = langCode in createdLangs
 
-                  if (effectiveStaged.isNotEmpty() || deletions.isNotEmpty() || isNewlyCreated) {
-                    val finalProps = Properties()
-                    finalProps.putAll(langData.properties)
-                    effectiveStaged.forEach { (key, value) ->
-                      finalProps.setProperty(key, value)
-                    }
-                    deletions.forEach { key -> finalProps.remove(key) }
-
-                    zos.putNextEntry(ZipEntry(langData.fileName))
-                    val writer = OutputStreamWriter(zos, "UTF-8")
-                    PropertiesWriter.write(finalProps, writer)
-                    writer.flush()
-                    zos.closeEntry()
+                  if (effectiveStaged.isEmpty() && deletions.isEmpty() && !isNewlyCreated) {
+                    return@forEach
                   }
-                } else if (isNewlyCreated) {
+
                   val finalProps = Properties()
                   finalProps.putAll(langData.properties)
+                  effectiveStaged.forEach { (key, value) ->
+                    finalProps.setProperty(key, value)
+                  }
+                  deletions.forEach { key -> finalProps.remove(key) }
 
                   zos.putNextEntry(ZipEntry(langData.fileName))
                   val writer = OutputStreamWriter(zos, "UTF-8")
@@ -1056,17 +1254,7 @@ class TranslatorViewModel(application: Application) : AndroidViewModel(applicati
 
         // Record to TM (only after successful ZIP write)
         try {
-          val sourceProps = group.languages[sourceCode]?.properties
-          val targetProps = group.languages[targetCode]?.properties
-          if (sourceProps != null && targetProps != null) {
-            val sourceMap = mutableMapOf<String, String>()
-            val targetMap = mutableMapOf<String, String>()
-            sourceProps.forEach { (k, v) -> sourceMap[k as String] = v as String }
-            targetProps.forEach { (k, v) -> targetMap[k as String] = v as String }
-            staged.forEach { (k, v) -> targetMap[k] = v }
-            translationMemory.importFromEntries(sourceMap, targetMap, sourceCode, targetCode)
-            translationMemory.save()
-          }
+          recordTranslationMemoryForWorkspaceChanges()
         } catch (e: Exception) {
           _uiEvents.send(UiEvent.ShowSnackbar(app.getString(R.string.tm_record_fail)))
         }
@@ -1076,9 +1264,8 @@ class TranslatorViewModel(application: Application) : AndroidViewModel(applicati
         _draftData.value = null
         _draftValidation.value = DraftValidation.NO_DRAFT
 
-        _stagedChanges.value = emptyMap()
-        _stagedDeletions.value = emptySet()
-        _createdLanguages.value = emptySet()
+        _scopedWorkspaceState.value = ScopedWorkspaceState()
+        syncActiveWorkspaceState()
         regenerateEntries()
 
         _uiEvents.send(UiEvent.ShowSnackbar(app.getString(R.string.export_success)))
@@ -1092,24 +1279,27 @@ class TranslatorViewModel(application: Application) : AndroidViewModel(applicati
 
   // A5: autoSaveDraft with contentDigest
   private suspend fun autoSaveDraft() {
-    val groupName = selectedGroupName.value ?: return
-    val srcLang = sourceLangCode.value ?: return
-    val tgtLang = targetLangCode.value ?: return
-    val staged = _stagedChanges.value
-    val deletions = _stagedDeletions.value
-    val createdLangs = _createdLanguages.value
-    if (staged.isEmpty() && deletions.isEmpty() && createdLangs.isEmpty()) return
+    val workspace = _scopedWorkspaceState.value
+    if (!hasPendingWorkspaceChanges(workspace, _languageGroups.value)) return
 
-    val entries = _allEntries.value
-    val keys = entries.map { it.key }
+    val scope = primaryDraftScope(workspace) ?: return
+    val groupName = scope.groupName
+    val srcLang = scope.sourceLangCode
+    val tgtLang = scope.targetLangCode
+    val staged = workspace.stagedChanges(scope)
+    val deletions = workspace.stagedDeletions(scope)
+    val createdLangs = workspace.createdLanguages(groupName)
+    val group = _languageGroups.value.find { it.name == groupName } ?: return
+    val srcProps = group.languages[srcLang]?.properties ?: return
+    val tgtProps = group.languages[tgtLang]?.properties ?: Properties()
+    val keys = (srcProps.keys + tgtProps.keys).mapNotNull { it as? String }.distinct().sorted()
     val digest = DraftManager.computeKeysDigest(keys)
 
     // A5: Compute contentDigest (includes source text)
-    val contentDigest = DraftManager.computeContentDigest(entries.map { it.key to it.sourceValue })
+    val contentDigest = DraftManager.computeContentDigest(keys.map { key -> key to srcProps.getProperty(key, "") })
 
     // Serialize created language properties for persistence
     val createdLangData: Map<String, Map<String, String>>? = if (createdLangs.isNotEmpty()) {
-      val group = _languageGroups.value.find { it.name == groupName }
       createdLangs.associateWith { langCode ->
         val props = group?.languages?.get(langCode)?.properties
         val map = mutableMapOf<String, String>()
@@ -1124,12 +1314,13 @@ class TranslatorViewModel(application: Application) : AndroidViewModel(applicati
       targetLangCode = tgtLang,
       stagedChanges = staged,
       highlightKeywords = _highlightKeywords.value,
-      entryCount = entries.size,
+      entryCount = keys.size,
       keysDigest = digest,
       timestamp = System.currentTimeMillis(),
       stagedDeletions = deletions,
       createdLanguages = createdLangData,
-      contentDigest = contentDigest
+      contentDigest = contentDigest,
+      workspaceSnapshot = DraftWorkspaceSnapshot.capture(workspace, _languageGroups.value)
     )
     draftManager.save(draft)
   }
@@ -1164,31 +1355,34 @@ class TranslatorViewModel(application: Application) : AndroidViewModel(applicati
   fun restoreDraft() {
     val draft = _draftData.value ?: return
     viewModelScope.launch {
-      selectGroup(draft.groupName)
-
-      // Restore created languages before selecting source/target
-      draft.createdLanguages?.forEach { (langCode, propsMap) ->
-        val group = _languageGroups.value.find { it.name == draft.groupName } ?: return@forEach
-        if (!group.languages.containsKey(langCode)) {
-          val newFileName = "${draft.groupName}_${langCode}.properties"
-          val props = Properties()
-          propsMap.forEach { (k, v) -> props.setProperty(k, v) }
-          val newLanguages = group.languages.toMutableMap()
-          newLanguages[langCode] = LanguageData(newFileName, props)
-          val newGroup = group.copy(languages = newLanguages)
-          _languageGroups.update { groups ->
-            groups.map { if (it.name == draft.groupName) newGroup else it }
+      val restorePlan = DraftRestorePlan.fromDraft(draft)
+      val snapshot = DraftWorkspaceSnapshot.fromDraft(draft)
+      _languageGroups.update { groups ->
+        groups.map { group ->
+          val createdLanguages = snapshot.createdLanguages(group.name)
+          if (createdLanguages.isEmpty()) {
+            group
+          } else {
+            val newLanguages = group.languages.toMutableMap()
+            createdLanguages.forEach { (langCode, propsMap) ->
+              if (!newLanguages.containsKey(langCode)) {
+                val newFileName = "${group.name}_${langCode}.properties"
+                val props = Properties()
+                propsMap.forEach { (key, value) -> props.setProperty(key, value) }
+                newLanguages[langCode] = LanguageData(newFileName, props)
+              }
+            }
+            group.copy(languages = newLanguages)
           }
-          availableLanguages.value = newGroup.languages.keys.sorted()
         }
       }
-      _createdLanguages.value = draft.createdLanguages?.keys?.toSet() ?: emptySet()
+      _scopedWorkspaceState.value = snapshot.toScopedWorkspaceState()
 
-      selectSourceLanguage(draft.sourceLangCode)
-      selectTargetLanguage(draft.targetLangCode)
-
-      _stagedChanges.value = draft.stagedChanges
-      _stagedDeletions.value = draft.stagedDeletions ?: emptySet()
+      sourceLangCode.value = restorePlan.preselectedSourceLangCode
+      targetLangCode.value = restorePlan.preselectedTargetLangCode
+      selectGroup(restorePlan.groupName)
+      selectSourceLanguage(restorePlan.finalSourceLangCode)
+      selectTargetLanguage(restorePlan.finalTargetLangCode)
       _highlightKeywords.value = draft.highlightKeywords
 
       regenerateEntries()
@@ -1324,12 +1518,13 @@ class TranslatorViewModel(application: Application) : AndroidViewModel(applicati
     withContext(Dispatchers.Main) {
       _languageGroups.value = groups.map { (name, languages) -> LanguageGroup(name, languages) }.sortedBy { it.name }
       languageGroupNames.value = _languageGroups.value.map { it.name }
+      _scopedWorkspaceState.value = ScopedWorkspaceState()
 
       val groupList = _languageGroups.value
       if (groupList.size == 1) {
         val group = groupList.first()
         selectedGroupName.value = group.name
-        availableLanguages.value = group.languages.keys.sorted()
+        availableLanguages.value = AggregateLanguageGroup.availableLanguages(_languageGroups.value, group.name)
 
         val langs = availableLanguages.value
         if (langs.size == 2) {
@@ -1337,15 +1532,13 @@ class TranslatorViewModel(application: Application) : AndroidViewModel(applicati
           val targetIdx = if (sourceIdx == 0) 1 else 0
           sourceLangCode.value = langs[sourceIdx]
           targetLangCode.value = langs[targetIdx]
-          _stagedChanges.value = emptyMap()
-          _stagedDeletions.value = emptySet()
+          syncActiveWorkspaceState(group.name, langs[sourceIdx], langs[targetIdx])
           regenerateEntries()
         } else {
           sourceLangCode.value = null
           targetLangCode.value = null
-          _allEntries.value = emptyList()
-          _stagedChanges.value = emptyMap()
-          _stagedDeletions.value = emptySet()
+          syncActiveWorkspaceState(groupName = group.name, sourceCode = null, targetCode = null)
+          clearEntryState()
         }
       } else {
         resetAllSelections()
@@ -1358,11 +1551,11 @@ class TranslatorViewModel(application: Application) : AndroidViewModel(applicati
     sourceLangCode.value = null
     targetLangCode.value = null
     availableLanguages.value = emptyList()
-    _allEntries.value = emptyList()
+    clearEntryState()
     _stagedChanges.value = emptyMap()
     _stagedDeletions.value = emptySet()
     _createdLanguages.value = emptySet()
-    _deletedItems.value = emptyList()
+    _scopedWorkspaceState.value = ScopedWorkspaceState()
     resetSearchState()
   }
 
@@ -1372,12 +1565,8 @@ class TranslatorViewModel(application: Application) : AndroidViewModel(applicati
     val groupName = selectedGroupName.value
     val group = _languageGroups.value.find { it.name == groupName }
 
-    if (sourceCode == null || targetCode == null || group == null || groupName == null) {
-      _allEntries.value = emptyList()
-      _missingEntriesCount.value = 0
-      _deletedEntriesCount.value = 0
-      _diffEntriesCount.value = 0
-      _deletedItems.value = emptyList()
+    if (sourceCode == null || targetCode == null || group == null || groupName == null || AggregateLanguageGroup.isAllGroup(groupName)) {
+      clearEntryState()
       return
     }
 
@@ -1483,7 +1672,7 @@ class TranslatorViewModel(application: Application) : AndroidViewModel(applicati
       }
 
       if (addedCount > 0) {
-        _stagedChanges.value = newStagedChanges
+        updateActiveStagedChanges(newStagedChanges)
         _uiEvents.send(UiEvent.ShowSnackbar(app.getString(R.string.fill_missing_done, addedCount)))
         filterState.value = FilterState.UNTRANSLATED
         regenerateEntries()

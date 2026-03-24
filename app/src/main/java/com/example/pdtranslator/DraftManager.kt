@@ -18,7 +18,8 @@ data class DraftData(
   val timestamp: Long,
   val stagedDeletions: Set<String>? = null,
   val createdLanguages: Map<String, Map<String, String>>? = null,
-  val contentDigest: String? = null
+  val contentDigest: String? = null,
+  val workspaceSnapshot: DraftWorkspaceSnapshot? = null
 )
 
 enum class DraftValidation {

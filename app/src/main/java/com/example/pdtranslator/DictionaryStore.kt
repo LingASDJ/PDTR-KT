@@ -93,6 +93,25 @@ data class DictionaryStore(
     return copy(dictionaries = updatedDictionaries)
   }
 
+  fun updateEntry(
+    entryKey: String,
+    sourceText: String?,
+    translation: String,
+    dictionaryId: String = selectedDictionaryId
+  ): DictionaryStore {
+    val dictionary = dictionaries[dictionaryId] ?: return this
+    val existing = dictionary.entries[entryKey] ?: return this
+    val updatedEntries = LinkedHashMap(dictionary.entries)
+    updatedEntries[entryKey] = existing.copy(
+      sourceText = sourceText?.takeIf { it.isNotBlank() },
+      translation = translation,
+      timestamp = System.currentTimeMillis()
+    )
+    val updatedDictionaries = LinkedHashMap(dictionaries)
+    updatedDictionaries[dictionaryId] = dictionary.copy(entries = updatedEntries)
+    return copy(dictionaries = updatedDictionaries)
+  }
+
   companion object {
     const val DEFAULT_ID = "default"
     const val DEFAULT_NAME = "Default Dictionary"

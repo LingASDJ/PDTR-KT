@@ -23,6 +23,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DeleteSweep
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
@@ -43,11 +44,13 @@ import androidx.compose.material3.SuggestionChip
 import androidx.compose.material3.SuggestionChipDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -129,6 +132,14 @@ fun TranslatorScreen(viewModel: TranslatorViewModel) {
         getDisplayName = { code -> viewModel.getLanguageDisplayName(code, context) }
       )
     }
+    return
+  }
+
+  if (AggregateLanguageGroup.isAllGroup(selectedGroupName)) {
+    EmptyState(
+      icon = { Icon(Icons.Default.Translate, contentDescription = null, modifier = Modifier.size(48.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant) },
+      message = stringResource(R.string.translator_all_group_readonly)
+    )
     return
   }
 
@@ -510,11 +521,29 @@ fun NewTranslationCard(
   hasEngine: Boolean = false
 ) {
   var currentText by remember(entry.key, entry.targetValue) { mutableStateOf(entry.targetValue) }
+  var lastCommittedText by remember(entry.key, entry.targetValue) { mutableStateOf(entry.targetValue) }
   var isFocused by remember { mutableStateOf(false) }
+  val latestText = rememberUpdatedState(currentText)
+  val latestCommittedText = rememberUpdatedState(lastCommittedText)
+  val latestSave = rememberUpdatedState(onSave)
   val mergedHighlights = remember(highlightKeywords, searchHighlightQuery) {
     buildSet {
       addAll(highlightKeywords)
       if (searchHighlightQuery.isNotBlank()) add(searchHighlightQuery)
+    }
+  }
+  val commitCurrentText = {
+    if (currentText != lastCommittedText) {
+      onSave(currentText)
+      lastCommittedText = currentText
+    }
+  }
+
+  DisposableEffect(entry.key) {
+    onDispose {
+      if (latestText.value != latestCommittedText.value) {
+        latestSave.value(latestText.value)
+      }
     }
   }
 
@@ -528,6 +557,7 @@ fun NewTranslationCard(
 
   Card(
     modifier = Modifier.fillMaxWidth(),
+    shape = MaterialTheme.shapes.medium,
     colors = cardColors,
     border = if (isCurrentSearchResult) BorderStroke(1.dp, MaterialTheme.colorScheme.secondary) else null
   ) {
@@ -572,7 +602,7 @@ fun NewTranslationCard(
       Box(
         modifier = Modifier
           .fillMaxWidth()
-          .clip(RoundedCornerShape(8.dp))
+          .clip(MaterialTheme.shapes.small)
           .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
           .padding(horizontal = 10.dp, vertical = 8.dp)
       ) {
@@ -580,40 +610,52 @@ fun NewTranslationCard(
       }
 
       // Translation input
-      Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
-      ) {
-        OutlinedTextField(
-          value = currentText,
-          onValueChange = { currentText = it },
-          modifier = Modifier
-            .weight(1f)
-            .onFocusChanged { focusState ->
-              if (focusState.isFocused && !isFocused) {
-                isFocused = true
-                onFocused()
-              } else if (!focusState.isFocused && isFocused) {
-                isFocused = false
-                if (currentText != entry.targetValue) {
-                  onSave(currentText)
-                }
-                onUnfocused()
-              }
-            },
-          label = { Text(stringResource(id = R.string.common_translation)) },
-          visualTransformation = keywordHighlightVisualTransformation(
-            keywords = mergedHighlights,
-            highlightColor = Color.Yellow
-          )
+      OutlinedTextField(
+        value = currentText,
+        onValueChange = {
+          currentText = it
+        },
+        modifier = Modifier
+          .fillMaxWidth()
+          .onFocusChanged { focusState ->
+            if (focusState.isFocused && !isFocused) {
+              isFocused = true
+              onFocused()
+            } else if (!focusState.isFocused && isFocused) {
+              isFocused = false
+              commitCurrentText()
+              onUnfocused()
+            }
+          },
+        label = { Text(stringResource(id = R.string.common_translation)) },
+        visualTransformation = keywordHighlightVisualTransformation(
+          keywords = mergedHighlights,
+          highlightColor = Color.Yellow
         )
+      )
 
+      Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.End
+      ) {
+        val context = LocalContext.current
+        OutlinedButton(
+          onClick = { copyTextToClipboard(context, entry.key, currentText) },
+          enabled = currentText.isNotBlank()
+        ) {
+          Icon(Icons.Default.ContentCopy, contentDescription = null, modifier = Modifier.size(16.dp))
+          Spacer(Modifier.width(4.dp))
+          Text(stringResource(R.string.common_copy))
+        }
         if (entry.isModified) {
-          IconButton(onClick = onDiscard) {
+          Spacer(Modifier.width(8.dp))
+          OutlinedButton(onClick = onDiscard) {
             Icon(
               painter = painterResource(id = R.drawable.ic_discard),
-              contentDescription = "Discard Changes"
+              contentDescription = null
             )
+            Spacer(Modifier.width(4.dp))
+            Text(stringResource(R.string.common_cancel))
           }
         }
       }
@@ -719,8 +761,10 @@ fun DeletedTranslationCard(
   entry: TranslationEntry,
   onDelete: () -> Unit
 ) {
+  val context = LocalContext.current
   Card(
     modifier = Modifier.fillMaxWidth(),
+    shape = MaterialTheme.shapes.medium,
     colors = CardDefaults.cardColors(
       containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.3f)
     )
@@ -747,7 +791,7 @@ fun DeletedTranslationCard(
       Box(
         modifier = Modifier
           .fillMaxWidth()
-          .clip(RoundedCornerShape(8.dp))
+          .clip(MaterialTheme.shapes.small)
           .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
           .padding(horizontal = 10.dp, vertical = 8.dp)
       ) {
@@ -761,6 +805,15 @@ fun DeletedTranslationCard(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.End
       ) {
+        OutlinedButton(
+          onClick = { copyTextToClipboard(context, entry.key, entry.originalTargetValue) },
+          enabled = entry.originalTargetValue.isNotBlank()
+        ) {
+          Icon(Icons.Default.ContentCopy, contentDescription = null, modifier = Modifier.size(16.dp))
+          Spacer(Modifier.width(4.dp))
+          Text(stringResource(R.string.common_copy), style = MaterialTheme.typography.labelMedium)
+        }
+        Spacer(Modifier.width(8.dp))
         Button(
           onClick = onDelete,
           colors = ButtonDefaults.buttonColors(
@@ -782,8 +835,10 @@ fun StagedDeletedCard(
   item: DeletedItem,
   onUndo: () -> Unit
 ) {
+  val context = LocalContext.current
   Card(
     modifier = Modifier.fillMaxWidth(),
+    shape = MaterialTheme.shapes.medium,
     colors = CardDefaults.cardColors(
       containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
     )
@@ -809,7 +864,7 @@ fun StagedDeletedCard(
       Box(
         modifier = Modifier
           .fillMaxWidth()
-          .clip(RoundedCornerShape(8.dp))
+          .clip(MaterialTheme.shapes.small)
           .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
           .padding(horizontal = 10.dp, vertical = 8.dp)
       ) {
@@ -824,6 +879,15 @@ fun StagedDeletedCard(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.End
       ) {
+        OutlinedButton(
+          onClick = { copyTextToClipboard(context, item.key, item.targetValue) },
+          enabled = item.targetValue.isNotBlank()
+        ) {
+          Icon(Icons.Default.ContentCopy, contentDescription = null, modifier = Modifier.size(16.dp))
+          Spacer(Modifier.width(4.dp))
+          Text(stringResource(R.string.common_copy), style = MaterialTheme.typography.labelMedium)
+        }
+        Spacer(Modifier.width(8.dp))
         Button(
           onClick = onUndo,
           colors = ButtonDefaults.buttonColors(
@@ -852,16 +916,37 @@ fun DiffTranslationCard(
   onSave: (String) -> Unit,
   onRevertToDict: () -> Unit
 ) {
+  val context = LocalContext.current
   var currentText by remember(entry.key, entry.targetValue) { mutableStateOf(entry.targetValue) }
+  var lastCommittedText by remember(entry.key, entry.targetValue) { mutableStateOf(entry.targetValue) }
+  var isFocused by remember { mutableStateOf(false) }
+  val latestText = rememberUpdatedState(currentText)
+  val latestCommittedText = rememberUpdatedState(lastCommittedText)
+  val latestSave = rememberUpdatedState(onSave)
   val mergedHighlights = remember(highlightKeywords, searchHighlightQuery) {
     buildSet {
       addAll(highlightKeywords)
       if (searchHighlightQuery.isNotBlank()) add(searchHighlightQuery)
     }
   }
+  val commitCurrentText = {
+    if (currentText != lastCommittedText) {
+      onSave(currentText)
+      lastCommittedText = currentText
+    }
+  }
+
+  DisposableEffect(entry.key) {
+    onDispose {
+      if (latestText.value != latestCommittedText.value) {
+        latestSave.value(latestText.value)
+      }
+    }
+  }
 
   Card(
     modifier = Modifier.fillMaxWidth(),
+    shape = MaterialTheme.shapes.medium,
     colors = CardDefaults.cardColors(
       containerColor = if (isCurrentSearchResult) {
         MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.55f)
@@ -900,7 +985,7 @@ fun DiffTranslationCard(
         Box(
           modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(8.dp))
+            .clip(MaterialTheme.shapes.small)
             .background(MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.3f))
             .padding(horizontal = 10.dp, vertical = 8.dp)
         ) {
@@ -921,7 +1006,7 @@ fun DiffTranslationCard(
       Box(
         modifier = Modifier
           .fillMaxWidth()
-          .clip(RoundedCornerShape(8.dp))
+          .clip(MaterialTheme.shapes.small)
           .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
           .padding(horizontal = 10.dp, vertical = 8.dp)
       ) {
@@ -938,7 +1023,7 @@ fun DiffTranslationCard(
         Box(
           modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(8.dp))
+            .clip(MaterialTheme.shapes.small)
             .background(MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.5f))
             .padding(horizontal = 10.dp, vertical = 8.dp)
         ) {
@@ -953,12 +1038,17 @@ fun DiffTranslationCard(
       // Current translation input
       OutlinedTextField(
         value = currentText,
-        onValueChange = { currentText = it },
+        onValueChange = {
+          currentText = it
+        },
         modifier = Modifier
           .fillMaxWidth()
           .onFocusChanged { focusState ->
-            if (!focusState.isFocused && currentText != entry.targetValue) {
-              onSave(currentText)
+            if (focusState.isFocused && !isFocused) {
+              isFocused = true
+            } else if (!focusState.isFocused && isFocused) {
+              isFocused = false
+              commitCurrentText()
             }
           },
         label = { Text(stringResource(R.string.diff_current_value)) },
@@ -968,12 +1058,20 @@ fun DiffTranslationCard(
         )
       )
 
-      // Revert to dictionary button
-      if (entry.dictValue != null) {
-        Row(
-          modifier = Modifier.fillMaxWidth(),
-          horizontalArrangement = Arrangement.End
+      Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.End
+      ) {
+        OutlinedButton(
+          onClick = { copyTextToClipboard(context, entry.key, currentText) },
+          enabled = currentText.isNotBlank()
         ) {
+          Icon(Icons.Default.ContentCopy, contentDescription = null, modifier = Modifier.size(16.dp))
+          Spacer(Modifier.width(4.dp))
+          Text(stringResource(R.string.common_copy), style = MaterialTheme.typography.labelMedium)
+        }
+        if (entry.dictValue != null) {
+          Spacer(Modifier.width(8.dp))
           Button(
             onClick = {
               currentText = entry.dictValue
@@ -998,7 +1096,7 @@ private fun BadgeLabel(text: String, color: Color, background: Color) {
     style = MaterialTheme.typography.labelSmall,
     color = color,
     modifier = Modifier
-      .clip(RoundedCornerShape(4.dp))
+      .clip(MaterialTheme.shapes.extraSmall)
       .background(background)
       .padding(horizontal = 6.dp, vertical = 2.dp)
   )
