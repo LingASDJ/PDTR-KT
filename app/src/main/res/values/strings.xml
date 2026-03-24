@@ -214,6 +214,26 @@
     <string name="dict_delete_last_blocked">Keep at least one dictionary</string>
     <string name="dict_name_exists">A dictionary with this name already exists</string>
     <string name="dict_name_invalid">Dictionary name cannot be empty</string>
+    <string name="dict_preview">Preview</string>
+    <string name="dict_import">Import Dict</string>
+    <string name="dict_export_current">Export Current</string>
+    <string name="dict_export_all">Export All</string>
+    <string name="dict_export_current_done">Current dictionary exported</string>
+    <string name="dict_export_all_done">All dictionaries exported</string>
+    <string name="dict_export_fail">Dictionary export failed</string>
+    <string name="dict_import_done">Imported %1$d dictionaries</string>
+    <string name="dict_import_fail">Dictionary import failed</string>
+    <string name="dict_import_invalid">Invalid dictionary file or package</string>
+    <string name="dict_import_conflict_title">Import Conflict</string>
+    <string name="dict_import_conflict_message">This import contains %2$d conflicting dictionary names across %1$d incoming dictionaries. The recommended action is to import renamed copies.</string>
+    <string name="dict_import_rename_all">Rename All Conflicts</string>
+    <string name="dict_import_cancel">Cancel Import</string>
+    <string name="dict_import_conflict_more">...and %1$d more</string>
+    <string name="dict_preview_title">Dictionary Preview</string>
+    <string name="dict_preview_search_label">Search Dictionary</string>
+    <string name="dict_preview_empty">No dictionary entries found</string>
+    <string name="dict_preview_source_label">SRC</string>
+    <string name="dict_preview_translation_label">TGT</string>
 
     <!-- Deleted Entries -->
     <string name="deleted_badge">Deleted</string>

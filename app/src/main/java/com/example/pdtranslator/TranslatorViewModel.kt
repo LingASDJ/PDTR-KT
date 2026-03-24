@@ -75,6 +75,13 @@ data class LanguageGroup(
   val languages: Map<String, LanguageData>
 )
 
+data class PendingDictionaryImport(
+  val fileName: String,
+  val bytes: ByteArray,
+  val importedCount: Int,
+  val conflictNames: List<String>
+)
+
 enum class FilterState { ALL, UNTRANSLATED, TRANSLATED, MODIFIED, MISSING, DIFF, DELETED }
 
 enum class ThemeColor {
@@ -155,6 +162,10 @@ class TranslatorViewModel(application: Application) : AndroidViewModel(applicati
   val selectedDictionaryName = MutableStateFlow("")
   val dictionaryCount = MutableStateFlow(0)
   val canDeleteDictionary = MutableStateFlow(false)
+  val isDictionaryPreviewVisible = MutableStateFlow(false)
+  val dictionaryPreviewQuery = MutableStateFlow("")
+  val dictionaryPreviewEntries = MutableStateFlow<List<DictionaryPreviewItem>>(emptyList())
+  val pendingDictionaryImport = MutableStateFlow<PendingDictionaryImport?>(null)
 
   // --- Created Languages (for export even without staged changes) ---
   private val _createdLanguages = MutableStateFlow<Set<String>>(emptySet())
@@ -804,6 +815,114 @@ class TranslatorViewModel(application: Application) : AndroidViewModel(applicati
     }
   }
 
+  fun showDictionaryPreview() {
+    dictionaryPreviewQuery.value = ""
+    dictionaryPreviewEntries.value = dictionaryManager.getPreviewEntries("")
+    isDictionaryPreviewVisible.value = true
+  }
+
+  fun hideDictionaryPreview() {
+    isDictionaryPreviewVisible.value = false
+    dictionaryPreviewQuery.value = ""
+  }
+
+  fun setDictionaryPreviewQuery(query: String) {
+    dictionaryPreviewQuery.value = query
+    dictionaryPreviewEntries.value = dictionaryManager.getPreviewEntries(query)
+  }
+
+  fun currentDictionaryExportFileName(): String = dictionaryManager.currentDictionaryExportFileName()
+
+  fun allDictionariesExportFileName(): String = dictionaryManager.allDictionariesExportFileName()
+
+  fun exportCurrentDictionary(resolver: ContentResolver, uri: Uri) {
+    viewModelScope.launch(Dispatchers.IO) {
+      try {
+        val outputStream = resolver.openOutputStream(uri)
+        if (outputStream == null) {
+          _uiEvents.send(UiEvent.ShowSnackbar(app.getString(R.string.export_fail_no_stream)))
+          return@launch
+        }
+        outputStream.use { stream ->
+          stream.write(dictionaryManager.exportSelectedDictionary())
+        }
+        _uiEvents.send(UiEvent.ShowSnackbar(app.getString(R.string.dict_export_current_done)))
+      } catch (_: Exception) {
+        _uiEvents.send(UiEvent.ShowSnackbar(app.getString(R.string.dict_export_fail)))
+      }
+    }
+  }
+
+  fun exportAllDictionaries(resolver: ContentResolver, uri: Uri) {
+    viewModelScope.launch(Dispatchers.IO) {
+      try {
+        val outputStream = resolver.openOutputStream(uri)
+        if (outputStream == null) {
+          _uiEvents.send(UiEvent.ShowSnackbar(app.getString(R.string.export_fail_no_stream)))
+          return@launch
+        }
+        outputStream.use { stream ->
+          stream.write(dictionaryManager.exportAllDictionaries())
+        }
+        _uiEvents.send(UiEvent.ShowSnackbar(app.getString(R.string.dict_export_all_done)))
+      } catch (_: Exception) {
+        _uiEvents.send(UiEvent.ShowSnackbar(app.getString(R.string.dict_export_fail)))
+      }
+    }
+  }
+
+  fun importDictionaryFromUri(resolver: ContentResolver, uri: Uri) {
+    viewModelScope.launch(Dispatchers.IO) {
+      pendingDictionaryImport.value = null
+      val fileName = getFileName(resolver, uri) ?: "dictionary.pddict.json"
+      try {
+        val inputStream = resolver.openInputStream(uri)
+        if (inputStream == null) {
+          _uiEvents.send(UiEvent.ShowSnackbar(app.getString(R.string.dict_import_fail)))
+          return@launch
+        }
+        val bytes = inputStream.use { it.readBytes() }
+        val preview = dictionaryManager.previewImportDictionaryPayload(fileName, bytes)
+        if (preview.conflictNames.isNotEmpty()) {
+          pendingDictionaryImport.value = PendingDictionaryImport(
+            fileName = fileName,
+            bytes = bytes,
+            importedCount = preview.importedCount,
+            conflictNames = preview.conflictNames
+          )
+          return@launch
+        }
+        applyDictionaryImport(fileName, bytes)
+      } catch (e: IllegalArgumentException) {
+        val messageId = if (e.message == "missing_index" || e.message == "invalid_index" || e.message == "missing_dictionaries" || e.message == "invalid_dictionary") {
+          R.string.dict_import_invalid
+        } else {
+          R.string.dict_import_fail
+        }
+        _uiEvents.send(UiEvent.ShowSnackbar(app.getString(messageId)))
+      } catch (_: Exception) {
+        _uiEvents.send(UiEvent.ShowSnackbar(app.getString(R.string.dict_import_fail)))
+      }
+    }
+  }
+
+  fun confirmRenameAllDictionaryConflicts() {
+    val pending = pendingDictionaryImport.value ?: return
+    viewModelScope.launch(Dispatchers.IO) {
+      try {
+        applyDictionaryImport(pending.fileName, pending.bytes)
+      } catch (_: Exception) {
+        _uiEvents.send(UiEvent.ShowSnackbar(app.getString(R.string.dict_import_fail)))
+      } finally {
+        pendingDictionaryImport.value = null
+      }
+    }
+  }
+
+  fun cancelPendingDictionaryImport() {
+    pendingDictionaryImport.value = null
+  }
+
   // --- Custom Language Creation ---
 
   // A4: Language code validation + normalization
@@ -1446,6 +1565,16 @@ class TranslatorViewModel(application: Application) : AndroidViewModel(applicati
     dictionaryCount.value = dictionaryManager.getDictionaryCount()
     canDeleteDictionary.value = dictionaryManager.canDeleteSelectedDictionary()
     _dictEntryCount.value = dictionaryManager.getTotalCount()
+    dictionaryPreviewEntries.value = dictionaryManager.getPreviewEntries(dictionaryPreviewQuery.value)
+  }
+
+  private suspend fun applyDictionaryImport(fileName: String, bytes: ByteArray) {
+    val result = dictionaryManager.importDictionaryPayload(fileName, bytes)
+    pendingDictionaryImport.value = null
+    dictionaryManager.save()
+    refreshDictionaryState()
+    regenerateEntries()
+    _uiEvents.send(UiEvent.ShowSnackbar(app.getString(R.string.dict_import_done, result.importedCount)))
   }
 
   private fun setCurrentSearchResultIndex(index: Int) {

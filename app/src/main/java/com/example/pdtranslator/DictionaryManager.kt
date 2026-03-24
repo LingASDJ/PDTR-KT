@@ -6,10 +6,12 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.util.Locale
 
 class DictionaryManager(private val context: Context) {
 
-  private val file: File get() = File(context.filesDir, "dictionary.json")
+  private val legacyFile: File get() = File(context.filesDir, "dictionary.json")
+  private val repositoryDir: File get() = File(context.filesDir, "dictionaries")
   private val saveMutex = Mutex()
   private val storeState = DictionaryStoreState(DictionaryStore.empty(defaultDictionaryName()))
 
@@ -117,6 +119,44 @@ class DictionaryManager(private val context: Context) {
 
   fun getTotalCount(): Int = snapshotStore().selectedDictionary.entryCount
 
+  fun getPreviewEntries(query: String): List<DictionaryPreviewItem> {
+    return DictionaryPreviewFilter.filter(snapshotStore().selectedDictionary, query)
+  }
+
+  fun exportSelectedDictionary(): ByteArray {
+    return repository().exportSelected(snapshotStore()).toByteArray(Charsets.UTF_8)
+  }
+
+  fun exportAllDictionaries(): ByteArray {
+    return repository().exportAll(snapshotStore())
+  }
+
+  fun currentDictionaryExportFileName(): String {
+    return "${fileSlug(snapshotStore().selectedDictionary.name)}.pddict.json"
+  }
+
+  fun allDictionariesExportFileName(): String {
+    return "dictionaries-${System.currentTimeMillis()}.zip"
+  }
+
+  fun importDictionaryPayload(fileName: String, bytes: ByteArray): DictionaryImportResult {
+    val result = if (fileName.lowercase(Locale.ROOT).endsWith(".zip")) {
+      repository().importArchive(snapshotStore(), bytes)
+    } else {
+      repository().importSingle(snapshotStore(), bytes.toString(Charsets.UTF_8))
+    }
+    storeState.replace(result.store.normalized(defaultDictionaryName()))
+    return result
+  }
+
+  fun previewImportDictionaryPayload(fileName: String, bytes: ByteArray): DictionaryImportPreview {
+    return if (fileName.lowercase(Locale.ROOT).endsWith(".zip")) {
+      repository().previewArchiveImport(snapshotStore(), bytes)
+    } else {
+      repository().previewSingleImport(snapshotStore(), bytes.toString(Charsets.UTF_8))
+    }
+  }
+
   fun importFromProperties(
     sourceProps: java.util.Properties,
     targetProps: java.util.Properties,
@@ -161,21 +201,16 @@ class DictionaryManager(private val context: Context) {
     saveMutex.withLock {
       val snapshot = snapshotStore()
       withContext(Dispatchers.IO) {
-        val json = DictionaryStoreSerializer.toJson(snapshot)
-        writeTextAtomically(file, json)
+        repository().save(snapshot)
       }
     }
   }
 
   suspend fun load() {
     val loadedStore = withContext(Dispatchers.IO) {
-      if (file.exists()) {
-        try {
-          DictionaryStoreSerializer.fromJson(file.readText(Charsets.UTF_8), defaultDictionaryName())
-        } catch (_: Exception) {
-          DictionaryStore.empty(defaultDictionaryName())
-        }
-      } else {
+      try {
+        repository().load(legacyFile = legacyFile)
+      } catch (_: Exception) {
         DictionaryStore.empty(defaultDictionaryName())
       }
     }
@@ -191,5 +226,18 @@ class DictionaryManager(private val context: Context) {
 
   private fun defaultDictionaryName(): String {
     return runCatching { context.getString(R.string.dict_default_name) }.getOrDefault(DictionaryStore.DEFAULT_NAME)
+  }
+
+  private fun repository(): DictionaryRepository {
+    return DictionaryRepository(repositoryDir, defaultDictionaryName())
+  }
+
+  private fun fileSlug(name: String): String {
+    val base = name
+      .trim()
+      .lowercase(Locale.ROOT)
+      .replace(Regex("[^a-z0-9]+"), "-")
+      .trim('-')
+    return if (base.isBlank()) "dictionary" else base
   }
 }

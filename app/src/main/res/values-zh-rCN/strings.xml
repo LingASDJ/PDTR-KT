@@ -224,6 +224,26 @@
     <string name="dict_delete_last_blocked">至少保留一个字典</string>
     <string name="dict_name_exists">已存在同名字典</string>
     <string name="dict_name_invalid">字典名称不能为空</string>
+    <string name="dict_preview">预览</string>
+    <string name="dict_import">导入字典</string>
+    <string name="dict_export_current">导出当前</string>
+    <string name="dict_export_all">导出全部</string>
+    <string name="dict_export_current_done">当前字典已导出</string>
+    <string name="dict_export_all_done">全部字典已导出</string>
+    <string name="dict_export_fail">字典导出失败</string>
+    <string name="dict_import_done">已导入 %1$d 个字典</string>
+    <string name="dict_import_fail">字典导入失败</string>
+    <string name="dict_import_invalid">字典文件或字典包无效</string>
+    <string name="dict_import_conflict_title">导入冲突</string>
+    <string name="dict_import_conflict_message">本次导入共包含 %1$d 个字典，其中有 %2$d 个字典名称与本地重复。建议将所有冲突字典自动重命名后继续导入。</string>
+    <string name="dict_import_rename_all">重命名全部冲突</string>
+    <string name="dict_import_cancel">取消导入</string>
+    <string name="dict_import_conflict_more">以及另外 %1$d 个</string>
+    <string name="dict_preview_title">字典预览</string>
+    <string name="dict_preview_search_label">搜索字典内容</string>
+    <string name="dict_preview_empty">没有找到字典条目</string>
+    <string name="dict_preview_source_label">源</string>
+    <string name="dict_preview_translation_label">译</string>
 
     <!-- Deleted Entries -->
     <string name="deleted_badge">已删除</string>
