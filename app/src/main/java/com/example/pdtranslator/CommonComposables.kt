@@ -30,6 +30,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -51,6 +52,8 @@ fun FilterButtons(selectedFilter: FilterState, onFilterSelected: (FilterState) -
         FilterState.TRANSLATED -> R.string.filter_translated
         FilterState.MODIFIED -> R.string.filter_modified
         FilterState.MISSING -> R.string.filter_missing
+        FilterState.DIFF -> R.string.filter_diff
+        FilterState.DELETED -> R.string.filter_deleted
       }
       val isSelected = state == selectedFilter
       FilterChip(
@@ -70,14 +73,23 @@ fun FilterButtons(selectedFilter: FilterState, onFilterSelected: (FilterState) -
 fun LanguageGroupSelector(
   groupNames: List<String>,
   selectedGroupName: String?,
-  onGroupSelected: (String) -> Unit
+  onGroupSelected: (String) -> Unit,
+  includeAll: Boolean = true
 ) {
   var expanded by remember { mutableStateOf(false) }
+  val options = remember(groupNames, includeAll) {
+    if (includeAll) AggregateLanguageGroup.groupOptions(groupNames) else groupNames
+  }
+  val selectedLabel = when (selectedGroupName) {
+    null -> stringResource(id = R.string.common_select_language_group)
+    AggregateLanguageGroup.ALL_GROUP_NAME -> stringResource(id = R.string.common_all_groups)
+    else -> selectedGroupName
+  }
 
   ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = !expanded }) {
     OutlinedTextField(
       readOnly = true,
-      value = selectedGroupName ?: stringResource(id = R.string.common_select_language_group),
+      value = selectedLabel,
       onValueChange = {},
       label = { Text(stringResource(id = R.string.common_language_group)) },
       trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
@@ -87,8 +99,19 @@ fun LanguageGroupSelector(
       colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors()
     )
     ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-      groupNames.forEach { name ->
-        DropdownMenuItem(text = { Text(name) }, onClick = { onGroupSelected(name); expanded = false })
+      options.forEach { name ->
+        DropdownMenuItem(
+          text = {
+            Text(
+              if (name == AggregateLanguageGroup.ALL_GROUP_NAME) {
+                stringResource(id = R.string.common_all_groups)
+              } else {
+                name
+              }
+            )
+          },
+          onClick = { onGroupSelected(name); expanded = false }
+        )
       }
     }
   }
@@ -106,10 +129,10 @@ fun LanguageSelectors(
 ) {
   Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
     Box(modifier = Modifier.weight(1f)) {
-      LanguageSelector(availableLanguages, sourceLangCode, stringResource(id = R.string.config_source_language), onSourceSelected, getDisplayName)
+      LanguageSelector(availableLanguages.filter { it != targetLangCode }, sourceLangCode, stringResource(id = R.string.config_source_language), onSourceSelected, getDisplayName)
     }
     Box(modifier = Modifier.weight(1f)) {
-      LanguageSelector(availableLanguages, targetLangCode, stringResource(id = R.string.config_target_language), onTargetSelected, getDisplayName)
+      LanguageSelector(availableLanguages.filter { it != sourceLangCode }, targetLangCode, stringResource(id = R.string.config_target_language), onTargetSelected, getDisplayName)
     }
   }
 }
@@ -155,6 +178,73 @@ fun LanguageSelector(
             }
           },
           onClick = { onLanguageSelected(lang); expanded = false }
+        )
+      }
+    }
+  }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun FilterableLanguageCodeField(
+  value: String,
+  onValueChange: (String) -> Unit,
+  label: String,
+  placeholder: String,
+  options: List<LanguageCodeOption>,
+  modifier: Modifier = Modifier,
+  enabled: Boolean = true
+) {
+  var expanded by remember { mutableStateOf(false) }
+  val focusManager = LocalFocusManager.current
+  val filteredOptions = remember(value, options) {
+    LanguageCodeCatalog.filter(options, value).take(12)
+  }
+
+  ExposedDropdownMenuBox(
+    expanded = expanded && filteredOptions.isNotEmpty(),
+    onExpandedChange = { expanded = !expanded }
+  ) {
+    OutlinedTextField(
+      value = value,
+      onValueChange = {
+        onValueChange(it)
+        expanded = true
+      },
+      label = { Text(label) },
+      placeholder = { Text(placeholder) },
+      trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded && filteredOptions.isNotEmpty()) },
+      modifier = modifier
+        .fillMaxWidth()
+        .menuAnchor(),
+      colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
+      singleLine = true,
+      enabled = enabled
+    )
+    ExposedDropdownMenu(
+      expanded = expanded && filteredOptions.isNotEmpty(),
+      onDismissRequest = { expanded = false }
+    ) {
+      filteredOptions.forEach { option ->
+        DropdownMenuItem(
+          text = {
+            Row(
+              verticalAlignment = Alignment.CenterVertically,
+              horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+              Text(option.code)
+              Text(
+                text = option.displayName,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+              )
+            }
+          },
+          onClick = {
+            onValueChange(option.code)
+            expanded = false
+            focusManager.clearFocus()
+          }
         )
       }
     }

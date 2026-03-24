@@ -25,8 +25,7 @@
     <string name="translator_search_placeholder">搜索（键或原文）</string>
     <string name="translator_complete_missing">补全缺失字段</string>
     <string name="translator_progress">翻译进度</string>
-    <string name="translator_progress_info">语言组总条目: %1$d</string>
-    <string name="translator_translation_progress">翻译进度: %1$d%%</string>
+    <string name="translator_translation_progress">%1$s%% (%2$d 条)</string>
     <string name="translator_identical_warning">（源文和译文相同）</string>
 
     <!-- Common Composables -->
@@ -65,6 +64,8 @@
     <string name="theme_name_m3">Material 3</string>
     <string name="theme_name_green">绿色</string>
     <string name="theme_name_lavender">薰衣草紫</string>
+    <string name="theme_name_modern">现代</string>
+    <string name="theme_name_pixel_dungeon">像素地牢</string>
 
     <!-- About Dialog -->
     <string name="about_us_dialog_title">关于我们</string>
@@ -140,6 +141,7 @@
     <string name="import_overwrite_count">覆盖 %1$d 个语言文件</string>
     <string name="import_ignore_count">%1$d 个忽略</string>
     <string name="import_fail_count">%1$d 个失败</string>
+    <string name="import_empty">未找到 .properties 文件</string>
 
     <!-- Draft -->
     <string name="draft_found_title">发现草稿</string>
@@ -163,9 +165,19 @@
     <string name="replace_label">替换</string>
     <string name="search_case_sensitive">区分大小写</string>
     <string name="search_exact_match">完全匹配</string>
+    <string name="search_find_btn">查找</string>
+    <string name="search_prev_btn">上一条</string>
+    <string name="search_next_btn">下一条</string>
+    <string name="search_replace_current_btn">替换当前</string>
+    <string name="search_replace_btn">全部替换</string>
+    <string name="search_result_status">第 %1$d / %2$d 个结果</string>
+    <string name="search_replace_current_done">已替换当前 %1$d 条</string>
+    <string name="search_replace_done">已替换 %1$d 条</string>
 
     <!-- Export -->
     <string name="export_success">导出成功</string>
+    <string name="export_fail_no_stream">导出失败：无法打开输出文件</string>
+    <string name="export_fail_write">导出失败：写入 ZIP 文件时出错</string>
     <string name="export_tm_recorded">TM 已录入 %1$d 条</string>
 
     <!-- Empty States -->
@@ -181,6 +193,138 @@
     <string name="fill_missing_done">已补全 %1$d 个缺失字段，视图已切换至"未翻译"。</string>
     <string name="fill_missing_already_staged">所有缺失字段已在暂存区，视图已切换至"未翻译"。</string>
 
+    <!-- Filter States (new) -->
+    <string name="filter_diff">差异</string>
+    <string name="filter_deleted">已删除</string>
+
+    <!-- Dictionary -->
+    <string name="dict_title">字典</string>
+    <string name="dict_subtitle">保存翻译内容，版本更新后可快速复用。</string>
+    <string name="dict_default_name">默认字典</string>
+    <string name="dict_select_label">当前字典</string>
+    <string name="dict_count">字典条目数: %1$d</string>
+    <string name="dict_count_short">%1$d 条</string>
+    <string name="dict_total">字典数量: %1$d</string>
+    <string name="dict_name_label">字典名称</string>
+    <string name="dict_create">新建字典</string>
+    <string name="dict_rename">重命名</string>
+    <string name="dict_delete">删除字典</string>
+    <string name="dict_save">保存到字典</string>
+    <string name="dict_apply">应用字典</string>
+    <string name="dict_clear">清空字典</string>
+    <string name="dict_save_done">已保存 %1$d 条到字典</string>
+    <string name="dict_apply_done">已从字典应用 %1$d 条翻译</string>
+    <string name="dict_apply_none">字典中没有找到匹配的条目</string>
+    <string name="dict_clear_done">字典已清空</string>
+    <string name="dict_create_done">已创建并切换到字典「%1$s」</string>
+    <string name="dict_rename_done">字典已重命名为「%1$s」</string>
+    <string name="dict_delete_done">字典已删除</string>
+    <string name="dict_delete_last_blocked">至少保留一个字典</string>
+    <string name="dict_name_exists">已存在同名字典</string>
+    <string name="dict_name_invalid">字典名称不能为空</string>
+    <string name="dict_preview">预览</string>
+    <string name="dict_import">导入字典</string>
+    <string name="dict_export_current">导出当前</string>
+    <string name="dict_export_all">导出全部</string>
+    <string name="dict_export_current_done">当前字典已导出</string>
+    <string name="dict_export_all_done">全部字典已导出</string>
+    <string name="dict_export_fail">字典导出失败</string>
+    <string name="dict_import_done">已导入 %1$d 个字典</string>
+    <string name="dict_import_fail">字典导入失败</string>
+    <string name="dict_import_invalid">字典文件或字典包无效</string>
+    <string name="dict_import_conflict_title">导入冲突</string>
+    <string name="dict_import_conflict_message">本次导入共包含 %1$d 个字典，其中有 %2$d 个字典名称与本地重复。建议将所有冲突字典自动重命名后继续导入。</string>
+    <string name="dict_import_rename_all">重命名全部冲突</string>
+    <string name="dict_import_cancel">取消导入</string>
+    <string name="dict_import_conflict_more">以及另外 %1$d 个</string>
+    <string name="dict_preview_title">字典预览</string>
+    <string name="dict_preview_search_label">搜索字典内容</string>
+    <string name="dict_preview_empty">没有找到字典条目</string>
+    <string name="dict_preview_source_label">源</string>
+    <string name="dict_preview_translation_label">译</string>
+
+    <!-- Deleted Entries -->
+    <string name="deleted_badge">已删除</string>
+    <string name="deleted_delete_all">一键删除 (%1$d)</string>
+    <string name="deleted_delete_single">删除</string>
+    <string name="deleted_all_done">已暂存 %1$d 条待删除</string>
+    <string name="deleted_empty">没有发现已删除的条目</string>
+    <string name="deleted_staged_badge">待删除</string>
+    <string name="deleted_undo">撤销</string>
+
+    <!-- Diff Entries -->
+    <string name="diff_badge">差异</string>
+    <string name="diff_old_source">旧原文（字典记录）：</string>
+    <string name="diff_new_source">新原文（当前版本）：</string>
+    <string name="diff_dict_value">字典翻译：</string>
+    <string name="diff_current_value">当前翻译</string>
+    <string name="diff_revert_to_dict">恢复为字典值</string>
+    <string name="diff_empty">与字典相比未检测到原文变更</string>
+
+    <!-- Create Language -->
+    <string name="create_lang_invalid">无效的语言代码：%1$s</string>
+    <string name="create_lang_title">创建语言</string>
+    <string name="create_lang_subtitle">为当前语言组创建新的目标语言文件。</string>
+    <string name="create_lang_code_label">语言代码</string>
+    <string name="create_lang_code_placeholder">zh-CN, fr, ja...</string>
+    <string name="create_lang_done">语言「%1$s」创建成功</string>
+    <string name="create_lang_exists">语言「%1$s」已存在</string>
+    <string name="create_lang_no_group">请先选择一个语言组</string>
+    <string name="create_lang_copy_from">从已有语言复制</string>
+    <string name="create_lang_copy_none">空白（不复制）</string>
+
+    <!-- Translation Engine -->
+    <string name="engine_not_configured">翻译引擎未配置</string>
+    <string name="engine_google_cloud">Google Cloud 翻译</string>
+    <string name="engine_deepl">DeepL API</string>
+    <string name="engine_deeplx">DeepLX（自建）</string>
+    <string name="engine_baidu">百度翻译</string>
+    <string name="engine_youdao_api">有道 API</string>
+    <string name="engine_microsoft">微软翻译</string>
+    <string name="engine_google_web">Google 翻译 Web（实验性）</string>
+    <string name="engine_youdao_web">有道 Web（实验性）</string>
+    <string name="engine_bing_web">必应翻译 Web（实验性）</string>
+    <string name="engine_baidu_web">百度翻译 Web（实验性）</string>
+    <string name="engine_experimental_tag">实验</string>
+    <string name="engine_select_title">翻译引擎</string>
+    <string name="engine_select_none">无</string>
+    <string name="engine_api_key_label">API 密钥</string>
+    <string name="engine_api_key_hint_baidu">AppID|SecretKey</string>
+    <string name="engine_api_key_hint_youdao">AppKey|AppSecret</string>
+    <string name="engine_api_key_hint_microsoft">密钥|区域（区域可选）</string>
+    <string name="engine_endpoint_label">端点 URL</string>
+    <string name="engine_endpoint_hint_deeplx">http://localhost:1188</string>
+    <string name="engine_deeplx_http_note">支持 HTTP/HTTPS</string>
+    <string name="engine_test_connection">测试连接</string>
+    <string name="engine_testing">测试中…</string>
+    <string name="engine_test_success">连接成功：%1$s</string>
+    <string name="engine_test_success_short">成功：</string>
+    <string name="engine_test_fail">连接失败：%1$s</string>
+    <string name="engine_test_fail_short">失败：</string>
+    <string name="engine_status_untested">未验证</string>
+    <string name="engine_status_verified">已验证</string>
+    <string name="engine_status_failed">失败</string>
+    <string name="engine_error_unknown">未知错误</string>
+    <string name="engine_error_network">网络不可用，请检查连接</string>
+    <string name="engine_error_timeout">连接超时</string>
+    <string name="engine_error_refused">连接被拒绝，请检查端点地址</string>
+    <string name="engine_error_server">服务器返回了非预期的响应</string>
+    <string name="engine_error_auth">认证失败，请检查 API 密钥</string>
+    <string name="engine_error_forbidden">访问被拒绝，请检查 API 密钥权限</string>
+    <string name="engine_error_no_key">请先填写 API 密钥</string>
+    <string name="engine_error_no_endpoint">请先填写端点 URL</string>
+    <string name="engine_translate_fail">翻译失败：%1$s</string>
+    <string name="engine_batch_done">批量翻译了 %1$d 条</string>
+    <string name="engine_translate_button">翻译</string>
+    <string name="engine_base_lang_override">引擎基准语言</string>
+    <string name="engine_base_lang_override_hint">留空则使用源语言</string>
+    <string name="engine_base_lang_override_placeholder">en, zh-CN...</string>
+
+    <!-- Pixel Dungeon Easter Egg -->
+    <string name="pd_dungeon_section">地牢状态</string>
+    <string name="pd_current_zone">当前区域：%1$s</string>
+    <string name="pd_depth">深度：第 %1$d 层</string>
+
     <!-- Language Display -->
     <string name="lang_base">基准</string>
 
@@ -190,5 +334,26 @@
 
     <!-- Changelog 0.1.9 -->
     <string name="changelog_version_0_1_9">v0.1.9</string>
+    <!-- Changelog 0.2.0 -->
+    <string name="changelog_version_0_2_0">v0.2.0</string>
+    <string name="changelog_content_0_2_0">【新功能】\n- 翻译引擎：支持 10 个引擎（5 个免 API 网页引擎 + 5 个官方 API 引擎）。\n- 新增百度网页翻译引擎（BaiduWebEngine）：使用 fanyi.baidu.com 网页接口，完整实现 token/gtk 签名算法，无需 API 密钥。\n- DeepLX 免配置：内置公共端点（api.deeplx.org），无需用户手动填写即可使用，自定义端点优先。\n- 翻译引擎排序优化：5 个免费网页引擎排在列表最前方，用户无需任何配置即可开始翻译。\n- 字典全局化：跨语言组查询翻译记录，优先当前组 → 旧格式 → 其他组全局搜索（最近时间戳优先），大幅提升字典复用率。\n- 翻译进度条：改为 LinearProgressIndicator + 百分比（精确到两位小数，如 56.78%），始终显示。\n- 搜索替换按钮：新增「查找」和「全部替换」按钮，支持区分大小写和完全匹配模式。\n- 搜索替换地牢主题适配：地牢主题下按钮带卷轴/魔杖像素图标 + 地牢配色。\n- 每条翻译条目支持一键调用当前引擎翻译，结果以芯片形式显示。\n- 支持按语言组单独指定引擎源语言代码（base_lang_override）。\n- 已删除视图支持撤销：已暂存的删除显示为灰色卡片，可一键撤回。\n\n【像素地牢主题】\n- 默认主题改为像素地牢主题，应用启动即进入地牢体验。\n- 24小时制色彩系统：从 6 个时段扩展为 24 个小时段，每小时一个独特地牢场景配色。\n- 颜色全部取自 MLPD 真实游戏数据（Window.java / CharSprite.java / FistSprite / Level sources 等）。\n- 包含：下水道、Goo、花园、监狱、天狗、洞穴、水晶洞窟、矮人城、矮人国王、恶魔大厅、魔眼层、蝎子巢穴、犹格索托斯、各拳魔、最终之厅等场景。\n- 增强砖墙细节：苔藓、血迹、水晶污渍等基于区域 color2 的随机纹理。\n- 24种独特火焰配色（地狱红/毒绿/灯笼黄/水晶蓝/魔法紫等）。\n- 底部魔法池光效根据章节变化（熔岩池/绿水池/烛光/水晶反射/MLPD青色魔法/血池）。\n- 导航图标 6 组变化覆盖 24 小时。\n- 真像素字体（fusion_pixel.ttf + pixel_font.ttf）。\n- 13 个像素矢量图标（16×16 逐像素定义）。\n- 地牢彩蛋：设置页底部显示当前区域名和深度。\n\n【优化】\n- 字典键新增语言组维度，多组字典不再互相覆盖。\n- Snackbar 事件全局可用，所有页面均可显示。\n- UI 优化：ElevatedCard 分区、统一图标标题栏、引擎配置对话框可滚动。\n- 搜索替换按钮布局优化：checkbox 与按钮分行，按钮等宽排列。\n- 导入按钮改用 FilledTonalButton，导出按钮收入独立卡片。\n\n【修复】\n- 修复旧语言代码识别：_in（印尼语）、_iw（希伯来语）、_ji（意第绪语）等旧 ISO-639 代码现在能正确归入语言组。\n- 导出失败保护：ZIP 写入异常不再静默清空暂存区。\n- 创建语言时自动校验语言代码并标准化，无效码（如 xxx）被拦截。\n- 草稿校验新增源文内容 SHA-256 摘要，检测更严格。\n- 无实际修改的暂存不再启用保存按钮或触发自动保存。\n- 修复 LinearProgressIndicator 参数类型错误。\n- 修复 normalizedCode 变量重名导致的编译错误。\n\n【工作区与字典】\n- 按组暂存：切换语言组时保留未保存的翻译编辑，不再自动丢弃。\n- 新增 all 聚合语言组：一次性对所有语言组执行字典保存/应用操作。\n- 字典预览可编辑：直接在预览对话框中修改原文和译文并保存。\n- 多作用域自动保存：崩溃恢复现在覆盖所有语言组的暂存数据，而非仅当前组。\n- 所有翻译卡片（普通/差异/已删除/暂存删除/预览）新增复制按钮。\n- 新增语言：输入框仅在创建成功后清空，验证失败时保留已输入内容。\n- 翻译卡片和徽标统一使用主题形状，像素地牢主题的切角风格全面生效。</string>
+
     <string name="changelog_content_0_1_9">- 新增批量导入多个 .properties 文件。\n- 新增自动保存草稿系统，支持 SHA-256 校验恢复。\n- 新增翻译记忆（TM）系统，支持模糊匹配建议。\n- 优化语言选择器：通过 Locale API 显示本地化语言名称。\n- 支持混合文件命名格式（下划线/连字符/脚本标签）。\n- 筛选按钮升级为 Material 3 FilterChip。\n- 翻页控件改为紧凑图标按钮。\n- 翻译页新增空状态引导提示。\n- 所有硬编码文案迁移至字符串资源，完善国际化支持。\n- 导出完成后新增 Snackbar 成功反馈。</string>
+    <string name="lib_gson_name">Gson</string>
+    <string name="lib_gson_desc">用于 JSON 序列化与反序列化的 Java 库。</string>
+    <string name="lib_kotlinx_serialization_name">kotlinx.serialization</string>
+    <string name="lib_kotlinx_serialization_desc">用于 JSON 解析的 Kotlin 多平台序列化库。</string>
+    <string name="lib_kotlinx_coroutines_name">kotlinx.coroutines</string>
+    <string name="lib_kotlinx_coroutines_desc">为 Kotlin 提供协程、Flow 与结构化并发支持。</string>
+    <string name="lib_material3_name">Material 3</string>
+    <string name="lib_material3_desc">Compose 对 Material Design 3 的组件与主题实现。</string>
+    <string name="engine_error_youdao_web_unsupported">有道 Web 当前不支持这个语言对。请尝试将源语言改为自动识别，或切换其他引擎。</string>
+    <string name="translator_all_group_readonly">all 语言组仅用于聚合字典操作。请切换到具体语言组后再编辑翻译。</string>
+    <string name="common_all_groups">全部</string>
+    <string name="common_copy">复制</string>
+    <string name="common_copied">已复制</string>
+    <string name="common_edit">编辑</string>
+    <string name="common_save">保存</string>
+    <string name="common_cancel">取消</string>
+    <string name="dict_preview_save_done">字典条目已更新</string>
 </resources>

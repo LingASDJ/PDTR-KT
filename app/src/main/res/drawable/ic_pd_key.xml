@@ -1,0 +1,8 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp" android:height="24dp"
+    android:viewportWidth="16" android:viewportHeight="16">
+    <!-- Pixel golden key — language/swap -->
+    <path android:fillColor="#FFFF44" android:pathData="M10,3h2v2h-2zM12,4h1v1h-1zM9,4h1v1h-1zM10,5h2v1h-2zM9,5h1v1h-1zM8,6h1v1h-1zM7,7h1v1h-1zM6,8h1v1h-1zM5,9h1v1h-1zM4,10h1v1h-1zM3,11h1v2h-1z"/>
+    <path android:fillColor="#B2942E" android:pathData="M3,13h1v1h-1zM4,12h2v1h-2zM4,11h1v1h-1z"/>
+    <path android:fillColor="#FFFF88" android:pathData="M10,3h1v1h-1zM11,4h1v1h-1z"/>
+</vector>

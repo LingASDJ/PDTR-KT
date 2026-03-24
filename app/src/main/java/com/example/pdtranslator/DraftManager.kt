@@ -15,7 +15,11 @@ data class DraftData(
   val highlightKeywords: Set<String>,
   val entryCount: Int,
   val keysDigest: String,
-  val timestamp: Long
+  val timestamp: Long,
+  val stagedDeletions: Set<String>? = null,
+  val createdLanguages: Map<String, Map<String, String>>? = null,
+  val contentDigest: String? = null,
+  val workspaceSnapshot: DraftWorkspaceSnapshot? = null
 )
 
 enum class DraftValidation {
@@ -32,9 +36,7 @@ class DraftManager(private val context: Context) {
   suspend fun save(draft: DraftData) {
     withContext(Dispatchers.IO) {
       val json = gson.toJson(draft)
-      val tmpFile = File(context.filesDir, "draft.json.tmp")
-      tmpFile.writeText(json, Charsets.UTF_8)
-      tmpFile.renameTo(file)
+      writeTextAtomically(file, json)
     }
   }
 
@@ -67,7 +69,22 @@ class DraftManager(private val context: Context) {
       return md.digest().joinToString("") { "%02x".format(it) }
     }
 
-    fun validate(draft: DraftData, currentEntryCount: Int, currentKeysDigest: String): DraftValidation {
+    fun computeContentDigest(entries: List<Pair<String, String>>): String {
+      val md = MessageDigest.getInstance("SHA-256")
+      entries.sortedBy { it.first }.forEach { (key, sourceValue) ->
+        md.update(key.toByteArray(Charsets.UTF_8))
+        md.update(0)  // separator
+        md.update(sourceValue.toByteArray(Charsets.UTF_8))
+      }
+      return md.digest().joinToString("") { "%02x".format(it) }
+    }
+
+    fun validate(draft: DraftData, currentEntryCount: Int, currentKeysDigest: String, currentContentDigest: String): DraftValidation {
+      if (draft.contentDigest != null) {
+        // New draft: use contentDigest (stricter, includes source text)
+        return if (draft.contentDigest == currentContentDigest) DraftValidation.MATCH else DraftValidation.MISMATCH
+      }
+      // Old draft: fallback to keys-only check (original behavior)
       return if (draft.entryCount == currentEntryCount && draft.keysDigest == currentKeysDigest) {
         DraftValidation.MATCH
       } else {

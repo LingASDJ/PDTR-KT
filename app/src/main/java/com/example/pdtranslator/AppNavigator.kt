@@ -1,9 +1,7 @@
 package com.example.pdtranslator
 
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Modifier
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
@@ -17,24 +15,22 @@ object AppDestinations {
 @Composable
 fun AppNavigator(
     viewModel: TranslatorViewModel,
-    paddingValues: PaddingValues,
-    onLanguageSelected: (String) -> Unit,
-    onShowSnackbar: suspend (String) -> Unit
+    snackbarHostState: SnackbarHostState,
+    onLanguageSelected: (String) -> Unit
 ) {
     val navController = rememberNavController()
 
     NavHost(
-        navController = navController, 
-        startDestination = AppDestinations.MAIN_SCREEN,
-        modifier = Modifier.padding(paddingValues)
+        navController = navController,
+        startDestination = AppDestinations.MAIN_SCREEN
     ) {
         composable(AppDestinations.MAIN_SCREEN) {
              MainScreen(
                 viewModel = viewModel,
+                snackbarHostState = snackbarHostState,
                 onNavigateToDependencies = { navController.navigate(AppDestinations.DEPENDENCY_SCREEN) },
                 onNavigateToChangelog = { navController.navigate(AppDestinations.CHANGELOG_SCREEN) },
-                onLanguageSelected = onLanguageSelected,
-                onShowSnackbar = onShowSnackbar
+                onLanguageSelected = onLanguageSelected
             )
         }
         composable(AppDestinations.DEPENDENCY_SCREEN) {

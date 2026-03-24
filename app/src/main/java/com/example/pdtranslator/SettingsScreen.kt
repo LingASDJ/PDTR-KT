@@ -1,33 +1,51 @@
 package com.example.pdtranslator
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Palette
+import androidx.compose.material.icons.filled.Translate
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.window.Dialog
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
+import com.example.pdtranslator.engine.EngineConfig
+import com.example.pdtranslator.ui.theme.currentZoneName
+import com.example.pdtranslator.ui.theme.rememberTimeTick
 
 @Composable
 fun SettingsScreen(
@@ -40,6 +58,7 @@ fun SettingsScreen(
     val selectedTheme by viewModel.themeColor.collectAsState()
     var showLanguageDialog by remember { mutableStateOf(false) }
     var showThemeColorDialog by remember { mutableStateOf(false) }
+    var showEngineDialog by remember { mutableStateOf(false) }
 
     if (showAboutDialog) {
         AboutDialog(onDismiss = { viewModel.setShowAboutDialog(false) })
@@ -57,18 +76,45 @@ fun SettingsScreen(
             }
         )
     }
+    if (showEngineDialog) {
+        TranslationEngineDialog(
+            viewModel = viewModel,
+            onDismiss = { showEngineDialog = false }
+        )
+    }
+
+    val isPD = selectedTheme == ThemeColor.PIXEL_DUNGEON
 
     LazyColumn(modifier = Modifier.padding(16.dp)) {
         item { SectionTitle(stringResource(R.string.settings_section_general)) }
-        item { LanguageSetting { showLanguageDialog = true } }
-        item { ThemeColorSetting { showThemeColorDialog = true } }
+        item { LanguageSetting(isPD) { showLanguageDialog = true } }
+        item { ThemeColorSetting(isPD) { showThemeColorDialog = true } }
+        item { TranslationEngineSetting(isPD) { showEngineDialog = true } }
 
         item { Spacer(modifier = Modifier.padding(vertical = 8.dp)) }
 
         item { SectionTitle(stringResource(R.string.settings_section_about)) }
-        item { LibraryInfoSetting(onClick = onNavigateToDependencies) }
-        item { ChangelogSetting(onClick = onNavigateToChangelog) }
-        item { AboutUsSetting { viewModel.setShowAboutDialog(true) } }
+        item { LibraryInfoSetting(isPD, onClick = onNavigateToDependencies) }
+        item { ChangelogSetting(isPD, onClick = onNavigateToChangelog) }
+        item { AboutUsSetting(isPD) { viewModel.setShowAboutDialog(true) } }
+
+        // PD easter egg: dungeon depth info
+        if (isPD) {
+            item { Spacer(modifier = Modifier.padding(vertical = 8.dp)) }
+            item { SectionTitle(stringResource(R.string.pd_dungeon_section)) }
+            item {
+                val tick = rememberTimeTick()
+                val zoneName = currentZoneName()
+                val hour = tick / 60
+                val depth = (hour + 1).coerceIn(1, 26)
+                SettingItemPd(
+                    iconRes = R.drawable.ic_pd_map,
+                    title = stringResource(R.string.pd_current_zone, zoneName),
+                    subtitle = stringResource(R.string.pd_depth, depth),
+                    onClick = {}
+                )
+            }
+        }
     }
 }
 
@@ -92,6 +138,23 @@ fun SettingItem(icon: ImageVector, title: String, subtitle: String, onClick: () 
         verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(icon, contentDescription = title, modifier = Modifier.padding(end = 16.dp))
+        Column {
+            Text(title, style = MaterialTheme.typography.bodyLarge)
+            Text(subtitle, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
+}
+
+@Composable
+fun SettingItemPd(iconRes: Int, title: String, subtitle: String, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(vertical = 16.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(painterResource(iconRes), contentDescription = title, modifier = Modifier.padding(end = 16.dp).size(24.dp), tint = MaterialTheme.colorScheme.primary)
         Column {
             Text(title, style = MaterialTheme.typography.bodyLarge)
             Text(subtitle, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -134,6 +197,8 @@ fun ThemeColorSelectorDialog(
                             ThemeColor.M3 -> stringResource(id = R.string.theme_name_m3)
                             ThemeColor.GREEN -> stringResource(id = R.string.theme_name_green)
                             ThemeColor.LAVENDER -> stringResource(id = R.string.theme_name_lavender)
+                            ThemeColor.MODERN -> stringResource(id = R.string.theme_name_modern)
+                            ThemeColor.PIXEL_DUNGEON -> stringResource(id = R.string.theme_name_pixel_dungeon)
                         })
                     }
                 }
@@ -148,43 +213,253 @@ fun ThemeColorSelectorDialog(
 }
 
 @Composable
-fun LanguageSetting(onClick: () -> Unit) {
-    SettingItem(
-        icon = Icons.Default.Language,
-        title = stringResource(R.string.settings_item_language),
-        subtitle = stringResource(R.string.settings_item_language_subtitle),
-        onClick = onClick
-    )
+fun LanguageSetting(isPD: Boolean = false, onClick: () -> Unit) {
+    if (isPD) SettingItemPd(R.drawable.ic_pd_ring, stringResource(R.string.settings_item_language), stringResource(R.string.settings_item_language_subtitle), onClick)
+    else SettingItem(Icons.Default.Language, stringResource(R.string.settings_item_language), stringResource(R.string.settings_item_language_subtitle), onClick)
 }
 
 @Composable
-fun ThemeColorSetting(onClick: () -> Unit) {
-    SettingItem(
-        Icons.Default.Palette,
-        stringResource(R.string.settings_item_theme_color),
-        stringResource(R.string.settings_item_theme_color_subtitle),
-        onClick = onClick
-    )
+fun ThemeColorSetting(isPD: Boolean = false, onClick: () -> Unit) {
+    if (isPD) SettingItemPd(R.drawable.ic_pd_armor, stringResource(R.string.settings_item_theme_color), stringResource(R.string.settings_item_theme_color_subtitle), onClick)
+    else SettingItem(Icons.Default.Palette, stringResource(R.string.settings_item_theme_color), stringResource(R.string.settings_item_theme_color_subtitle), onClick)
 }
 
 @Composable
-fun LibraryInfoSetting(onClick: () -> Unit) {
-    SettingItem(Icons.Default.Info, stringResource(R.string.settings_item_source_code_license), stringResource(R.string.settings_item_source_code_license_subtitle), onClick = onClick)
+fun TranslationEngineSetting(isPD: Boolean = false, onClick: () -> Unit) {
+    if (isPD) SettingItemPd(R.drawable.ic_pd_wand, stringResource(R.string.settings_item_translation_engine), stringResource(R.string.settings_item_translation_engine_subtitle), onClick)
+    else SettingItem(Icons.Default.Translate, stringResource(R.string.settings_item_translation_engine), stringResource(R.string.settings_item_translation_engine_subtitle), onClick)
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun TranslationEngineDialog(
+    viewModel: TranslatorViewModel,
+    onDismiss: () -> Unit
+) {
+    val engineManager = viewModel.engineManager
+    val engines = engineManager.availableEngines
+    var selectedId by remember { mutableStateOf(engineManager.getSelectedEngineId()) }
+    var apiKey by remember(selectedId) { mutableStateOf(engineManager.getApiKey(selectedId)) }
+    var endpoint by remember(selectedId) { mutableStateOf(engineManager.getEndpoint(selectedId)) }
+    var showApiKey by remember(selectedId) { mutableStateOf(false) }
+    var testResult by remember { mutableStateOf<String?>(null) }
+    var isTesting by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+
+    val selectedConfig = engines.find { it.id == selectedId }
+
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape = MaterialTheme.shapes.extraLarge,
+            tonalElevation = 6.dp,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 24.dp)
+        ) {
+            Column(modifier = Modifier.padding(24.dp)) {
+                // Title
+                Text(
+                    stringResource(R.string.engine_select_title),
+                    style = MaterialTheme.typography.headlineSmall
+                )
+                Spacer(Modifier.height(16.dp))
+
+                // Scrollable content
+                Column(
+                    modifier = Modifier
+                        .weight(1f, fill = false)
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    // Engine selection
+                    engines.forEach { engine ->
+                        Row(
+                            Modifier
+                                .fillMaxWidth()
+                                .selectable(
+                                    selected = (engine.id == selectedId),
+                                    onClick = {
+                                        selectedId = engine.id
+                                        engineManager.setSelectedEngine(engine.id)
+                                        apiKey = engineManager.getApiKey(engine.id)
+                                        endpoint = engineManager.getEndpoint(engine.id)
+                                        testResult = null
+                                    },
+                                    role = Role.RadioButton
+                                )
+                                .padding(vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(selected = (engine.id == selectedId), onClick = null)
+                            Spacer(Modifier.width(8.dp))
+                            Text(stringResource(engine.nameResId), style = MaterialTheme.typography.bodyMedium)
+                        }
+                    }
+
+                    // None option
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .selectable(
+                                selected = selectedId.isBlank(),
+                                onClick = {
+                                    selectedId = ""
+                                    engineManager.setSelectedEngine("")
+                                    testResult = null
+                                },
+                                role = Role.RadioButton
+                            )
+                            .padding(vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        RadioButton(selected = selectedId.isBlank(), onClick = null)
+                        Spacer(Modifier.width(8.dp))
+                        Text(stringResource(R.string.engine_select_none), style = MaterialTheme.typography.bodyMedium)
+                    }
+
+                    // Config fields for selected engine
+                    if (selectedConfig != null) {
+                        Spacer(Modifier.height(4.dp))
+                        Divider()
+                        Spacer(Modifier.height(8.dp))
+
+                        if (selectedConfig.requiresApiKey) {
+                            val hint = when (selectedConfig.id) {
+                                "baidu" -> stringResource(R.string.engine_api_key_hint_baidu)
+                                "youdao_api" -> stringResource(R.string.engine_api_key_hint_youdao)
+                                "microsoft" -> stringResource(R.string.engine_api_key_hint_microsoft)
+                                else -> ""
+                            }
+                            OutlinedTextField(
+                                value = apiKey,
+                                onValueChange = {
+                                    apiKey = it
+                                    engineManager.setApiKey(selectedId, it)
+                                    testResult = null
+                                },
+                                label = { Text(stringResource(R.string.engine_api_key_label)) },
+                                placeholder = if (hint.isNotBlank()) {{ Text(hint) }} else null,
+                                visualTransformation = if (showApiKey) VisualTransformation.None else PasswordVisualTransformation(),
+                                trailingIcon = {
+                                    IconButton(onClick = { showApiKey = !showApiKey }) {
+                                        Icon(
+                                            imageVector = if (showApiKey) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                            contentDescription = null
+                                        )
+                                    }
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                                singleLine = true
+                            )
+                            Spacer(Modifier.height(8.dp))
+                        }
+
+                        if (selectedConfig.requiresEndpoint) {
+                            OutlinedTextField(
+                                value = endpoint,
+                                onValueChange = {
+                                    endpoint = it
+                                    engineManager.setEndpoint(selectedId, it)
+                                    testResult = null
+                                },
+                                label = { Text(stringResource(R.string.engine_endpoint_label)) },
+                                placeholder = { Text(stringResource(R.string.engine_endpoint_hint_deeplx)) },
+                                modifier = Modifier.fillMaxWidth(),
+                                singleLine = true
+                            )
+                            if (selectedConfig.id == "deeplx") {
+                                Spacer(Modifier.height(4.dp))
+                                Text(
+                                    text = stringResource(R.string.engine_deeplx_http_note),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Spacer(Modifier.height(8.dp))
+                        }
+
+                        // Test connection button + inline result
+                        val testSuccessText = stringResource(R.string.engine_test_success_short)
+                        val testFailText = stringResource(R.string.engine_test_fail_short)
+                        val testingText = stringResource(R.string.engine_testing)
+                        OutlinedButton(
+                            onClick = {
+                                isTesting = true
+                                testResult = null
+                                scope.launch {
+                                    val result = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                                        engineManager.testConnection()
+                                    }
+                                    isTesting = false
+                                    testResult = if (result.isSuccess) {
+                                        "$testSuccessText ${result.getOrThrow()}"
+                                    } else {
+                                        "$testFailText ${engineManager.getFriendlyError(selectedId, result.exceptionOrNull())}"
+                                    }
+                                }
+                            },
+                            enabled = !isTesting,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            if (isTesting) {
+                                CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                                Spacer(Modifier.width(8.dp))
+                                Text(testingText)
+                            } else {
+                                Text(stringResource(R.string.engine_test_connection))
+                            }
+                        }
+
+                        // Show result inline
+                        if (testResult != null) {
+                            Spacer(Modifier.height(8.dp))
+                            val isSuccess = testResult!!.startsWith(testSuccessText)
+                            Text(
+                                text = testResult!!,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = if (isSuccess) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(
+                                        if (isSuccess) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
+                                        else MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.3f)
+                                    )
+                                    .padding(8.dp)
+                            )
+                        }
+
+                    }
+                }
+
+                // Close button
+                Spacer(Modifier.height(16.dp))
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                    Button(onClick = onDismiss) {
+                        Text(stringResource(R.string.dialog_close_button))
+                    }
+                }
+            }
+        }
+    }
 }
 
 @Composable
-fun ChangelogSetting(onClick: () -> Unit) {
-    SettingItem(
-        icon = Icons.Default.Info,
-        title = stringResource(R.string.settings_item_changelog),
-        subtitle = stringResource(R.string.settings_item_changelog_subtitle),
-        onClick = onClick
-    )
+fun LibraryInfoSetting(isPD: Boolean = false, onClick: () -> Unit) {
+    if (isPD) SettingItemPd(R.drawable.ic_pd_scroll, stringResource(R.string.settings_item_source_code_license), stringResource(R.string.settings_item_source_code_license_subtitle), onClick)
+    else SettingItem(Icons.Default.Info, stringResource(R.string.settings_item_source_code_license), stringResource(R.string.settings_item_source_code_license_subtitle), onClick)
 }
 
 @Composable
-fun AboutUsSetting(onClick: () -> Unit) {
-    SettingItem(Icons.Default.Info, stringResource(R.string.settings_item_about_us), stringResource(R.string.settings_item_about_us_subtitle), onClick = onClick)
+fun ChangelogSetting(isPD: Boolean = false, onClick: () -> Unit) {
+    if (isPD) SettingItemPd(R.drawable.ic_pd_map, stringResource(R.string.settings_item_changelog), stringResource(R.string.settings_item_changelog_subtitle), onClick)
+    else SettingItem(Icons.Default.Info, stringResource(R.string.settings_item_changelog), stringResource(R.string.settings_item_changelog_subtitle), onClick)
+}
+
+@Composable
+fun AboutUsSetting(isPD: Boolean = false, onClick: () -> Unit) {
+    if (isPD) SettingItemPd(R.drawable.ic_pd_skull, stringResource(R.string.settings_item_about_us), stringResource(R.string.settings_item_about_us_subtitle), onClick)
+    else SettingItem(Icons.Default.Info, stringResource(R.string.settings_item_about_us), stringResource(R.string.settings_item_about_us_subtitle), onClick)
 }
 
 @Composable

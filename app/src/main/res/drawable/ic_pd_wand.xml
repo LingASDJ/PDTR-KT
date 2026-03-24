@@ -1,0 +1,9 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp" android:height="24dp"
+    android:viewportWidth="16" android:viewportHeight="16">
+    <!-- Pixel magic wand — create language -->
+    <path android:fillColor="#8B6914" android:pathData="M4,10h1v1h-1zM5,9h1v1h-1zM6,8h1v1h-1zM7,7h1v1h-1zM8,6h1v1h-1zM9,5h1v1h-1z"/>
+    <path android:fillColor="#00FFFF" android:pathData="M10,3h2v2h-2zM11,2h1v1h-1zM12,3h1v1h-1zM9,4h1v1h-1zM11,5h1v1h-1z"/>
+    <path android:fillColor="#55AAFF" android:pathData="M10,2h1v1h-1zM12,4h1v1h-1z"/>
+    <path android:fillColor="#3D2E18" android:pathData="M3,11h1v1h-1zM2,12h2v1h-2z"/>
+</vector>

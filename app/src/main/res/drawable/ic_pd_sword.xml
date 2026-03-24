@@ -1,0 +1,22 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="16"
+    android:viewportHeight="16">
+    <!-- Pixel art sword — 16x16 grid -->
+    <!-- Blade -->
+    <path android:fillColor="#E0D4B8"
+        android:pathData="M13,1h1v1h-1zM12,2h1v1h-1zM11,3h1v1h-1zM10,4h1v1h-1zM9,5h1v1h-1zM8,6h1v1h-1zM7,7h1v1h-1z"/>
+    <!-- Blade edge highlight -->
+    <path android:fillColor="#FFFFFF"
+        android:pathData="M14,0h1v1h-1zM13,1h0.5v0.5h-0.5z"/>
+    <!-- Guard -->
+    <path android:fillColor="#FFFF44"
+        android:pathData="M5,8h1v1h-1zM6,8h1v1h-1zM7,8h1v1h-1zM6,7h1v1h-1zM6,9h1v1h-1z"/>
+    <!-- Handle -->
+    <path android:fillColor="#8B4513"
+        android:pathData="M5,9h1v1h-1zM4,10h1v1h-1zM3,11h1v1h-1z"/>
+    <!-- Pommel -->
+    <path android:fillColor="#FF8800"
+        android:pathData="M2,12h1v1h-1zM2,11h1v1h-1z"/>
+</vector>
