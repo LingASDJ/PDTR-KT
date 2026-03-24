@@ -123,6 +123,17 @@ class DictionaryManager(private val context: Context) {
     return DictionaryPreviewFilter.filter(snapshotStore().selectedDictionary, query)
   }
 
+  fun updatePreviewEntry(rawKey: String, sourceText: String, translation: String) {
+    storeState.update { store ->
+      store.updateEntry(
+        entryKey = rawKey,
+        sourceText = sourceText,
+        translation = translation,
+        dictionaryId = store.selectedDictionaryId
+      ).normalized(defaultDictionaryName())
+    }
+  }
+
   fun exportSelectedDictionary(): ByteArray {
     return repository().exportSelected(snapshotStore()).toByteArray(Charsets.UTF_8)
   }

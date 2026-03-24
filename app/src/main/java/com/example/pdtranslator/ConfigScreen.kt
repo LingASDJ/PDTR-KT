@@ -27,6 +27,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Book
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.FolderZip
@@ -60,6 +61,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -136,6 +138,7 @@ fun ConfigScreen(viewModel: TranslatorViewModel) {
   val dictionaryPreviewQuery by viewModel.dictionaryPreviewQuery.collectAsState()
   val dictionaryPreviewEntries by viewModel.dictionaryPreviewEntries.collectAsState()
   val pendingDictionaryImport by viewModel.pendingDictionaryImport.collectAsState()
+  val createLanguageSuccessSerial by viewModel.createLanguageSuccessSerial.collectAsState()
   val selectedEngineId = viewModel.engineManager.getSelectedEngineId()
   val currentLocales = context.resources.configuration.locales
   val currentLocaleTag = if (currentLocales.isEmpty) Locale.getDefault().toLanguageTag() else currentLocales[0].toLanguageTag()
@@ -245,7 +248,7 @@ fun ConfigScreen(viewModel: TranslatorViewModel) {
     }
 
     // ── Base Language Override (only when engine is configured) ──
-    if (selectedGroupName != null && selectedEngineId.isNotBlank()) {
+    if (selectedGroupName != null && !AggregateLanguageGroup.isAllGroup(selectedGroupName) && selectedEngineId.isNotBlank()) {
       BaseLangOverrideCard(
         groupName = selectedGroupName!!,
         viewModel = viewModel,
@@ -304,11 +307,12 @@ fun ConfigScreen(viewModel: TranslatorViewModel) {
 
     // ── Create Language ──
     CreateLanguageCard(
-      hasGroupSelected = selectedGroupName != null,
+      hasGroupSelected = selectedGroupName != null && !AggregateLanguageGroup.isAllGroup(selectedGroupName),
       availableLanguages = availableLanguages,
       languageCodeOptions = languageCodeOptions,
       getDisplayName = { code -> viewModel.getLanguageDisplayName(code, context) },
       onCreateLanguage = { langCode, copyFrom -> viewModel.createLanguage(langCode, copyFrom) },
+      createSuccessSerial = createLanguageSuccessSerial,
       isPD = isPD
     )
 
@@ -325,6 +329,7 @@ fun ConfigScreen(viewModel: TranslatorViewModel) {
       query = dictionaryPreviewQuery,
       entries = dictionaryPreviewEntries,
       onQueryChange = viewModel::setDictionaryPreviewQuery,
+      onSaveEntry = viewModel::updateDictionaryPreviewEntry,
       onDismiss = viewModel::hideDictionaryPreview,
       isPD = isPD
     )
@@ -503,7 +508,7 @@ private fun DictionaryCard(
       Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         Box(
           modifier = Modifier
-            .clip(RoundedCornerShape(6.dp))
+            .clip(MaterialTheme.shapes.extraSmall)
             .background(MaterialTheme.colorScheme.surfaceVariant)
             .padding(horizontal = 10.dp, vertical = 4.dp)
         ) {
@@ -515,7 +520,7 @@ private fun DictionaryCard(
         }
         Box(
           modifier = Modifier
-            .clip(RoundedCornerShape(6.dp))
+            .clip(MaterialTheme.shapes.extraSmall)
             .background(MaterialTheme.colorScheme.surfaceVariant)
             .padding(horizontal = 10.dp, vertical = 4.dp)
         ) {
@@ -622,6 +627,7 @@ private fun DictionaryPreviewDialog(
   query: String,
   entries: List<DictionaryPreviewItem>,
   onQueryChange: (String) -> Unit,
+  onSaveEntry: (String, String, String) -> Unit,
   onDismiss: () -> Unit,
   isPD: Boolean = false
 ) {
@@ -714,7 +720,12 @@ private fun DictionaryPreviewDialog(
             verticalArrangement = Arrangement.spacedBy(8.dp)
           ) {
             items(entries, key = { it.rawKey }) { entry ->
-              DictionaryPreviewEntry(entry, formatter, isPD)
+              DictionaryPreviewEntry(
+                entry = entry,
+                formatter = formatter,
+                isPD = isPD,
+                onSaveEntry = onSaveEntry
+              )
             }
           }
         }
@@ -727,8 +738,14 @@ private fun DictionaryPreviewDialog(
 private fun DictionaryPreviewEntry(
   entry: DictionaryPreviewItem,
   formatter: DateFormat,
-  isPD: Boolean
+  isPD: Boolean,
+  onSaveEntry: (String, String, String) -> Unit
 ) {
+  val context = LocalContext.current
+  var isEditing by remember(entry.rawKey) { mutableStateOf(false) }
+  var editedSource by remember(entry.rawKey, entry.sourceText) { mutableStateOf(entry.sourceText.orEmpty()) }
+  var editedTranslation by remember(entry.rawKey, entry.translation) { mutableStateOf(entry.translation) }
+
   Card(
     modifier = Modifier.fillMaxWidth(),
     shape = MaterialTheme.shapes.medium,
@@ -771,39 +788,99 @@ private fun DictionaryPreviewEntry(
         )
       }
 
-      // Source text
-      if (!entry.sourceText.isNullOrBlank()) {
+      if (isEditing) {
+        OutlinedTextField(
+          value = editedSource,
+          onValueChange = { editedSource = it },
+          label = { Text(stringResource(R.string.dict_preview_source_label)) },
+          modifier = Modifier.fillMaxWidth(),
+          minLines = 2
+        )
+        OutlinedTextField(
+          value = editedTranslation,
+          onValueChange = { editedTranslation = it },
+          label = { Text(stringResource(R.string.dict_preview_translation_label)) },
+          modifier = Modifier.fillMaxWidth(),
+          minLines = 2
+        )
+        Row(
+          modifier = Modifier.fillMaxWidth(),
+          horizontalArrangement = Arrangement.End
+        ) {
+          OutlinedButton(onClick = { copyTextToClipboard(context, entry.propKey, editedTranslation) }, enabled = editedTranslation.isNotBlank()) {
+            Icon(Icons.Default.ContentCopy, contentDescription = null, modifier = Modifier.size(16.dp))
+            Spacer(Modifier.width(4.dp))
+            Text(stringResource(R.string.common_copy))
+          }
+          Spacer(Modifier.width(8.dp))
+          OutlinedButton(onClick = {
+            editedSource = entry.sourceText.orEmpty()
+            editedTranslation = entry.translation
+            isEditing = false
+          }) {
+            Text(stringResource(R.string.common_cancel))
+          }
+          Spacer(Modifier.width(8.dp))
+          Button(
+            onClick = {
+              onSaveEntry(entry.rawKey, editedSource, editedTranslation)
+              isEditing = false
+            },
+            enabled = editedTranslation.isNotBlank()
+          ) {
+            Text(stringResource(R.string.common_save))
+          }
+        }
+      } else {
+        // Source text
+        if (!entry.sourceText.isNullOrBlank()) {
+          Row(verticalAlignment = Alignment.Top) {
+            PreviewBadge(
+              text = stringResource(R.string.dict_preview_source_label),
+              containerColor = if (isPD) MaterialTheme.colorScheme.primaryContainer
+                               else MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+              contentColor = if (isPD) MaterialTheme.colorScheme.onPrimaryContainer
+                             else MaterialTheme.colorScheme.primary
+            )
+            Spacer(Modifier.width(6.dp))
+            Text(
+              text = entry.sourceText,
+              style = MaterialTheme.typography.bodySmall,
+              color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+          }
+        }
+
+        // Translation
         Row(verticalAlignment = Alignment.Top) {
           PreviewBadge(
-            text = stringResource(R.string.dict_preview_source_label),
-            containerColor = if (isPD) MaterialTheme.colorScheme.primaryContainer
-                             else MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
-            contentColor = if (isPD) MaterialTheme.colorScheme.onPrimaryContainer
-                           else MaterialTheme.colorScheme.primary
+            text = stringResource(R.string.dict_preview_translation_label),
+            containerColor = if (isPD) MaterialTheme.colorScheme.secondaryContainer
+                             else MaterialTheme.colorScheme.tertiary.copy(alpha = 0.12f),
+            contentColor = if (isPD) MaterialTheme.colorScheme.onSecondaryContainer
+                           else MaterialTheme.colorScheme.tertiary
           )
           Spacer(Modifier.width(6.dp))
           Text(
-            text = entry.sourceText,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            text = entry.translation,
+            style = MaterialTheme.typography.bodyMedium
           )
         }
-      }
 
-      // Translation
-      Row(verticalAlignment = Alignment.Top) {
-        PreviewBadge(
-          text = stringResource(R.string.dict_preview_translation_label),
-          containerColor = if (isPD) MaterialTheme.colorScheme.secondaryContainer
-                           else MaterialTheme.colorScheme.tertiary.copy(alpha = 0.12f),
-          contentColor = if (isPD) MaterialTheme.colorScheme.onSecondaryContainer
-                         else MaterialTheme.colorScheme.tertiary
-        )
-        Spacer(Modifier.width(6.dp))
-        Text(
-          text = entry.translation,
-          style = MaterialTheme.typography.bodyMedium
-        )
+        Row(
+          modifier = Modifier.fillMaxWidth(),
+          horizontalArrangement = Arrangement.End
+        ) {
+          OutlinedButton(onClick = { copyTextToClipboard(context, entry.propKey, entry.translation) }) {
+            Icon(Icons.Default.ContentCopy, contentDescription = null, modifier = Modifier.size(16.dp))
+            Spacer(Modifier.width(4.dp))
+            Text(stringResource(R.string.common_copy))
+          }
+          Spacer(Modifier.width(8.dp))
+          Button(onClick = { isEditing = true }) {
+            Text(stringResource(R.string.common_edit))
+          }
+        }
       }
 
       // Timestamp
@@ -894,11 +971,20 @@ private fun CreateLanguageCard(
   languageCodeOptions: List<LanguageCodeOption>,
   getDisplayName: (String) -> String,
   onCreateLanguage: (String, String?) -> Unit,
+  createSuccessSerial: Long,
   isPD: Boolean = false
 ) {
   var langCode by remember { mutableStateOf("") }
   var copyFromLang by remember { mutableStateOf<String?>(null) }
   var copyDropdownExpanded by remember { mutableStateOf(false) }
+
+  LaunchedEffect(createSuccessSerial) {
+    if (createSuccessSerial > 0) {
+      langCode = ""
+      copyFromLang = null
+      copyDropdownExpanded = false
+    }
+  }
 
   ElevatedCard(modifier = Modifier.fillMaxWidth()) {
     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -924,8 +1010,6 @@ private fun CreateLanguageCard(
         Button(
           onClick = {
             onCreateLanguage(langCode, copyFromLang)
-            langCode = ""
-            copyFromLang = null
           },
           enabled = hasGroupSelected && langCode.isNotBlank()
         ) {

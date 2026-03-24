@@ -73,14 +73,23 @@ fun FilterButtons(selectedFilter: FilterState, onFilterSelected: (FilterState) -
 fun LanguageGroupSelector(
   groupNames: List<String>,
   selectedGroupName: String?,
-  onGroupSelected: (String) -> Unit
+  onGroupSelected: (String) -> Unit,
+  includeAll: Boolean = true
 ) {
   var expanded by remember { mutableStateOf(false) }
+  val options = remember(groupNames, includeAll) {
+    if (includeAll) AggregateLanguageGroup.groupOptions(groupNames) else groupNames
+  }
+  val selectedLabel = when (selectedGroupName) {
+    null -> stringResource(id = R.string.common_select_language_group)
+    AggregateLanguageGroup.ALL_GROUP_NAME -> stringResource(id = R.string.common_all_groups)
+    else -> selectedGroupName
+  }
 
   ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = !expanded }) {
     OutlinedTextField(
       readOnly = true,
-      value = selectedGroupName ?: stringResource(id = R.string.common_select_language_group),
+      value = selectedLabel,
       onValueChange = {},
       label = { Text(stringResource(id = R.string.common_language_group)) },
       trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
@@ -90,8 +99,19 @@ fun LanguageGroupSelector(
       colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors()
     )
     ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-      groupNames.forEach { name ->
-        DropdownMenuItem(text = { Text(name) }, onClick = { onGroupSelected(name); expanded = false })
+      options.forEach { name ->
+        DropdownMenuItem(
+          text = {
+            Text(
+              if (name == AggregateLanguageGroup.ALL_GROUP_NAME) {
+                stringResource(id = R.string.common_all_groups)
+              } else {
+                name
+              }
+            )
+          },
+          onClick = { onGroupSelected(name); expanded = false }
+        )
       }
     }
   }
