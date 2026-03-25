@@ -72,6 +72,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.google.accompanist.flowlayout.FlowRow
 import java.util.Locale
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 // ─────────────── Shared card section header ───────────────
 
@@ -127,6 +130,7 @@ fun ConfigScreen(viewModel: TranslatorViewModel, onNavigateToDictionaryPreview: 
   val canDeleteDictionary by viewModel.canDeleteDictionary.collectAsState()
   val pendingDictionaryImport by viewModel.pendingDictionaryImport.collectAsState()
   val createLanguageSuccessSerial by viewModel.createLanguageSuccessSerial.collectAsState()
+  val calibrationCount by viewModel.calibrationCount.collectAsState()
   val selectedEngineId = viewModel.engineManager.getSelectedEngineId()
   val currentLocales = context.resources.configuration.locales
   val currentLocaleTag = if (currentLocales.isEmpty) Locale.getDefault().toLanguageTag() else currentLocales[0].toLanguageTag()
@@ -163,6 +167,35 @@ fun ConfigScreen(viewModel: TranslatorViewModel, onNavigateToDictionaryPreview: 
     contract = ActivityResultContracts.CreateDocument("application/zip"),
     onResult = { uri: Uri? -> uri?.let { viewModel.exportAllDictionaries(contentResolver, it) } }
   )
+
+  val importCalibrationLauncher = rememberLauncherForActivityResult(
+    ActivityResultContracts.OpenDocument()
+  ) { uri ->
+    uri ?: return@rememberLauncherForActivityResult
+    val resolver = context.contentResolver
+    viewModel.viewModelScope.launch(Dispatchers.IO) {
+      try {
+        resolver.openInputStream(uri)?.use { stream ->
+          val json = stream.bufferedReader().readText()
+          viewModel.importCalibrations(json)
+        }
+      } catch (_: Exception) { }
+    }
+  }
+
+  val exportCalibrationLauncher = rememberLauncherForActivityResult(
+    ActivityResultContracts.CreateDocument("application/json")
+  ) { uri ->
+    uri ?: return@rememberLauncherForActivityResult
+    val resolver = context.contentResolver
+    viewModel.viewModelScope.launch(Dispatchers.IO) {
+      try {
+        resolver.openOutputStream(uri)?.use { stream ->
+          stream.write(viewModel.exportCalibrations())
+        }
+      } catch (_: Exception) { }
+    }
+  }
 
   Column(
     modifier = Modifier
@@ -293,6 +326,15 @@ fun ConfigScreen(viewModel: TranslatorViewModel, onNavigateToDictionaryPreview: 
       isPD = isPD
     )
 
+    // ── Source Calibration ──
+    CalibrationCard(
+      calibrationCount = calibrationCount,
+      onImport = { importCalibrationLauncher.launch(arrayOf("application/json")) },
+      onExport = { exportCalibrationLauncher.launch("calibrations.json") },
+      onClear = { viewModel.clearCalibrations() },
+      isPD = isPD
+    )
+
     // ── Create Language ──
     CreateLanguageCard(
       hasGroupSelected = selectedGroupName != null && !AggregateLanguageGroup.isAllGroup(selectedGroupName),
@@ -393,6 +435,50 @@ private fun DraftRecoveryCard(
           OutlinedButton(onClick = onDiscard) { Text(stringResource(R.string.draft_discard)) }
           Spacer(Modifier.width(8.dp))
           Button(onClick = onRestore) { Text(stringResource(R.string.draft_restore)) }
+        }
+      }
+    }
+  }
+}
+
+// ─────────────── Calibration Card ───────────────
+
+@Composable
+private fun CalibrationCard(
+  calibrationCount: Int,
+  onImport: () -> Unit,
+  onExport: () -> Unit,
+  onClear: () -> Unit,
+  isPD: Boolean
+) {
+  Card(
+    modifier = Modifier.fillMaxWidth(),
+    shape = MaterialTheme.shapes.large,
+    colors = CardDefaults.cardColors(
+      containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+    )
+  ) {
+    Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+      Text(
+        text = stringResource(R.string.calibration_card_title),
+        style = MaterialTheme.typography.titleMedium,
+        fontWeight = FontWeight.SemiBold,
+        color = if (isPD) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+      )
+      Text(
+        text = stringResource(R.string.calibration_card_count, calibrationCount),
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant
+      )
+      Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        OutlinedButton(onClick = onImport) {
+          Text(stringResource(R.string.calibration_import))
+        }
+        OutlinedButton(onClick = onExport, enabled = calibrationCount > 0) {
+          Text(stringResource(R.string.calibration_export))
+        }
+        OutlinedButton(onClick = onClear, enabled = calibrationCount > 0) {
+          Text(stringResource(R.string.calibration_clear))
         }
       }
     }
