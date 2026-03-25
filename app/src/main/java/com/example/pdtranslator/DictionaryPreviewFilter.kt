@@ -9,7 +9,8 @@ data class DictionaryPreviewItem(
   val langPair: String?,
   val sourceText: String?,
   val translation: String,
-  val timestamp: Long
+  val timestamp: Long,
+  val reviewed: Boolean
 )
 
 object DictionaryPreviewFilter {
@@ -30,7 +31,8 @@ object DictionaryPreviewFilter {
           langPair = langPair,
           sourceText = entry.sourceText,
           translation = entry.translation,
-          timestamp = entry.timestamp
+          timestamp = entry.timestamp,
+          reviewed = entry.reviewed
         )
       }
       .sortedBy { it.propKey }

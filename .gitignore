@@ -117,3 +117,4 @@ coverage/
 /.gradle-local
 /.android-local
 /docs
+/.android-home

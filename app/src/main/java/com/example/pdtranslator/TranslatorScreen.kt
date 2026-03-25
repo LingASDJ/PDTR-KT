@@ -23,6 +23,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DeleteSweep
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.KeyboardArrowDown
@@ -283,7 +284,8 @@ fun TranslatorScreen(viewModel: TranslatorViewModel) {
                 onSave = { newText -> viewModel.stageChange(entry.key, newText) },
                 onRevertToDict = {
                   entry.dictValue?.let { viewModel.stageChange(entry.key, it) }
-                }
+                },
+                onCalibrate = { key, original, calibrated -> viewModel.calibrateSource(key, original, calibrated) }
               )
             }
           }
@@ -317,7 +319,8 @@ fun TranslatorScreen(viewModel: TranslatorViewModel) {
               onApplyTm = { targetText -> viewModel.applyTmSuggestion(entry.key, targetText) },
               onTranslate = { viewModel.translateEntry(entry.key, entry.sourceValue) },
               onApplyNetwork = { text -> viewModel.applyNetworkSuggestion(entry.key, text) },
-              hasEngine = viewModel.engineManager.getSelectedEngineId().isNotBlank()
+              hasEngine = viewModel.engineManager.getSelectedEngineId().isNotBlank(),
+              onCalibrate = { key, original, calibrated -> viewModel.calibrateSource(key, original, calibrated) }
             )
           }
         }
@@ -518,11 +521,14 @@ fun NewTranslationCard(
   onApplyTm: (String) -> Unit,
   onTranslate: () -> Unit = {},
   onApplyNetwork: (String) -> Unit = {},
-  hasEngine: Boolean = false
+  hasEngine: Boolean = false,
+  onCalibrate: (String, String, String) -> Unit = { _, _, _ -> }
 ) {
   var currentText by remember(entry.key, entry.targetValue) { mutableStateOf(entry.targetValue) }
   var lastCommittedText by remember(entry.key, entry.targetValue) { mutableStateOf(entry.targetValue) }
   var isFocused by remember { mutableStateOf(false) }
+  var isCalibrating by remember(entry.key) { mutableStateOf(false) }
+  var calibratingText by remember(entry.key, entry.sourceValue) { mutableStateOf(entry.sourceValue) }
   val latestText = rememberUpdatedState(currentText)
   val latestCommittedText = rememberUpdatedState(lastCommittedText)
   val latestSave = rememberUpdatedState(onSave)
@@ -598,15 +604,71 @@ fun NewTranslationCard(
         }
       }
 
-      // Source text in a subtle container
-      Box(
-        modifier = Modifier
-          .fillMaxWidth()
-          .clip(MaterialTheme.shapes.small)
-          .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-          .padding(horizontal = 10.dp, vertical = 8.dp)
-      ) {
-        HighlightedText(text = entry.sourceValue, keywords = mergedHighlights)
+      // Source text with calibration support
+      Column {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+          if (entry.isCalibrated) {
+            BadgeLabel(
+              text = stringResource(R.string.calibration_badge),
+              color = MaterialTheme.colorScheme.tertiary,
+              background = MaterialTheme.colorScheme.tertiaryContainer
+            )
+            Spacer(Modifier.width(6.dp))
+          }
+          Spacer(Modifier.weight(1f))
+          IconButton(
+            onClick = {
+              isCalibrating = !isCalibrating
+              calibratingText = entry.sourceValue
+            },
+            modifier = Modifier.size(24.dp)
+          ) {
+            Icon(
+              Icons.Default.Edit,
+              contentDescription = stringResource(R.string.calibration_btn),
+              modifier = Modifier.size(14.dp),
+              tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+          }
+        }
+
+        if (isCalibrating) {
+          OutlinedTextField(
+            value = calibratingText,
+            onValueChange = { calibratingText = it },
+            modifier = Modifier.fillMaxWidth(),
+            label = { Text(stringResource(R.string.calibration_title)) },
+            minLines = 2
+          )
+          Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.End
+          ) {
+            OutlinedButton(onClick = { isCalibrating = false }) {
+              Text(stringResource(R.string.common_cancel))
+            }
+            Spacer(Modifier.width(8.dp))
+            Button(
+              onClick = {
+                onCalibrate(entry.key, entry.sourceValue, calibratingText)
+                isCalibrating = false
+              },
+              enabled = calibratingText.isNotBlank() && calibratingText != entry.sourceValue
+            ) {
+              Text(stringResource(R.string.common_save))
+            }
+          }
+        } else {
+          Box(
+            modifier = Modifier
+              .fillMaxWidth()
+              .clip(MaterialTheme.shapes.small)
+              .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+              .padding(horizontal = 10.dp, vertical = 8.dp)
+          ) {
+            HighlightedText(text = entry.sourceValue, keywords = mergedHighlights)
+          }
+        }
       }
 
       // Translation input
@@ -914,12 +976,15 @@ fun DiffTranslationCard(
   searchHighlightQuery: String,
   isCurrentSearchResult: Boolean,
   onSave: (String) -> Unit,
-  onRevertToDict: () -> Unit
+  onRevertToDict: () -> Unit,
+  onCalibrate: (String, String, String) -> Unit = { _, _, _ -> }
 ) {
   val context = LocalContext.current
   var currentText by remember(entry.key, entry.targetValue) { mutableStateOf(entry.targetValue) }
   var lastCommittedText by remember(entry.key, entry.targetValue) { mutableStateOf(entry.targetValue) }
   var isFocused by remember { mutableStateOf(false) }
+  var isCalibrating by remember(entry.key) { mutableStateOf(false) }
+  var calibratingText by remember(entry.key, entry.sourceValue) { mutableStateOf(entry.sourceValue) }
   val latestText = rememberUpdatedState(currentText)
   val latestCommittedText = rememberUpdatedState(lastCommittedText)
   val latestSave = rememberUpdatedState(onSave)
@@ -997,20 +1062,76 @@ fun DiffTranslationCard(
         }
       }
 
-      // New source text (current)
-      Text(
-        text = stringResource(R.string.diff_new_source),
-        style = MaterialTheme.typography.labelSmall,
-        color = MaterialTheme.colorScheme.primary
-      )
-      Box(
-        modifier = Modifier
-          .fillMaxWidth()
-          .clip(MaterialTheme.shapes.small)
-          .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-          .padding(horizontal = 10.dp, vertical = 8.dp)
-      ) {
-        HighlightedText(text = entry.sourceValue, keywords = mergedHighlights)
+      // New source text (current) with calibration support
+      Column {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+          Text(
+            text = stringResource(R.string.diff_new_source),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.weight(1f)
+          )
+          if (entry.isCalibrated) {
+            BadgeLabel(
+              text = stringResource(R.string.calibration_badge),
+              color = MaterialTheme.colorScheme.tertiary,
+              background = MaterialTheme.colorScheme.tertiaryContainer
+            )
+            Spacer(Modifier.width(6.dp))
+          }
+          IconButton(
+            onClick = {
+              isCalibrating = !isCalibrating
+              calibratingText = entry.sourceValue
+            },
+            modifier = Modifier.size(24.dp)
+          ) {
+            Icon(
+              Icons.Default.Edit,
+              contentDescription = stringResource(R.string.calibration_btn),
+              modifier = Modifier.size(14.dp),
+              tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+          }
+        }
+
+        if (isCalibrating) {
+          OutlinedTextField(
+            value = calibratingText,
+            onValueChange = { calibratingText = it },
+            modifier = Modifier.fillMaxWidth(),
+            label = { Text(stringResource(R.string.calibration_title)) },
+            minLines = 2
+          )
+          Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.End
+          ) {
+            OutlinedButton(onClick = { isCalibrating = false }) {
+              Text(stringResource(R.string.common_cancel))
+            }
+            Spacer(Modifier.width(8.dp))
+            Button(
+              onClick = {
+                onCalibrate(entry.key, entry.sourceValue, calibratingText)
+                isCalibrating = false
+              },
+              enabled = calibratingText.isNotBlank() && calibratingText != entry.sourceValue
+            ) {
+              Text(stringResource(R.string.common_save))
+            }
+          }
+        } else {
+          Box(
+            modifier = Modifier
+              .fillMaxWidth()
+              .clip(MaterialTheme.shapes.small)
+              .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+              .padding(horizontal = 10.dp, vertical = 8.dp)
+          ) {
+            HighlightedText(text = entry.sourceValue, keywords = mergedHighlights)
+          }
+        }
       }
 
       // Dictionary translation (for reference)

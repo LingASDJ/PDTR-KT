@@ -1,6 +1,7 @@
 package com.example.pdtranslator
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -63,5 +64,28 @@ class DictionaryStoreTest {
     assertEquals("The Hero", updated.selectedDictionary.entries["actors|base|zh-CN|actor.hero"]?.sourceText)
     assertEquals("主角", updated.selectedDictionary.entries["actors|base|zh-CN|actor.hero"]?.translation)
     assertEquals("法杖", updated.selectedDictionary.entries["items|base|zh-CN|item.wand"]?.translation)
+  }
+
+  @Test
+  fun `reviewEntry marks entry as reviewed`() {
+    val store = DictionaryStore.empty()
+      .putEntry("key1", DictEntry(sourceText = "hello", translation = "你好", timestamp = 1L))
+    val updated = store.reviewEntry("key1")
+    assertTrue(updated.selectedDictionary.entries["key1"]!!.reviewed)
+  }
+
+  @Test
+  fun `unreviewEntry marks entry as not reviewed`() {
+    val store = DictionaryStore.empty()
+      .putEntry("key1", DictEntry(sourceText = "hello", translation = "你好", timestamp = 1L, reviewed = true))
+    val updated = store.unreviewEntry("key1")
+    assertFalse(updated.selectedDictionary.entries["key1"]!!.reviewed)
+  }
+
+  @Test
+  fun `reviewEntry on nonexistent key returns same store`() {
+    val store = DictionaryStore.empty()
+    val updated = store.reviewEntry("nonexistent")
+    assertEquals(store, updated)
   }
 }

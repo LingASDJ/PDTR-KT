@@ -41,6 +41,10 @@ sealed class Screen(val route: String, val title: Int, val icon: ImageVector) {
     object Settings : Screen("settings", R.string.screen_title_settings, Icons.Default.Settings)
 }
 
+object DictionaryPreview {
+    const val route = "dictionary_preview"
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainScreen(
@@ -121,7 +125,10 @@ fun MainScreen(
             // Layer 3: Actual content
             NavHost(navController, startDestination = Screen.Config.route) {
                 composable(Screen.Config.route) {
-                    ConfigScreen(viewModel = viewModel)
+                    ConfigScreen(
+                        viewModel = viewModel,
+                        onNavigateToDictionaryPreview = { navController.navigate(DictionaryPreview.route) }
+                    )
                 }
                 composable(Screen.Translator.route) {
                     TranslatorScreen(viewModel = viewModel)
@@ -132,6 +139,12 @@ fun MainScreen(
                         onNavigateToDependencies = onNavigateToDependencies,
                         onNavigateToChangelog = onNavigateToChangelog,
                         onLanguageSelected = onLanguageSelected
+                    )
+                }
+                composable(DictionaryPreview.route) {
+                    DictionaryPreviewScreen(
+                        viewModel = viewModel,
+                        onNavigateUp = { navController.popBackStack() }
                     )
                 }
             }

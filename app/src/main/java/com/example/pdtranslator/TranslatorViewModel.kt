@@ -19,6 +19,8 @@ import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.io.BufferedReader
 import java.io.InputStreamReader
@@ -51,7 +53,9 @@ data class TranslationEntry(
   val isDeleted: Boolean = false,
   val isDiff: Boolean = false,
   val dictValue: String? = null,
-  val dictSourceValue: String? = null
+  val dictSourceValue: String? = null,
+  val isCalibrated: Boolean = false,
+  val originalSourceValue: String? = null
 )
 
 // A3: UI data class for DELETED view
@@ -157,6 +161,12 @@ class TranslatorViewModel(application: Application) : AndroidViewModel(applicati
   val tmSuggestions = _tmSuggestions.asStateFlow()
   private var tmQueryJob: Job? = null
 
+  // --- Calibration State ---
+  private val calibrationRepository = CalibrationRepository(app.filesDir)
+  private val calibrationStoreState = CalibrationStoreState()
+  private val calibrationMutationMutex = Mutex()
+  val calibrationCount = MutableStateFlow(0)
+
   // --- Dictionary State ---
   private val _dictEntryCount = MutableStateFlow(0)
   val dictEntryCount = _dictEntryCount.asStateFlow()
@@ -165,10 +175,10 @@ class TranslatorViewModel(application: Application) : AndroidViewModel(applicati
   val selectedDictionaryName = MutableStateFlow("")
   val dictionaryCount = MutableStateFlow(0)
   val canDeleteDictionary = MutableStateFlow(false)
-  val isDictionaryPreviewVisible = MutableStateFlow(false)
   val dictionaryPreviewQuery = MutableStateFlow("")
   val dictionaryPreviewEntries = MutableStateFlow<List<DictionaryPreviewItem>>(emptyList())
   val pendingDictionaryImport = MutableStateFlow<PendingDictionaryImport?>(null)
+  val dictionaryPreviewTab = MutableStateFlow(0) // 0=待校对, 1=已校对
 
   // --- Created Languages (for export even without staged changes) ---
   private val _createdLanguages = MutableStateFlow<Set<String>>(emptySet())
@@ -346,6 +356,15 @@ class TranslatorViewModel(application: Application) : AndroidViewModel(applicati
         }
     }
 
+    // Load Calibration on start
+    viewModelScope.launch(Dispatchers.IO) {
+      calibrationMutationMutex.withLock {
+        val loadedStore = calibrationRepository.load()
+        calibrationStoreState.replace(loadedStore)
+        calibrationCount.value = loadedStore.count
+      }
+    }
+
     // Load TM and Dictionary on start
     viewModelScope.launch {
       translationMemory.load()
@@ -361,6 +380,67 @@ class TranslatorViewModel(application: Application) : AndroidViewModel(applicati
       if (draft != null) {
         _draftData.value = draft
       }
+    }
+  }
+
+  // --- Calibration Methods ---
+
+  fun calibrateSource(propKey: String, originalText: String, calibratedText: String) {
+    if (calibratedText.isBlank()) return
+    viewModelScope.launch(Dispatchers.IO) {
+      mutateCalibrationStore { store ->
+        store.upsert(
+          propKey = propKey,
+          originalText = originalText,
+          calibratedText = calibratedText,
+          timestamp = System.currentTimeMillis()
+        )
+      }
+      regenerateEntries()
+      _uiEvents.send(UiEvent.ShowSnackbar(app.getString(R.string.calibration_save_done)))
+    }
+  }
+
+  fun getCalibration(propKey: String): CalibrationEntry? {
+    return calibrationStoreSnapshot().get(propKey)
+  }
+
+  fun clearCalibrations() {
+    viewModelScope.launch(Dispatchers.IO) {
+      mutateCalibrationStore { store -> store.clear() }
+      regenerateEntries()
+      _uiEvents.send(UiEvent.ShowSnackbar(app.getString(R.string.calibration_clear_done)))
+    }
+  }
+
+  fun importCalibrations(json: String) {
+    viewModelScope.launch(Dispatchers.IO) {
+      try {
+        val imported = calibrationRepository.importContent(json)
+        mutateCalibrationStore { store -> store.merge(imported) }
+        regenerateEntries()
+        _uiEvents.send(UiEvent.ShowSnackbar(
+          app.getString(R.string.calibration_import_done, imported.size)
+        ))
+      } catch (_: Exception) {
+        _uiEvents.send(UiEvent.ShowSnackbar(app.getString(R.string.calibration_import_failed)))
+      }
+    }
+  }
+
+  fun exportCalibrations(): ByteArray {
+    return calibrationRepository.exportJson(calibrationStoreSnapshot())
+  }
+
+  fun notifyCalibrationExported() {
+    viewModelScope.launch {
+      _uiEvents.send(UiEvent.ShowSnackbar(app.getString(R.string.calibration_export_done)))
+    }
+  }
+
+  fun notifyCalibrationImportFailed() {
+    viewModelScope.launch {
+      _uiEvents.send(UiEvent.ShowSnackbar(app.getString(R.string.calibration_import_failed)))
     }
   }
 
@@ -1010,13 +1090,34 @@ class TranslatorViewModel(application: Application) : AndroidViewModel(applicati
 
   fun showDictionaryPreview() {
     dictionaryPreviewQuery.value = ""
+    dictionaryPreviewTab.value = 0
     dictionaryPreviewEntries.value = dictionaryManager.getPreviewEntries("")
-    isDictionaryPreviewVisible.value = true
   }
 
   fun hideDictionaryPreview() {
-    isDictionaryPreviewVisible.value = false
     dictionaryPreviewQuery.value = ""
+  }
+
+  fun setDictionaryPreviewTab(tab: Int) {
+    dictionaryPreviewTab.value = tab
+  }
+
+  fun reviewDictionaryEntry(rawKey: String) {
+    viewModelScope.launch(Dispatchers.IO) {
+      dictionaryManager.reviewPreviewEntry(rawKey)
+      dictionaryManager.save()
+      dictionaryPreviewEntries.value = dictionaryManager.getPreviewEntries(dictionaryPreviewQuery.value)
+      _uiEvents.send(UiEvent.ShowSnackbar(app.getString(R.string.dict_preview_review_done)))
+    }
+  }
+
+  fun unreviewDictionaryEntry(rawKey: String) {
+    viewModelScope.launch(Dispatchers.IO) {
+      dictionaryManager.unreviewPreviewEntry(rawKey)
+      dictionaryManager.save()
+      dictionaryPreviewEntries.value = dictionaryManager.getPreviewEntries(dictionaryPreviewQuery.value)
+      _uiEvents.send(UiEvent.ShowSnackbar(app.getString(R.string.dict_preview_unreview_done)))
+    }
   }
 
   fun setDictionaryPreviewQuery(query: String) {
@@ -1572,6 +1673,7 @@ class TranslatorViewModel(application: Application) : AndroidViewModel(applicati
 
     regenerateJob?.cancel()
     regenerateJob = viewModelScope.launch(Dispatchers.Default) {
+      val calibrationStore = calibrationStoreSnapshot()
       val sourceProps = group.languages[sourceCode]?.properties ?: Properties()
       val targetProps = group.languages[targetCode]?.properties ?: Properties()
 
@@ -1587,7 +1689,11 @@ class TranslatorViewModel(application: Application) : AndroidViewModel(applicati
       val deletedItemList = mutableListOf<DeletedItem>()
 
       val newEntries = sortedKeys.map { key ->
-        val sourceValue = sourceProps.getProperty(key, "")
+        val rawSourceValue = sourceProps.getProperty(key, "")
+        val calibration = calibrationStore.get(key)
+        val sourceValue = calibration?.calibratedText ?: rawSourceValue
+        val isCalibrated = calibration != null
+        val originalSourceValue = if (isCalibrated) rawSourceValue else null
         val isMissingInFile = !targetProps.containsKey(key) && sourceProps.containsKey(key)
         val isDeletedEntry = targetProps.containsKey(key) && !sourceProps.containsKey(key)
         val isStaged = _stagedChanges.value.containsKey(key)
@@ -1630,7 +1736,9 @@ class TranslatorViewModel(application: Application) : AndroidViewModel(applicati
           isDeleted = isDeletedEntry && !isStagedDeletion,
           isDiff = isDiff,
           dictValue = dictEntry?.translation,
-          dictSourceValue = dictEntry?.sourceText
+          dictSourceValue = dictEntry?.sourceText,
+          isCalibrated = isCalibrated,
+          originalSourceValue = originalSourceValue
         )
       }
       _allEntries.value = newEntries
@@ -1764,6 +1872,19 @@ class TranslatorViewModel(application: Application) : AndroidViewModel(applicati
     refreshDictionaryState()
     regenerateEntries()
     _uiEvents.send(UiEvent.ShowSnackbar(app.getString(R.string.dict_import_done, result.importedCount)))
+  }
+
+  private fun calibrationStoreSnapshot(): CalibrationStore = calibrationStoreState.snapshot()
+
+  private suspend fun mutateCalibrationStore(
+    transform: (CalibrationStore) -> CalibrationStore
+  ): CalibrationStore {
+    return calibrationMutationMutex.withLock {
+      val updatedStore = calibrationStoreState.update(transform)
+      calibrationRepository.save(updatedStore)
+      calibrationCount.value = updatedStore.count
+      updatedStore
+    }
   }
 
   private fun setCurrentSearchResultIndex(index: Int) {
