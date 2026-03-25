@@ -243,6 +243,28 @@
     <string name="dict_preview_translation_label">TGT</string>
     <string name="dict_preview_save_done">Dictionary entry updated</string>
 
+    <!-- Dictionary Preview Screen -->
+    <string name="dict_preview_tab_pending">Pending Review</string>
+    <string name="dict_preview_tab_reviewed">Reviewed</string>
+    <string name="dict_preview_review_btn">Review</string>
+    <string name="dict_preview_unreview_btn">Undo Review</string>
+    <string name="dict_preview_review_done">Marked as reviewed</string>
+    <string name="dict_preview_unreview_done">Review undone</string>
+
+    <!-- Calibration -->
+    <string name="calibration_title">Source Calibration</string>
+    <string name="calibration_btn">Calibrate</string>
+    <string name="calibration_save_done">Calibration saved</string>
+    <string name="calibration_clear_done">Calibration library cleared</string>
+    <string name="calibration_import_done">Calibration imported: %d entries</string>
+    <string name="calibration_export_done">Calibration exported</string>
+    <string name="calibration_badge">Calibrated</string>
+    <string name="calibration_card_title">Source Calibration Library</string>
+    <string name="calibration_card_count">%d calibration entries</string>
+    <string name="calibration_import">Import</string>
+    <string name="calibration_export">Export</string>
+    <string name="calibration_clear">Clear</string>
+
     <!-- Deleted Entries -->
     <string name="deleted_badge">Deleted</string>
     <string name="deleted_delete_all">Delete All (%1$d)</string>

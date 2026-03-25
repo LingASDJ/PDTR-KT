@@ -356,4 +356,26 @@
     <string name="common_save">保存</string>
     <string name="common_cancel">取消</string>
     <string name="dict_preview_save_done">字典条目已更新</string>
+
+    <!-- 字典预览界面 -->
+    <string name="dict_preview_tab_pending">待校对</string>
+    <string name="dict_preview_tab_reviewed">已校对</string>
+    <string name="dict_preview_review_btn">校对</string>
+    <string name="dict_preview_unreview_btn">撤销校对</string>
+    <string name="dict_preview_review_done">已标记为校对通过</string>
+    <string name="dict_preview_unreview_done">已撤销校对</string>
+
+    <!-- 原文校准 -->
+    <string name="calibration_title">原文校准</string>
+    <string name="calibration_btn">校准</string>
+    <string name="calibration_save_done">校准已保存</string>
+    <string name="calibration_clear_done">校准库已清空</string>
+    <string name="calibration_import_done">已导入校准：%d 条</string>
+    <string name="calibration_export_done">校准库已导出</string>
+    <string name="calibration_badge">已校准</string>
+    <string name="calibration_card_title">原文校准库</string>
+    <string name="calibration_card_count">%d 条校准记录</string>
+    <string name="calibration_import">导入</string>
+    <string name="calibration_export">导出</string>
+    <string name="calibration_clear">清空</string>
 </resources>
