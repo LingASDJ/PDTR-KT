@@ -65,7 +65,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -593,26 +592,6 @@ private fun DictionaryCard(
         }
       }
     }
-  }
-}
-
-@Composable
-private fun PreviewBadge(
-  text: String,
-  containerColor: Color = MaterialTheme.colorScheme.secondaryContainer,
-  contentColor: Color = MaterialTheme.colorScheme.onSecondaryContainer
-) {
-  Box(
-    modifier = Modifier
-      .clip(MaterialTheme.shapes.extraSmall)
-      .background(containerColor)
-      .padding(horizontal = 6.dp, vertical = 2.dp)
-  ) {
-    Text(
-      text = text,
-      style = MaterialTheme.typography.labelSmall,
-      color = contentColor
-    )
   }
 }
 
