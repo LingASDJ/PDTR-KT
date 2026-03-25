@@ -161,6 +161,7 @@ class TranslatorViewModel(application: Application) : AndroidViewModel(applicati
 
   // --- Calibration State ---
   private val calibrationRepository = CalibrationRepository(app.filesDir)
+  @Volatile
   private var calibrationStore = CalibrationStore()
   val calibrationCount = MutableStateFlow(0)
 
@@ -408,14 +409,18 @@ class TranslatorViewModel(application: Application) : AndroidViewModel(applicati
 
   fun importCalibrations(json: String) {
     viewModelScope.launch(Dispatchers.IO) {
-      val imported = calibrationRepository.importJson(json)
-      calibrationStore = calibrationStore.merge(imported)
-      calibrationRepository.save(calibrationStore)
-      calibrationCount.value = calibrationStore.count
-      regenerateEntries()
-      _uiEvents.send(UiEvent.ShowSnackbar(
-        app.getString(R.string.calibration_import_done, imported.size)
-      ))
+      try {
+        val imported = calibrationRepository.importJson(json)
+        calibrationStore = calibrationStore.merge(imported)
+        calibrationRepository.save(calibrationStore)
+        calibrationCount.value = calibrationStore.count
+        regenerateEntries()
+        _uiEvents.send(UiEvent.ShowSnackbar(
+          app.getString(R.string.calibration_import_done, imported.size)
+        ))
+      } catch (_: Exception) {
+        _uiEvents.send(UiEvent.ShowSnackbar("Import failed: invalid JSON"))
+      }
     }
   }
 
@@ -1085,6 +1090,7 @@ class TranslatorViewModel(application: Application) : AndroidViewModel(applicati
       dictionaryManager.reviewPreviewEntry(rawKey)
       dictionaryManager.save()
       dictionaryPreviewEntries.value = dictionaryManager.getPreviewEntries(dictionaryPreviewQuery.value)
+      _uiEvents.send(UiEvent.ShowSnackbar(app.getString(R.string.dict_preview_review_done)))
     }
   }
 
@@ -1093,6 +1099,7 @@ class TranslatorViewModel(application: Application) : AndroidViewModel(applicati
       dictionaryManager.unreviewPreviewEntry(rawKey)
       dictionaryManager.save()
       dictionaryPreviewEntries.value = dictionaryManager.getPreviewEntries(dictionaryPreviewQuery.value)
+      _uiEvents.send(UiEvent.ShowSnackbar(app.getString(R.string.dict_preview_unreview_done)))
     }
   }
 
