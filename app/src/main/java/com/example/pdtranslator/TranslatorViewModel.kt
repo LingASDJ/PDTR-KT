@@ -167,6 +167,12 @@ class TranslatorViewModel(application: Application) : AndroidViewModel(applicati
   private val calibrationMutationMutex = Mutex()
   val calibrationCount = MutableStateFlow(0)
 
+  data class PendingCalibrationImport(
+    val incoming: Map<String, CalibrationEntry>,
+    val diff: CalibrationDiffResult
+  )
+  val pendingCalibrationImport = MutableStateFlow<PendingCalibrationImport?>(null)
+
   // --- Dictionary State ---
   private val _dictEntryCount = MutableStateFlow(0)
   val dictEntryCount = _dictEntryCount.asStateFlow()
@@ -413,19 +419,48 @@ class TranslatorViewModel(application: Application) : AndroidViewModel(applicati
     }
   }
 
-  fun importCalibrations(json: String) {
+  fun importCalibrations(content: String) {
     viewModelScope.launch(Dispatchers.IO) {
       try {
-        val imported = calibrationRepository.importContent(json)
-        mutateCalibrationStore { store -> store.merge(imported) }
-        regenerateEntries()
-        _uiEvents.send(UiEvent.ShowSnackbar(
-          app.getString(R.string.calibration_import_done, imported.size)
-        ))
+        val imported = calibrationRepository.importContent(content)
+        if (imported.isEmpty()) {
+          _uiEvents.send(UiEvent.ShowSnackbar(app.getString(R.string.calibration_import_empty)))
+          return@launch
+        }
+        val currentStore = calibrationStoreSnapshot()
+        if (currentStore.count == 0) {
+          // 本地为空，直接合并无需对比
+          mutateCalibrationStore { store -> store.merge(imported) }
+          regenerateEntries()
+          _uiEvents.send(UiEvent.ShowSnackbar(
+            app.getString(R.string.calibration_import_done, imported.size)
+          ))
+          return@launch
+        }
+        val diff = currentStore.diff(imported)
+        pendingCalibrationImport.value = PendingCalibrationImport(imported, diff)
       } catch (_: Exception) {
         _uiEvents.send(UiEvent.ShowSnackbar(app.getString(R.string.calibration_import_failed)))
       }
     }
+  }
+
+  fun confirmCalibrationMerge(selectedKeys: Set<String>) {
+    val pending = pendingCalibrationImport.value ?: return
+    viewModelScope.launch(Dispatchers.IO) {
+      mutateCalibrationStore { store ->
+        store.mergeSelected(pending.incoming, selectedKeys)
+      }
+      regenerateEntries()
+      pendingCalibrationImport.value = null
+      _uiEvents.send(UiEvent.ShowSnackbar(
+        app.getString(R.string.calibration_merge_done, selectedKeys.size)
+      ))
+    }
+  }
+
+  fun cancelCalibrationImport() {
+    pendingCalibrationImport.value = null
   }
 
   fun exportCalibrations(): ByteArray {

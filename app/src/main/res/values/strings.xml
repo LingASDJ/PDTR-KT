@@ -265,6 +265,8 @@
     <string name="calibration_import">Import</string>
     <string name="calibration_export">Export</string>
     <string name="calibration_clear">Clear</string>
+    <string name="calibration_import_empty">Import file is empty</string>
+    <string name="calibration_merge_done">Merged %d calibration entries</string>
 
     <!-- Deleted Entries -->
     <string name="deleted_badge">Deleted</string>
