@@ -1277,8 +1277,9 @@ class TranslatorViewModel(application: Application) : AndroidViewModel(applicati
       val group = _languageGroups.value.find { it.name == groupName }
       if (group == null) return@launch
 
-      // A4: Validate language code (with legacy code support)
-      val legacyResolved = legacyLangCodes[langCode.lowercase()] ?: langCode
+      // 预处理：下划线转连字符（zh_CN → zh-CN）
+      val preprocessed = langCode.replace('_', '-')
+      val legacyResolved = legacyLangCodes[preprocessed.lowercase()] ?: preprocessed
       val locale = java.util.Locale.forLanguageTag(legacyResolved)
       if (locale.language.isEmpty() || locale.language == "und" ||
           (!isoLanguages.contains(locale.language) && !isoLanguages.contains(langCode.lowercase()))) {
@@ -1286,7 +1287,6 @@ class TranslatorViewModel(application: Application) : AndroidViewModel(applicati
         return@launch
       }
 
-      // A4: Normalize
       val normalizedCode = locale.toLanguageTag()
 
       if (group.languages.containsKey(normalizedCode)) {
@@ -1297,7 +1297,6 @@ class TranslatorViewModel(application: Application) : AndroidViewModel(applicati
       val newFileName = "${groupName}_${normalizedCode}.properties"
       val newProps = Properties()
 
-      // Copy entries from source language if specified
       if (copyFromLang != null) {
         val sourceData = group.languages[copyFromLang]
         if (sourceData != null) {
@@ -1315,7 +1314,8 @@ class TranslatorViewModel(application: Application) : AndroidViewModel(applicati
       availableLanguages.value = AggregateLanguageGroup.availableLanguages(_languageGroups.value, selectedGroupName.value)
       updateCreatedLanguagesForGroup(groupName, _createdLanguages.value + normalizedCode)
 
-      if (sourceLangCode.value != normalizedCode) {
+      // 确保选中并刷新
+      if (sourceLangCode.value != null && sourceLangCode.value != normalizedCode) {
         selectTargetLanguage(normalizedCode)
       }
 
