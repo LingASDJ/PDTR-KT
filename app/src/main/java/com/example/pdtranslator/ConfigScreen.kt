@@ -41,6 +41,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Divider
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ElevatedCard
@@ -69,6 +70,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.google.accompanist.flowlayout.FlowRow
 import java.util.Locale
@@ -131,6 +133,7 @@ fun ConfigScreen(viewModel: TranslatorViewModel, onNavigateToDictionaryPreview: 
   val pendingDictionaryImport by viewModel.pendingDictionaryImport.collectAsState()
   val createLanguageSuccessSerial by viewModel.createLanguageSuccessSerial.collectAsState()
   val calibrationCount by viewModel.calibrationCount.collectAsState()
+  val pendingCalibrationImport by viewModel.pendingCalibrationImport.collectAsState()
   val selectedEngineId = viewModel.engineManager.getSelectedEngineId()
   val currentLocales = context.resources.configuration.locales
   val currentLocaleTag = if (currentLocales.isEmpty) Locale.getDefault().toLanguageTag() else currentLocales[0].toLanguageTag()
@@ -367,6 +370,14 @@ fun ConfigScreen(viewModel: TranslatorViewModel, onNavigateToDictionaryPreview: 
       onConfirm = viewModel::confirmRenameAllDictionaryConflicts
     )
   }
+
+  if (pendingCalibrationImport != null) {
+    CalibrationDiffDialog(
+      diff = pendingCalibrationImport!!.diff,
+      onConfirm = { selectedKeys -> viewModel.confirmCalibrationMerge(selectedKeys) },
+      onDismiss = { viewModel.cancelCalibrationImport() }
+    )
+  }
 }
 
 // ─────────────── Draft Recovery Card ───────────────
@@ -490,6 +501,161 @@ private fun CalibrationCard(
       }
     }
   }
+}
+
+// ─────────────── Calibration Diff Dialog ───────────────
+
+@Composable
+private fun CalibrationDiffDialog(
+    diff: CalibrationDiffResult,
+    onConfirm: (Set<String>) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val selectedKeys = remember(diff) {
+        mutableStateOf(diff.onlyIncoming.keys.toMutableSet())
+    }
+    val totalSelected = selectedKeys.value.size
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.calibration_diff_title)) },
+        text = {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                if (diff.identical.isNotEmpty()) {
+                    Text(
+                        stringResource(R.string.calibration_diff_identical, diff.identical.size),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                if (diff.onlyIncoming.isNotEmpty()) {
+                    CalibrationDiffSection(
+                        title = stringResource(R.string.calibration_diff_only_incoming, diff.onlyIncoming.size),
+                        entries = diff.onlyIncoming,
+                        selectedKeys = selectedKeys.value,
+                        onToggle = { key ->
+                            selectedKeys.value = selectedKeys.value.toMutableSet().apply {
+                                if (contains(key)) remove(key) else add(key)
+                            }
+                        }
+                    )
+                }
+
+                if (diff.conflicts.isNotEmpty()) {
+                    CalibrationConflictSection(
+                        title = stringResource(R.string.calibration_diff_conflicts, diff.conflicts.size),
+                        conflicts = diff.conflicts,
+                        selectedKeys = selectedKeys.value,
+                        onToggle = { key ->
+                            selectedKeys.value = selectedKeys.value.toMutableSet().apply {
+                                if (contains(key)) remove(key) else add(key)
+                            }
+                        }
+                    )
+                }
+
+                if (diff.onlyLocal.isNotEmpty()) {
+                    Text(
+                        stringResource(R.string.calibration_diff_only_local, diff.onlyLocal.size),
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Text(
+                        diff.onlyLocal.keys.take(10).joinToString(", ") +
+                            if (diff.onlyLocal.size > 10) " ..." else "",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = { onConfirm(selectedKeys.value) },
+                enabled = totalSelected > 0
+            ) {
+                Text(stringResource(R.string.calibration_diff_merge_selected, totalSelected))
+            }
+        },
+        dismissButton = {
+            OutlinedButton(onClick = onDismiss) {
+                Text(stringResource(R.string.common_cancel))
+            }
+        }
+    )
+}
+
+@Composable
+private fun CalibrationDiffSection(
+    title: String,
+    entries: Map<String, CalibrationEntry>,
+    selectedKeys: Set<String>,
+    onToggle: (String) -> Unit
+) {
+    Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+    entries.forEach { (key, entry) ->
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Checkbox(
+                checked = key in selectedKeys,
+                onCheckedChange = { onToggle(key) }
+            )
+            Column(Modifier.weight(1f)) {
+                Text(key, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(entry.calibratedText, style = MaterialTheme.typography.bodySmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            }
+        }
+    }
+}
+
+@Composable
+private fun CalibrationConflictSection(
+    title: String,
+    conflicts: Map<String, Pair<CalibrationEntry, CalibrationEntry>>,
+    selectedKeys: Set<String>,
+    onToggle: (String) -> Unit
+) {
+    Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+    conflicts.forEach { (key, pair) ->
+        val (local, incoming) = pair
+        Row(verticalAlignment = Alignment.Top) {
+            Checkbox(
+                checked = key in selectedKeys,
+                onCheckedChange = { onToggle(key) }
+            )
+            Column(Modifier.weight(1f)) {
+                Text(key, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Box(
+                    Modifier
+                        .fillMaxWidth()
+                        .clip(MaterialTheme.shapes.small)
+                        .background(MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.3f))
+                        .padding(4.dp)
+                ) {
+                    Text(
+                        stringResource(R.string.calibration_diff_local_label) + ": " + local.calibratedText,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+                Spacer(Modifier.height(2.dp))
+                Box(
+                    Modifier
+                        .fillMaxWidth()
+                        .clip(MaterialTheme.shapes.small)
+                        .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f))
+                        .padding(4.dp)
+                ) {
+                    Text(
+                        stringResource(R.string.calibration_diff_incoming_label) + ": " + incoming.calibratedText,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+            }
+        }
+    }
 }
 
 // ─────────────── Dictionary Card ───────────────

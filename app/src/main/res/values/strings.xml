@@ -267,6 +267,15 @@
     <string name="calibration_clear">Clear</string>
     <string name="calibration_import_empty">Import file is empty</string>
     <string name="calibration_merge_done">Merged %d calibration entries</string>
+    <string name="calibration_diff_title">Calibration Comparison</string>
+    <string name="calibration_diff_only_incoming">Only in import (%d)</string>
+    <string name="calibration_diff_only_local">Only in local (%d)</string>
+    <string name="calibration_diff_conflicts">Conflicts (%d)</string>
+    <string name="calibration_diff_identical">Identical (auto-skip): %d</string>
+    <string name="calibration_diff_merge_selected">Merge selected (%d)</string>
+    <string name="calibration_diff_local_label">Local</string>
+    <string name="calibration_diff_incoming_label">Import</string>
+    <string name="calibration_diff_select_all">Select all</string>
 
     <!-- Deleted Entries -->
     <string name="deleted_badge">Deleted</string>

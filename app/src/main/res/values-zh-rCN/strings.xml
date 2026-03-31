@@ -381,4 +381,15 @@
     <string name="calibration_import">导入</string>
     <string name="calibration_export">导出</string>
     <string name="calibration_clear">清空</string>
+    <string name="calibration_diff_title">校准库对比</string>
+    <string name="calibration_diff_only_incoming">仅对方有 (%d)</string>
+    <string name="calibration_diff_only_local">仅本地有 (%d)</string>
+    <string name="calibration_diff_conflicts">冲突 (%d)</string>
+    <string name="calibration_diff_identical">相同（自动跳过）：%d</string>
+    <string name="calibration_diff_merge_selected">合并选中项 (%d)</string>
+    <string name="calibration_diff_local_label">本地</string>
+    <string name="calibration_diff_incoming_label">导入</string>
+    <string name="calibration_diff_select_all">全选</string>
+    <string name="calibration_import_empty">导入文件为空</string>
+    <string name="calibration_merge_done">已合并 %d 条校准</string>
 </resources>
