@@ -87,7 +87,7 @@ data class PendingDictionaryImport(
   val conflictNames: List<String>
 )
 
-enum class FilterState { ALL, UNTRANSLATED, TRANSLATED, MODIFIED, MISSING, DIFF, DELETED }
+enum class FilterState { ALL, UNTRANSLATED, TRANSLATED, MODIFIED, MISSING, DIFF, DELETED, NO_TRANSLATION_NEEDED }
 
 enum class ThemeColor {
   DEFAULT, M3, GREEN, LAVENDER, MODERN, PIXEL_DUNGEON
@@ -286,6 +286,7 @@ class TranslatorViewModel(application: Application) : AndroidViewModel(applicati
             FilterState.MISSING -> entry.isMissing && !staged.containsKey(entry.key) && !entry.isDeleted
             FilterState.DIFF -> entry.isDiff && !entry.isDeleted
             FilterState.DELETED -> entry.isDeleted
+            FilterState.NO_TRANSLATION_NEEDED -> entry.isNoTranslationNeeded && !entry.isDeleted
           }
           matchesFilter
         }

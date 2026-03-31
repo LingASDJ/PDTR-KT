@@ -54,6 +54,7 @@ fun FilterButtons(selectedFilter: FilterState, onFilterSelected: (FilterState) -
         FilterState.MISSING -> R.string.filter_missing
         FilterState.DIFF -> R.string.filter_diff
         FilterState.DELETED -> R.string.filter_deleted
+        FilterState.NO_TRANSLATION_NEEDED -> R.string.filter_no_translation_needed
       }
       val isSelected = state == selectedFilter
       FilterChip(

@@ -198,6 +198,9 @@
     <!-- Filter States (new) -->
     <string name="filter_diff">差异</string>
     <string name="filter_deleted">已删除</string>
+    <string name="filter_no_translation_needed">无需处理</string>
+    <string name="no_translation_needed_btn">无需处理</string>
+    <string name="no_translation_needed_badge">无需处理</string>
 
     <!-- Dictionary -->
     <string name="dict_title">字典</string>

@@ -195,6 +195,9 @@
     <!-- Filter States (new) -->
     <string name="filter_diff">Diff</string>
     <string name="filter_deleted">Deleted</string>
+    <string name="filter_no_translation_needed">No Translation</string>
+    <string name="no_translation_needed_btn">Not Needed</string>
+    <string name="no_translation_needed_badge">Not Needed</string>
 
     <!-- Dictionary -->
     <string name="dict_title">Dictionary</string>

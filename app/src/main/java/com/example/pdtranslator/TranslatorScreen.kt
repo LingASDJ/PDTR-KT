@@ -23,6 +23,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DeleteSweep
+import androidx.compose.material.icons.filled.Done
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.automirrored.filled.Undo
@@ -320,7 +321,10 @@ fun TranslatorScreen(viewModel: TranslatorViewModel) {
               onTranslate = { viewModel.translateEntry(entry.key, entry.sourceValue) },
               onApplyNetwork = { text -> viewModel.applyNetworkSuggestion(entry.key, text) },
               hasEngine = viewModel.engineManager.getSelectedEngineId().isNotBlank(),
-              onCalibrate = { key, original, calibrated -> viewModel.calibrateSource(key, original, calibrated) }
+              onCalibrate = { key, original, calibrated -> viewModel.calibrateSource(key, original, calibrated) },
+              isNoTranslationNeeded = entry.isNoTranslationNeeded,
+              onMarkNoTranslation = { viewModel.markNoTranslationNeeded(entry.key, entry.sourceValue) },
+              onUnmarkNoTranslation = { viewModel.unmarkNoTranslationNeeded(entry.key) }
             )
           }
         }
@@ -522,7 +526,10 @@ fun NewTranslationCard(
   onTranslate: () -> Unit = {},
   onApplyNetwork: (String) -> Unit = {},
   hasEngine: Boolean = false,
-  onCalibrate: (String, String, String) -> Unit = { _, _, _ -> }
+  onCalibrate: (String, String, String) -> Unit = { _, _, _ -> },
+  isNoTranslationNeeded: Boolean = false,
+  onMarkNoTranslation: () -> Unit = {},
+  onUnmarkNoTranslation: () -> Unit = {}
 ) {
   var currentText by remember(entry.key, entry.targetValue) { mutableStateOf(entry.targetValue) }
   var lastCommittedText by remember(entry.key, entry.targetValue) { mutableStateOf(entry.targetValue) }
@@ -600,6 +607,14 @@ fun NewTranslationCard(
             text = stringResource(R.string.diff_badge),
             color = MaterialTheme.colorScheme.tertiary,
             background = MaterialTheme.colorScheme.tertiaryContainer
+          )
+        }
+        if (entry.isNoTranslationNeeded) {
+          Spacer(Modifier.width(6.dp))
+          BadgeLabel(
+            text = stringResource(R.string.no_translation_needed_badge),
+            color = MaterialTheme.colorScheme.secondary,
+            background = MaterialTheme.colorScheme.secondaryContainer
           )
         }
       }
@@ -708,6 +723,23 @@ fun NewTranslationCard(
           Icon(Icons.Default.ContentCopy, contentDescription = null, modifier = Modifier.size(16.dp))
           Spacer(Modifier.width(4.dp))
           Text(stringResource(R.string.common_copy))
+        }
+        Spacer(Modifier.width(8.dp))
+        if (isNoTranslationNeeded) {
+          OutlinedButton(onClick = onUnmarkNoTranslation) {
+            Icon(Icons.AutoMirrored.Filled.Undo, contentDescription = null, modifier = Modifier.size(16.dp))
+            Spacer(Modifier.width(4.dp))
+            Text(stringResource(R.string.common_cancel))
+          }
+        } else {
+          OutlinedButton(
+            onClick = onMarkNoTranslation,
+            enabled = entry.sourceValue.isNotBlank()
+          ) {
+            Icon(Icons.Default.Done, contentDescription = null, modifier = Modifier.size(16.dp))
+            Spacer(Modifier.width(4.dp))
+            Text(stringResource(R.string.no_translation_needed_btn))
+          }
         }
         if (entry.isModified) {
           Spacer(Modifier.width(8.dp))
