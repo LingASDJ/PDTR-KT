@@ -100,9 +100,36 @@ fun TranslatorScreen(viewModel: TranslatorViewModel) {
   val searchQuery by viewModel.searchQuery.collectAsState()
   val context = LocalContext.current
   val searchListState = rememberLazyListState()
+  val usesPrefixGrouping = filterState == FilterState.DIFF || filterState == FilterState.ALL ||
+    filterState == FilterState.UNTRANSLATED || filterState == FilterState.TRANSLATED ||
+    filterState == FilterState.MODIFIED || filterState == FilterState.NO_TRANSLATION_NEEDED
+  val groupedEntries = remember(displayEntries) { groupEntriesByPrefix(displayEntries) }
+  var collapsedGroups by remember(filterState) { mutableStateOf(emptySet<String>()) }
 
-  LaunchedEffect(displayEntries, currentSearchResultKey) {
-    val targetIndex = findSearchResultScrollIndex(displayEntries, currentSearchResultKey) ?: return@LaunchedEffect
+  LaunchedEffect(displayEntries, currentSearchResultKey, usesPrefixGrouping) {
+    val effectiveCollapsedGroups = if (usesPrefixGrouping) {
+      revealCurrentSearchResultGroup(
+        collapsedGroups = collapsedGroups,
+        entries = displayEntries,
+        currentSearchResultKey = currentSearchResultKey
+      )
+    } else {
+      collapsedGroups
+    }
+
+    if (usesPrefixGrouping) {
+      collapsedGroups = effectiveCollapsedGroups
+    }
+
+    val targetIndex = if (usesPrefixGrouping) {
+      findGroupedSearchResultScrollIndex(
+        entries = displayEntries,
+        currentSearchResultKey = currentSearchResultKey,
+        collapsedGroups = effectiveCollapsedGroups
+      )
+    } else {
+      findSearchResultScrollIndex(displayEntries, currentSearchResultKey)
+    } ?: return@LaunchedEffect
     searchListState.animateScrollToItem(targetIndex)
   }
 
@@ -276,11 +303,9 @@ fun TranslatorScreen(viewModel: TranslatorViewModel) {
             message = stringResource(R.string.diff_empty)
           )
         } else {
-          val groupedEntries = remember(displayEntries) { groupEntriesByPrefix(displayEntries) }
-          var collapsedGroups by remember { mutableStateOf(emptySet<String>()) }
-
           LazyColumn(
             modifier = Modifier.weight(1f),
+            state = searchListState,
             verticalArrangement = Arrangement.spacedBy(8.dp)
           ) {
             groupedEntries.forEach { (prefix, entries) ->
@@ -342,9 +367,6 @@ fun TranslatorScreen(viewModel: TranslatorViewModel) {
         )
       }
       else -> {
-        val groupedEntries = remember(displayEntries) { groupEntriesByPrefix(displayEntries) }
-        var collapsedGroups by remember { mutableStateOf(emptySet<String>()) }
-
         LazyColumn(
           modifier = Modifier.weight(1f),
           state = searchListState,
@@ -1388,11 +1410,4 @@ fun keywordHighlightVisualTransformation(keywords: Set<String>, highlightColor: 
     }
     TransformedText(annotatedString, OffsetMapping.Identity)
   }
-}
-
-private fun groupEntriesByPrefix(entries: List<TranslationEntry>): List<Pair<String, List<TranslationEntry>>> {
-    return entries.groupBy { entry ->
-        val dotIndex = entry.key.indexOf('.')
-        if (dotIndex > 0) entry.key.substring(0, dotIndex) else entry.key
-    }.toList()
 }
