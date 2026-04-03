@@ -93,6 +93,25 @@ data class DictionaryStore(
     return copy(dictionaries = updatedDictionaries)
   }
 
+  fun reviewEntry(entryKey: String, dictionaryId: String = selectedDictionaryId): DictionaryStore {
+    return setReviewState(entryKey, true, dictionaryId)
+  }
+
+  fun unreviewEntry(entryKey: String, dictionaryId: String = selectedDictionaryId): DictionaryStore {
+    return setReviewState(entryKey, false, dictionaryId)
+  }
+
+  private fun setReviewState(entryKey: String, reviewed: Boolean, dictionaryId: String): DictionaryStore {
+    val dictionary = dictionaries[dictionaryId] ?: return this
+    val existing = dictionary.entries[entryKey] ?: return this
+    if (existing.reviewed == reviewed) return this
+    val updatedEntries = LinkedHashMap(dictionary.entries)
+    updatedEntries[entryKey] = existing.copy(reviewed = reviewed)
+    val updatedDictionaries = LinkedHashMap(dictionaries)
+    updatedDictionaries[dictionaryId] = dictionary.copy(entries = updatedEntries)
+    return copy(dictionaries = updatedDictionaries)
+  }
+
   fun updateEntry(
     entryKey: String,
     sourceText: String?,

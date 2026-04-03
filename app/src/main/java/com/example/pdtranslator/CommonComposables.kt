@@ -8,10 +8,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
@@ -23,6 +25,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -32,6 +35,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 
@@ -54,6 +58,7 @@ fun FilterButtons(selectedFilter: FilterState, onFilterSelected: (FilterState) -
         FilterState.MISSING -> R.string.filter_missing
         FilterState.DIFF -> R.string.filter_diff
         FilterState.DELETED -> R.string.filter_deleted
+        FilterState.NO_TRANSLATION_NEEDED -> R.string.filter_no_translation_needed
       }
       val isSelected = state == selectedFilter
       FilterChip(
@@ -252,7 +257,19 @@ fun FilterableLanguageCodeField(
 }
 
 @Composable
-fun PaginationControls(currentPage: Int, totalPages: Int, onPrevious: () -> Unit, onNext: () -> Unit) {
+fun PaginationControls(
+  currentPage: Int,
+  totalPages: Int,
+  onPrevious: () -> Unit,
+  onNext: () -> Unit,
+  onGoToPage: (Int) -> Unit = {}
+) {
+  val safeTotalPages = totalPages.coerceAtLeast(1)
+  var showJumpDialog by remember { mutableStateOf(false) }
+  var pageInput by remember { mutableStateOf("") }
+  val requestedPage = pageInput.toIntOrNull()
+  val isValidPage = requestedPage != null && requestedPage in 1..safeTotalPages
+
   Row(
     modifier = Modifier.fillMaxWidth(),
     verticalAlignment = Alignment.CenterVertically,
@@ -261,14 +278,56 @@ fun PaginationControls(currentPage: Int, totalPages: Int, onPrevious: () -> Unit
     IconButton(onClick = onPrevious, enabled = currentPage > 1) {
       Icon(Icons.Default.ChevronLeft, contentDescription = stringResource(id = R.string.pagination_previous))
     }
-    Text(
-      text = stringResource(id = R.string.pagination_page_info, currentPage, totalPages),
-      style = MaterialTheme.typography.bodyMedium,
-      textAlign = TextAlign.Center,
-      modifier = Modifier.padding(horizontal = 16.dp)
-    )
+    TextButton(
+      onClick = {
+        pageInput = currentPage.toString()
+        showJumpDialog = true
+      },
+      modifier = Modifier.padding(horizontal = 4.dp)
+    ) {
+      Text(
+        text = stringResource(id = R.string.pagination_page_info, currentPage, totalPages),
+        style = MaterialTheme.typography.bodyMedium,
+        textAlign = TextAlign.Center,
+        modifier = Modifier.padding(horizontal = 12.dp)
+      )
+    }
     IconButton(onClick = onNext, enabled = currentPage < totalPages) {
       Icon(Icons.Default.ChevronRight, contentDescription = stringResource(id = R.string.pagination_next))
     }
+  }
+
+  if (showJumpDialog) {
+    AlertDialog(
+      onDismissRequest = { showJumpDialog = false },
+      title = { Text(stringResource(id = R.string.pagination_jump_title)) },
+      text = {
+        OutlinedTextField(
+          value = pageInput,
+          onValueChange = { input -> pageInput = input.filter(Char::isDigit) },
+          label = { Text(stringResource(id = R.string.pagination_jump_hint, safeTotalPages)) },
+          singleLine = true,
+          keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+        )
+      },
+      confirmButton = {
+        TextButton(
+          onClick = {
+            requestedPage?.let {
+              onGoToPage(it)
+              showJumpDialog = false
+            }
+          },
+          enabled = isValidPage
+        ) {
+          Text(stringResource(id = R.string.pagination_jump_confirm))
+        }
+      },
+      dismissButton = {
+        TextButton(onClick = { showJumpDialog = false }) {
+          Text(stringResource(id = R.string.pagination_jump_cancel))
+        }
+      }
+    )
   }
 }

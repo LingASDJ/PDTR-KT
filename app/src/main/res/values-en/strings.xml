@@ -79,6 +79,10 @@
     <string name="pagination_previous">Previous</string>
     <string name="pagination_next">Next</string>
     <string name="pagination_page_info">Page %1$d / %2$d</string>
+    <string name="pagination_jump_title">Jump to Page</string>
+    <string name="pagination_jump_hint">Page (1-%1$d)</string>
+    <string name="pagination_jump_confirm">Go</string>
+    <string name="pagination_jump_cancel">Cancel</string>
 
     <!-- Filter States -->
     <string name="filter_all">All</string>
@@ -192,6 +196,29 @@
     <string name="dict_preview_search_label">Search Dictionary</string>
     <string name="dict_preview_empty">No dictionary entries found</string>
     <string name="dict_preview_save_done">Dictionary entry updated</string>
+
+    <!-- Dictionary Preview Screen -->
+    <string name="dict_preview_tab_pending">Pending Review</string>
+    <string name="dict_preview_tab_reviewed">Reviewed</string>
+    <string name="dict_preview_review_btn">Review</string>
+    <string name="dict_preview_unreview_btn">Undo Review</string>
+    <string name="dict_preview_review_done">Marked as reviewed</string>
+    <string name="dict_preview_unreview_done">Review undone</string>
+
+    <!-- Calibration -->
+    <string name="calibration_title">Source Calibration</string>
+    <string name="calibration_btn">Calibrate</string>
+    <string name="calibration_save_done">Calibration saved</string>
+    <string name="calibration_clear_done">Calibration library cleared</string>
+    <string name="calibration_import_done">Calibration imported: %d entries</string>
+    <string name="calibration_import_failed">Calibration import failed</string>
+    <string name="calibration_export_done">Calibration exported</string>
+    <string name="calibration_badge">Calibrated</string>
+    <string name="calibration_card_title">Source Calibration Library</string>
+    <string name="calibration_card_count">%d calibration entries</string>
+    <string name="calibration_import">Import</string>
+    <string name="calibration_export">Export</string>
+    <string name="calibration_clear">Clear</string>
 
     <!-- Deleted Entries -->
     <string name="deleted_badge">Deleted</string>

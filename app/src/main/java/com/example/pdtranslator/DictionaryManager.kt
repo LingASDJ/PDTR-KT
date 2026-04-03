@@ -134,6 +134,18 @@ class DictionaryManager(private val context: Context) {
     }
   }
 
+  fun reviewPreviewEntry(rawKey: String) {
+    storeState.update { store ->
+      store.reviewEntry(rawKey).normalized(defaultDictionaryName())
+    }
+  }
+
+  fun unreviewPreviewEntry(rawKey: String) {
+    storeState.update { store ->
+      store.unreviewEntry(rawKey).normalized(defaultDictionaryName())
+    }
+  }
+
   fun exportSelectedDictionary(): ByteArray {
     return repository().exportSelected(snapshotStore()).toByteArray(Charsets.UTF_8)
   }

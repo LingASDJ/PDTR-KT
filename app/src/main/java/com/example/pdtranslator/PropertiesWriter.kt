@@ -11,9 +11,12 @@ object PropertiesWriter {
 
   fun write(props: Properties, writer: Writer) {
     val sortedKeys = props.keys.mapNotNull { it as? String }.sorted()
+    val writtenKeys = mutableSetOf<String>()
     for (key in sortedKeys) {
-      val value = props.getProperty(key, "")
-      writer.write(escapeKey(key))
+      val cleanKey = key.removePrefix("\uFEFF")
+      if (!writtenKeys.add(cleanKey)) continue
+      val value = props.getProperty(cleanKey) ?: props.getProperty(key, "")
+      writer.write(escapeKey(cleanKey))
       writer.write("=")
       writer.write(escapeValue(value))
       writer.write("\n")

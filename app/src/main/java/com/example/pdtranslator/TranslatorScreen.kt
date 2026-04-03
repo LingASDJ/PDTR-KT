@@ -2,6 +2,7 @@ package com.example.pdtranslator
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -23,9 +24,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DeleteSweep
+import androidx.compose.material.icons.filled.Done
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Lightbulb
 import androidx.compose.material.icons.filled.Translate
@@ -64,6 +68,7 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.input.OffsetMapping
 import androidx.compose.ui.text.input.TransformedText
 import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.material3.LinearProgressIndicator
@@ -71,6 +76,7 @@ import androidx.compose.material3.OutlinedButton
 import com.google.accompanist.flowlayout.FlowRow
 import androidx.compose.ui.platform.LocalContext
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun TranslatorScreen(viewModel: TranslatorViewModel) {
   val displayEntries by viewModel.displayEntries.collectAsState()
@@ -94,9 +100,36 @@ fun TranslatorScreen(viewModel: TranslatorViewModel) {
   val searchQuery by viewModel.searchQuery.collectAsState()
   val context = LocalContext.current
   val searchListState = rememberLazyListState()
+  val usesPrefixGrouping = filterState == FilterState.DIFF || filterState == FilterState.ALL ||
+    filterState == FilterState.UNTRANSLATED || filterState == FilterState.TRANSLATED ||
+    filterState == FilterState.MODIFIED || filterState == FilterState.NO_TRANSLATION_NEEDED
+  val groupedEntries = remember(displayEntries) { groupEntriesByPrefix(displayEntries) }
+  var collapsedGroups by remember(filterState) { mutableStateOf(emptySet<String>()) }
 
-  LaunchedEffect(displayEntries, currentSearchResultKey) {
-    val targetIndex = findSearchResultScrollIndex(displayEntries, currentSearchResultKey) ?: return@LaunchedEffect
+  LaunchedEffect(displayEntries, currentSearchResultKey, usesPrefixGrouping) {
+    val effectiveCollapsedGroups = if (usesPrefixGrouping) {
+      revealCurrentSearchResultGroup(
+        collapsedGroups = collapsedGroups,
+        entries = displayEntries,
+        currentSearchResultKey = currentSearchResultKey
+      )
+    } else {
+      collapsedGroups
+    }
+
+    if (usesPrefixGrouping) {
+      collapsedGroups = effectiveCollapsedGroups
+    }
+
+    val targetIndex = if (usesPrefixGrouping) {
+      findGroupedSearchResultScrollIndex(
+        entries = displayEntries,
+        currentSearchResultKey = currentSearchResultKey,
+        collapsedGroups = effectiveCollapsedGroups
+      )
+    } else {
+      findSearchResultScrollIndex(displayEntries, currentSearchResultKey)
+    } ?: return@LaunchedEffect
     searchListState.animateScrollToItem(targetIndex)
   }
 
@@ -260,7 +293,7 @@ fun TranslatorScreen(viewModel: TranslatorViewModel) {
               }
             }
           }
-          PaginationControls(deletedPage, deletedTotalPages, viewModel::previousPage, viewModel::nextPage)
+          PaginationControls(deletedPage, deletedTotalPages, viewModel::previousPage, viewModel::nextPage, viewModel::goToPage)
         }
       }
       filterState == FilterState.DIFF -> {
@@ -272,22 +305,59 @@ fun TranslatorScreen(viewModel: TranslatorViewModel) {
         } else {
           LazyColumn(
             modifier = Modifier.weight(1f),
+            state = searchListState,
             verticalArrangement = Arrangement.spacedBy(8.dp)
           ) {
-            items(displayEntries, key = { it.key }) { entry ->
-              DiffTranslationCard(
-                entry = entry,
-                highlightKeywords = highlightKeywords,
-                searchHighlightQuery = searchQuery,
-                isCurrentSearchResult = currentSearchResultKey == entry.key,
-                onSave = { newText -> viewModel.stageChange(entry.key, newText) },
-                onRevertToDict = {
-                  entry.dictValue?.let { viewModel.stageChange(entry.key, it) }
+            groupedEntries.forEach { (prefix, entries) ->
+              stickyHeader(key = "diff_header_$prefix") {
+                Row(
+                  modifier = Modifier
+                    .fillMaxWidth()
+                    .background(MaterialTheme.colorScheme.surface)
+                    .clickable {
+                      collapsedGroups = if (prefix in collapsedGroups) {
+                        collapsedGroups - prefix
+                      } else {
+                        collapsedGroups + prefix
+                      }
+                    }
+                    .padding(vertical = 4.dp, horizontal = 4.dp),
+                  verticalAlignment = Alignment.CenterVertically
+                ) {
+                  Icon(
+                    if (prefix in collapsedGroups) Icons.AutoMirrored.Filled.KeyboardArrowRight
+                    else Icons.Default.KeyboardArrowDown,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp),
+                    tint = MaterialTheme.colorScheme.primary
+                  )
+                  Spacer(Modifier.width(4.dp))
+                  Text(
+                    text = stringResource(R.string.group_header_count, prefix, entries.size),
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.primary
+                  )
                 }
-              )
+              }
+              if (prefix !in collapsedGroups) {
+                items(entries, key = { it.key }) { entry ->
+                  DiffTranslationCard(
+                    entry = entry,
+                    highlightKeywords = highlightKeywords,
+                    searchHighlightQuery = searchQuery,
+                    isCurrentSearchResult = currentSearchResultKey == entry.key,
+                    onSave = { newText -> viewModel.stageChange(entry.key, newText) },
+                    onRevertToDict = {
+                      entry.dictValue?.let { viewModel.stageChange(entry.key, it) }
+                    },
+                    onCalibrate = { key, original, calibrated -> viewModel.calibrateSource(key, original, calibrated) }
+                  )
+                }
+              }
             }
           }
-          PaginationControls(currentPage, totalPages, viewModel::previousPage, viewModel::nextPage)
+          PaginationControls(currentPage, totalPages, viewModel::previousPage, viewModel::nextPage, viewModel::goToPage)
         }
       }
       displayEntries.isEmpty() -> {
@@ -302,26 +372,65 @@ fun TranslatorScreen(viewModel: TranslatorViewModel) {
           state = searchListState,
           verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-          items(displayEntries, key = { it.key }) { entry ->
-            NewTranslationCard(
-              entry = entry,
-              highlightKeywords = highlightKeywords,
-              searchHighlightQuery = searchQuery,
-              isCurrentSearchResult = currentSearchResultKey == entry.key,
-              tmSuggestions = tmSuggestions,
-              networkSuggestion = networkSuggestion,
-              onSave = { newText -> viewModel.stageChange(entry.key, newText) },
-              onDiscard = { viewModel.unstageChange(entry.key) },
-              onFocused = { viewModel.requestTmSuggestions(entry.sourceValue) },
-              onUnfocused = { viewModel.clearTmSuggestions() },
-              onApplyTm = { targetText -> viewModel.applyTmSuggestion(entry.key, targetText) },
-              onTranslate = { viewModel.translateEntry(entry.key, entry.sourceValue) },
-              onApplyNetwork = { text -> viewModel.applyNetworkSuggestion(entry.key, text) },
-              hasEngine = viewModel.engineManager.getSelectedEngineId().isNotBlank()
-            )
+          groupedEntries.forEach { (prefix, entries) ->
+            stickyHeader(key = "header_$prefix") {
+              Row(
+                modifier = Modifier
+                  .fillMaxWidth()
+                  .background(MaterialTheme.colorScheme.surface)
+                  .clickable {
+                    collapsedGroups = if (prefix in collapsedGroups) {
+                      collapsedGroups - prefix
+                    } else {
+                      collapsedGroups + prefix
+                    }
+                  }
+                  .padding(vertical = 4.dp, horizontal = 4.dp),
+                verticalAlignment = Alignment.CenterVertically
+              ) {
+                Icon(
+                  if (prefix in collapsedGroups) Icons.AutoMirrored.Filled.KeyboardArrowRight
+                  else Icons.Default.KeyboardArrowDown,
+                  contentDescription = null,
+                  modifier = Modifier.size(18.dp),
+                  tint = MaterialTheme.colorScheme.primary
+                )
+                Spacer(Modifier.width(4.dp))
+                Text(
+                  text = stringResource(R.string.group_header_count, prefix, entries.size),
+                  style = MaterialTheme.typography.titleSmall,
+                  fontWeight = FontWeight.SemiBold,
+                  color = MaterialTheme.colorScheme.primary
+                )
+              }
+            }
+            if (prefix !in collapsedGroups) {
+              items(entries, key = { it.key }) { entry ->
+                NewTranslationCard(
+                  entry = entry,
+                  highlightKeywords = highlightKeywords,
+                  searchHighlightQuery = searchQuery,
+                  isCurrentSearchResult = currentSearchResultKey == entry.key,
+                  tmSuggestions = tmSuggestions,
+                  networkSuggestion = networkSuggestion,
+                  onSave = { newText -> viewModel.stageChange(entry.key, newText) },
+                  onDiscard = { viewModel.unstageChange(entry.key) },
+                  onFocused = { viewModel.requestTmSuggestions(entry.sourceValue) },
+                  onUnfocused = { viewModel.clearTmSuggestions() },
+                  onApplyTm = { targetText -> viewModel.applyTmSuggestion(entry.key, targetText) },
+                  onTranslate = { viewModel.translateEntry(entry.key, entry.sourceValue) },
+                  onApplyNetwork = { text -> viewModel.applyNetworkSuggestion(entry.key, text) },
+                  hasEngine = viewModel.engineManager.getSelectedEngineId().isNotBlank(),
+                  onCalibrate = { key, original, calibrated -> viewModel.calibrateSource(key, original, calibrated) },
+                  isNoTranslationNeeded = entry.isNoTranslationNeeded,
+                  onMarkNoTranslation = { viewModel.markNoTranslationNeeded(entry.key, entry.sourceValue) },
+                  onUnmarkNoTranslation = { viewModel.unmarkNoTranslationNeeded(entry.key) }
+                )
+              }
+            }
           }
         }
-        PaginationControls(currentPage, totalPages, viewModel::previousPage, viewModel::nextPage)
+        PaginationControls(currentPage, totalPages, viewModel::previousPage, viewModel::nextPage, viewModel::goToPage)
       }
     }
 
@@ -518,11 +627,17 @@ fun NewTranslationCard(
   onApplyTm: (String) -> Unit,
   onTranslate: () -> Unit = {},
   onApplyNetwork: (String) -> Unit = {},
-  hasEngine: Boolean = false
+  hasEngine: Boolean = false,
+  onCalibrate: (String, String, String) -> Unit = { _, _, _ -> },
+  isNoTranslationNeeded: Boolean = false,
+  onMarkNoTranslation: () -> Unit = {},
+  onUnmarkNoTranslation: () -> Unit = {}
 ) {
   var currentText by remember(entry.key, entry.targetValue) { mutableStateOf(entry.targetValue) }
   var lastCommittedText by remember(entry.key, entry.targetValue) { mutableStateOf(entry.targetValue) }
   var isFocused by remember { mutableStateOf(false) }
+  var isCalibrating by remember(entry.key) { mutableStateOf(false) }
+  var calibratingText by remember(entry.key, entry.sourceValue) { mutableStateOf(entry.sourceValue) }
   val latestText = rememberUpdatedState(currentText)
   val latestCommittedText = rememberUpdatedState(lastCommittedText)
   val latestSave = rememberUpdatedState(onSave)
@@ -596,17 +711,81 @@ fun NewTranslationCard(
             background = MaterialTheme.colorScheme.tertiaryContainer
           )
         }
+        if (entry.isNoTranslationNeeded) {
+          Spacer(Modifier.width(6.dp))
+          BadgeLabel(
+            text = stringResource(R.string.no_translation_needed_badge),
+            color = MaterialTheme.colorScheme.secondary,
+            background = MaterialTheme.colorScheme.secondaryContainer
+          )
+        }
       }
 
-      // Source text in a subtle container
-      Box(
-        modifier = Modifier
-          .fillMaxWidth()
-          .clip(MaterialTheme.shapes.small)
-          .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-          .padding(horizontal = 10.dp, vertical = 8.dp)
-      ) {
-        HighlightedText(text = entry.sourceValue, keywords = mergedHighlights)
+      // Source text with calibration support
+      Column {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+          if (entry.isCalibrated) {
+            BadgeLabel(
+              text = stringResource(R.string.calibration_badge),
+              color = MaterialTheme.colorScheme.tertiary,
+              background = MaterialTheme.colorScheme.tertiaryContainer
+            )
+            Spacer(Modifier.width(6.dp))
+          }
+          Spacer(Modifier.weight(1f))
+          IconButton(
+            onClick = {
+              isCalibrating = !isCalibrating
+              calibratingText = entry.sourceValue
+            },
+            modifier = Modifier.size(24.dp)
+          ) {
+            Icon(
+              Icons.Default.Edit,
+              contentDescription = stringResource(R.string.calibration_btn),
+              modifier = Modifier.size(14.dp),
+              tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+          }
+        }
+
+        if (isCalibrating) {
+          OutlinedTextField(
+            value = calibratingText,
+            onValueChange = { calibratingText = it },
+            modifier = Modifier.fillMaxWidth(),
+            label = { Text(stringResource(R.string.calibration_title)) },
+            minLines = 2
+          )
+          Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.End
+          ) {
+            OutlinedButton(onClick = { isCalibrating = false }) {
+              Text(stringResource(R.string.common_cancel))
+            }
+            Spacer(Modifier.width(8.dp))
+            Button(
+              onClick = {
+                onCalibrate(entry.key, entry.sourceValue, calibratingText)
+                isCalibrating = false
+              },
+              enabled = calibratingText.isNotBlank() && calibratingText != entry.sourceValue
+            ) {
+              Text(stringResource(R.string.common_save))
+            }
+          }
+        } else {
+          Box(
+            modifier = Modifier
+              .fillMaxWidth()
+              .clip(MaterialTheme.shapes.small)
+              .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+              .padding(horizontal = 10.dp, vertical = 8.dp)
+          ) {
+            HighlightedText(text = entry.sourceValue, keywords = mergedHighlights)
+          }
+        }
       }
 
       // Translation input
@@ -646,6 +825,23 @@ fun NewTranslationCard(
           Icon(Icons.Default.ContentCopy, contentDescription = null, modifier = Modifier.size(16.dp))
           Spacer(Modifier.width(4.dp))
           Text(stringResource(R.string.common_copy))
+        }
+        Spacer(Modifier.width(8.dp))
+        if (isNoTranslationNeeded) {
+          OutlinedButton(onClick = onUnmarkNoTranslation) {
+            Icon(Icons.AutoMirrored.Filled.Undo, contentDescription = null, modifier = Modifier.size(16.dp))
+            Spacer(Modifier.width(4.dp))
+            Text(stringResource(R.string.common_cancel))
+          }
+        } else {
+          OutlinedButton(
+            onClick = onMarkNoTranslation,
+            enabled = entry.sourceValue.isNotBlank()
+          ) {
+            Icon(Icons.Default.Done, contentDescription = null, modifier = Modifier.size(16.dp))
+            Spacer(Modifier.width(4.dp))
+            Text(stringResource(R.string.no_translation_needed_btn))
+          }
         }
         if (entry.isModified) {
           Spacer(Modifier.width(8.dp))
@@ -914,12 +1110,15 @@ fun DiffTranslationCard(
   searchHighlightQuery: String,
   isCurrentSearchResult: Boolean,
   onSave: (String) -> Unit,
-  onRevertToDict: () -> Unit
+  onRevertToDict: () -> Unit,
+  onCalibrate: (String, String, String) -> Unit = { _, _, _ -> }
 ) {
   val context = LocalContext.current
   var currentText by remember(entry.key, entry.targetValue) { mutableStateOf(entry.targetValue) }
   var lastCommittedText by remember(entry.key, entry.targetValue) { mutableStateOf(entry.targetValue) }
   var isFocused by remember { mutableStateOf(false) }
+  var isCalibrating by remember(entry.key) { mutableStateOf(false) }
+  var calibratingText by remember(entry.key, entry.sourceValue) { mutableStateOf(entry.sourceValue) }
   val latestText = rememberUpdatedState(currentText)
   val latestCommittedText = rememberUpdatedState(lastCommittedText)
   val latestSave = rememberUpdatedState(onSave)
@@ -997,20 +1196,76 @@ fun DiffTranslationCard(
         }
       }
 
-      // New source text (current)
-      Text(
-        text = stringResource(R.string.diff_new_source),
-        style = MaterialTheme.typography.labelSmall,
-        color = MaterialTheme.colorScheme.primary
-      )
-      Box(
-        modifier = Modifier
-          .fillMaxWidth()
-          .clip(MaterialTheme.shapes.small)
-          .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-          .padding(horizontal = 10.dp, vertical = 8.dp)
-      ) {
-        HighlightedText(text = entry.sourceValue, keywords = mergedHighlights)
+      // New source text (current) with calibration support
+      Column {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+          Text(
+            text = stringResource(R.string.diff_new_source),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.weight(1f)
+          )
+          if (entry.isCalibrated) {
+            BadgeLabel(
+              text = stringResource(R.string.calibration_badge),
+              color = MaterialTheme.colorScheme.tertiary,
+              background = MaterialTheme.colorScheme.tertiaryContainer
+            )
+            Spacer(Modifier.width(6.dp))
+          }
+          IconButton(
+            onClick = {
+              isCalibrating = !isCalibrating
+              calibratingText = entry.sourceValue
+            },
+            modifier = Modifier.size(24.dp)
+          ) {
+            Icon(
+              Icons.Default.Edit,
+              contentDescription = stringResource(R.string.calibration_btn),
+              modifier = Modifier.size(14.dp),
+              tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+          }
+        }
+
+        if (isCalibrating) {
+          OutlinedTextField(
+            value = calibratingText,
+            onValueChange = { calibratingText = it },
+            modifier = Modifier.fillMaxWidth(),
+            label = { Text(stringResource(R.string.calibration_title)) },
+            minLines = 2
+          )
+          Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.End
+          ) {
+            OutlinedButton(onClick = { isCalibrating = false }) {
+              Text(stringResource(R.string.common_cancel))
+            }
+            Spacer(Modifier.width(8.dp))
+            Button(
+              onClick = {
+                onCalibrate(entry.key, entry.sourceValue, calibratingText)
+                isCalibrating = false
+              },
+              enabled = calibratingText.isNotBlank() && calibratingText != entry.sourceValue
+            ) {
+              Text(stringResource(R.string.common_save))
+            }
+          }
+        } else {
+          Box(
+            modifier = Modifier
+              .fillMaxWidth()
+              .clip(MaterialTheme.shapes.small)
+              .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+              .padding(horizontal = 10.dp, vertical = 8.dp)
+          ) {
+            HighlightedText(text = entry.sourceValue, keywords = mergedHighlights)
+          }
+        }
       }
 
       // Dictionary translation (for reference)

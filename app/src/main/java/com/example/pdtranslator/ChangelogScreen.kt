@@ -25,6 +25,7 @@ data class ChangelogItem(val version: String, val changes: List<String>)
 @Composable
 fun getChangelog(): List<ChangelogItem> {
     return listOf(
+        ChangelogItem(stringResource(R.string.changelog_version_0_2_2), stringResource(R.string.changelog_content_0_2_2).split("\n")),
         ChangelogItem(stringResource(R.string.changelog_version_0_2_0), stringResource(R.string.changelog_content_0_2_0).split("\n")),
         ChangelogItem(stringResource(R.string.changelog_version_0_1_9), stringResource(R.string.changelog_content_0_1_9).split("\n")),
         ChangelogItem(stringResource(R.string.changelog_version_0_1_8), stringResource(R.string.changelog_content_0_1_8).split("\n")),

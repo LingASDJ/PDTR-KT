@@ -9,7 +9,8 @@ data class EditScope(
 data class ScopedWorkspaceState(
   val stagedChangesByScope: Map<EditScope, Map<String, String>> = emptyMap(),
   val stagedDeletionsByScope: Map<EditScope, Set<String>> = emptyMap(),
-  val createdLanguagesByGroup: Map<String, Set<String>> = emptyMap()
+  val createdLanguagesByGroup: Map<String, Set<String>> = emptyMap(),
+  val noTranslationNeededByScope: Map<EditScope, Set<String>> = emptyMap()
 ) {
 
   fun stagedChanges(scope: EditScope?): Map<String, String> {
@@ -55,5 +56,20 @@ data class ScopedWorkspaceState(
       updated[groupName] = LinkedHashSet(languages)
     }
     return copy(createdLanguagesByGroup = updated)
+  }
+
+  fun noTranslationNeeded(scope: EditScope?): Set<String> {
+    return scope?.let { noTranslationNeededByScope[it] }.orEmpty()
+  }
+
+  fun withNoTranslationNeeded(scope: EditScope?, keys: Set<String>): ScopedWorkspaceState {
+    if (scope == null) return this
+    val updated = noTranslationNeededByScope.toMutableMap()
+    if (keys.isEmpty()) {
+      updated.remove(scope)
+    } else {
+      updated[scope] = LinkedHashSet(keys)
+    }
+    return copy(noTranslationNeededByScope = updated)
   }
 }

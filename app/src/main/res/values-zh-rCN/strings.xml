@@ -36,6 +36,10 @@
     <string name="pagination_next">下一页</string>
     <string name="pagination_page_info">第 %1$d / %2$d 页</string>
 
+    <string name="pagination_jump_title">跳转到页面</string>
+    <string name="pagination_jump_hint">页码 (1-%1$d)</string>
+    <string name="pagination_jump_confirm">跳转</string>
+    <string name="pagination_jump_cancel">取消</string>
     <!-- Filter States -->
     <string name="filter_all">全部</string>
     <string name="filter_untranslated">未翻译</string>
@@ -198,6 +202,9 @@
     <!-- Filter States (new) -->
     <string name="filter_diff">差异</string>
     <string name="filter_deleted">已删除</string>
+    <string name="filter_no_translation_needed">无需处理</string>
+    <string name="no_translation_needed_btn">无需处理</string>
+    <string name="no_translation_needed_badge">无需处理</string>
 
     <!-- Dictionary -->
     <string name="dict_title">字典</string>
@@ -336,6 +343,9 @@
 
     <!-- Changelog 0.1.9 -->
     <string name="changelog_version_0_1_9">v0.1.9</string>
+    <!-- Changelog 0.2.2 -->
+    <string name="changelog_version_0_2_2">v0.2.2</string>
+    <string name="changelog_content_0_2_2">【新功能】\n- 校准库对比合并：导入校准数据时显示差异对比，可选择性合并。\n- 前缀分组显示：翻译条目按索引头（如 actor.*、windows.*）分组，支持折叠展开。\n- "无需处理"按钮：标记不需要翻译的条目，不计入未翻译统计。\n\n【修复】\n- 创建语言支持下划线格式（如 zh_CN），修复边界情况。\n- 修复搜索跳转在分组显示下定位偏移的问题，折叠组自动展开以显示搜索结果。</string>
     <!-- Changelog 0.2.0 -->
     <string name="changelog_version_0_2_0">v0.2.0</string>
     <string name="changelog_content_0_2_0">【新功能】\n- 翻译引擎：支持 10 个引擎（5 个免 API 网页引擎 + 5 个官方 API 引擎）。\n- 新增百度网页翻译引擎（BaiduWebEngine）：使用 fanyi.baidu.com 网页接口，完整实现 token/gtk 签名算法，无需 API 密钥。\n- DeepLX 免配置：内置公共端点（api.deeplx.org），无需用户手动填写即可使用，自定义端点优先。\n- 翻译引擎排序优化：5 个免费网页引擎排在列表最前方，用户无需任何配置即可开始翻译。\n- 字典全局化：跨语言组查询翻译记录，优先当前组 → 旧格式 → 其他组全局搜索（最近时间戳优先），大幅提升字典复用率。\n- 翻译进度条：改为 LinearProgressIndicator + 百分比（精确到两位小数，如 56.78%），始终显示。\n- 搜索替换按钮：新增「查找」和「全部替换」按钮，支持区分大小写和完全匹配模式。\n- 搜索替换地牢主题适配：地牢主题下按钮带卷轴/魔杖像素图标 + 地牢配色。\n- 每条翻译条目支持一键调用当前引擎翻译，结果以芯片形式显示。\n- 支持按语言组单独指定引擎源语言代码（base_lang_override）。\n- 已删除视图支持撤销：已暂存的删除显示为灰色卡片，可一键撤回。\n\n【像素地牢主题】\n- 默认主题改为像素地牢主题，应用启动即进入地牢体验。\n- 24小时制色彩系统：从 6 个时段扩展为 24 个小时段，每小时一个独特地牢场景配色。\n- 颜色全部取自 MLPD 真实游戏数据（Window.java / CharSprite.java / FistSprite / Level sources 等）。\n- 包含：下水道、Goo、花园、监狱、天狗、洞穴、水晶洞窟、矮人城、矮人国王、恶魔大厅、魔眼层、蝎子巢穴、犹格索托斯、各拳魔、最终之厅等场景。\n- 增强砖墙细节：苔藓、血迹、水晶污渍等基于区域 color2 的随机纹理。\n- 24种独特火焰配色（地狱红/毒绿/灯笼黄/水晶蓝/魔法紫等）。\n- 底部魔法池光效根据章节变化（熔岩池/绿水池/烛光/水晶反射/MLPD青色魔法/血池）。\n- 导航图标 6 组变化覆盖 24 小时。\n- 真像素字体（fusion_pixel.ttf + pixel_font.ttf）。\n- 13 个像素矢量图标（16×16 逐像素定义）。\n- 地牢彩蛋：设置页底部显示当前区域名和深度。\n\n【优化】\n- 字典键新增语言组维度，多组字典不再互相覆盖。\n- Snackbar 事件全局可用，所有页面均可显示。\n- UI 优化：ElevatedCard 分区、统一图标标题栏、引擎配置对话框可滚动。\n- 搜索替换按钮布局优化：checkbox 与按钮分行，按钮等宽排列。\n- 导入按钮改用 FilledTonalButton，导出按钮收入独立卡片。\n\n【修复】\n- 修复旧语言代码识别：_in（印尼语）、_iw（希伯来语）、_ji（意第绪语）等旧 ISO-639 代码现在能正确归入语言组。\n- 导出失败保护：ZIP 写入异常不再静默清空暂存区。\n- 创建语言时自动校验语言代码并标准化，无效码（如 xxx）被拦截。\n- 草稿校验新增源文内容 SHA-256 摘要，检测更严格。\n- 无实际修改的暂存不再启用保存按钮或触发自动保存。\n- 修复 LinearProgressIndicator 参数类型错误。\n- 修复 normalizedCode 变量重名导致的编译错误。\n\n【工作区与字典】\n- 按组暂存：切换语言组时保留未保存的翻译编辑，不再自动丢弃。\n- 新增 all 聚合语言组：一次性对所有语言组执行字典保存/应用操作。\n- 字典预览可编辑：直接在预览对话框中修改原文和译文并保存。\n- 多作用域自动保存：崩溃恢复现在覆盖所有语言组的暂存数据，而非仅当前组。\n- 所有翻译卡片（普通/差异/已删除/暂存删除/预览）新增复制按钮。\n- 新增语言：输入框仅在创建成功后清空，验证失败时保留已输入内容。\n- 翻译卡片和徽标统一使用主题形状，像素地牢主题的切角风格全面生效。</string>
@@ -358,4 +368,39 @@
     <string name="common_save">保存</string>
     <string name="common_cancel">取消</string>
     <string name="dict_preview_save_done">字典条目已更新</string>
+
+    <!-- 字典预览界面 -->
+    <string name="dict_preview_tab_pending">待校对</string>
+    <string name="dict_preview_tab_reviewed">已校对</string>
+    <string name="dict_preview_review_btn">校对</string>
+    <string name="dict_preview_unreview_btn">撤销校对</string>
+    <string name="dict_preview_review_done">已标记为校对通过</string>
+    <string name="dict_preview_unreview_done">已撤销校对</string>
+
+    <!-- 原文校准 -->
+    <string name="calibration_title">原文校准</string>
+    <string name="calibration_btn">校准</string>
+    <string name="calibration_save_done">校准已保存</string>
+    <string name="calibration_clear_done">校准库已清空</string>
+    <string name="calibration_import_done">已导入校准：%d 条</string>
+    <string name="calibration_import_failed">校准导入失败</string>
+    <string name="calibration_export_done">校准库已导出</string>
+    <string name="calibration_badge">已校准</string>
+    <string name="calibration_card_title">原文校准库</string>
+    <string name="calibration_card_count">%d 条校准记录</string>
+    <string name="calibration_import">导入</string>
+    <string name="calibration_export">导出</string>
+    <string name="calibration_clear">清空</string>
+    <string name="calibration_diff_title">校准库对比</string>
+    <string name="calibration_diff_only_incoming">仅对方有 (%d)</string>
+    <string name="calibration_diff_only_local">仅本地有 (%d)</string>
+    <string name="calibration_diff_conflicts">冲突 (%d)</string>
+    <string name="calibration_diff_identical">相同（自动跳过）：%d</string>
+    <string name="calibration_diff_merge_selected">合并选中项 (%d)</string>
+    <string name="calibration_diff_local_label">本地</string>
+    <string name="calibration_diff_incoming_label">导入</string>
+    <string name="calibration_diff_select_all">全选</string>
+    <string name="calibration_import_empty">导入文件为空</string>
+    <string name="calibration_merge_done">已合并 %d 条校准</string>
+    <string name="group_header_count">%1$s (%2$d)</string>
 </resources>

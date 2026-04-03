@@ -19,6 +19,8 @@ import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.io.BufferedReader
 import java.io.InputStreamReader
@@ -51,7 +53,10 @@ data class TranslationEntry(
   val isDeleted: Boolean = false,
   val isDiff: Boolean = false,
   val dictValue: String? = null,
-  val dictSourceValue: String? = null
+  val dictSourceValue: String? = null,
+  val isCalibrated: Boolean = false,
+  val originalSourceValue: String? = null,
+  val isNoTranslationNeeded: Boolean = false
 )
 
 // A3: UI data class for DELETED view
@@ -82,7 +87,7 @@ data class PendingDictionaryImport(
   val conflictNames: List<String>
 )
 
-enum class FilterState { ALL, UNTRANSLATED, TRANSLATED, MODIFIED, MISSING, DIFF, DELETED }
+enum class FilterState { ALL, UNTRANSLATED, TRANSLATED, MODIFIED, MISSING, DIFF, DELETED, NO_TRANSLATION_NEEDED }
 
 enum class ThemeColor {
   DEFAULT, M3, GREEN, LAVENDER, MODERN, PIXEL_DUNGEON
@@ -157,6 +162,18 @@ class TranslatorViewModel(application: Application) : AndroidViewModel(applicati
   val tmSuggestions = _tmSuggestions.asStateFlow()
   private var tmQueryJob: Job? = null
 
+  // --- Calibration State ---
+  private val calibrationRepository = CalibrationRepository(app.filesDir)
+  private val calibrationStoreState = CalibrationStoreState()
+  private val calibrationMutationMutex = Mutex()
+  val calibrationCount = MutableStateFlow(0)
+
+  data class PendingCalibrationImport(
+    val incoming: Map<String, CalibrationEntry>,
+    val diff: CalibrationDiffResult
+  )
+  val pendingCalibrationImport = MutableStateFlow<PendingCalibrationImport?>(null)
+
   // --- Dictionary State ---
   private val _dictEntryCount = MutableStateFlow(0)
   val dictEntryCount = _dictEntryCount.asStateFlow()
@@ -165,13 +182,17 @@ class TranslatorViewModel(application: Application) : AndroidViewModel(applicati
   val selectedDictionaryName = MutableStateFlow("")
   val dictionaryCount = MutableStateFlow(0)
   val canDeleteDictionary = MutableStateFlow(false)
-  val isDictionaryPreviewVisible = MutableStateFlow(false)
   val dictionaryPreviewQuery = MutableStateFlow("")
   val dictionaryPreviewEntries = MutableStateFlow<List<DictionaryPreviewItem>>(emptyList())
   val pendingDictionaryImport = MutableStateFlow<PendingDictionaryImport?>(null)
+  val dictionaryPreviewTab = MutableStateFlow(0) // 0=待校对, 1=已校对
 
   // --- Created Languages (for export even without staged changes) ---
   private val _createdLanguages = MutableStateFlow<Set<String>>(emptySet())
+
+  // --- No Translation Needed ---
+  private val _noTranslationNeeded = MutableStateFlow<Set<String>>(emptySet())
+  val noTranslationNeeded = _noTranslationNeeded.asStateFlow()
 
   // --- A3: Deleted Items for DELETED view ---
   private val _deletedItems = MutableStateFlow<List<DeletedItem>>(emptyList())
@@ -214,6 +235,7 @@ class TranslatorViewModel(application: Application) : AndroidViewModel(applicati
   val currentPage = MutableStateFlow(1)
   val pageSize = 20
   val totalPages = MutableStateFlow(1)
+  private var _pageBeforeSearch: Int = 1
 
   // Smart Info Bar State
   val infoBarText = MutableStateFlow("")
@@ -265,6 +287,7 @@ class TranslatorViewModel(application: Application) : AndroidViewModel(applicati
             FilterState.MISSING -> entry.isMissing && !staged.containsKey(entry.key) && !entry.isDeleted
             FilterState.DIFF -> entry.isDiff && !entry.isDeleted
             FilterState.DELETED -> entry.isDeleted
+            FilterState.NO_TRANSLATION_NEEDED -> entry.isNoTranslationNeeded && !entry.isDeleted
           }
           matchesFilter
         }
@@ -346,6 +369,15 @@ class TranslatorViewModel(application: Application) : AndroidViewModel(applicati
         }
     }
 
+    // Load Calibration on start
+    viewModelScope.launch(Dispatchers.IO) {
+      calibrationMutationMutex.withLock {
+        val loadedStore = calibrationRepository.load()
+        calibrationStoreState.replace(loadedStore)
+        calibrationCount.value = loadedStore.count
+      }
+    }
+
     // Load TM and Dictionary on start
     viewModelScope.launch {
       translationMemory.load()
@@ -361,6 +393,113 @@ class TranslatorViewModel(application: Application) : AndroidViewModel(applicati
       if (draft != null) {
         _draftData.value = draft
       }
+    }
+  }
+
+  // --- Calibration Methods ---
+
+  fun calibrateSource(propKey: String, originalText: String, calibratedText: String) {
+    if (calibratedText.isBlank()) return
+    viewModelScope.launch(Dispatchers.IO) {
+      mutateCalibrationStore { store ->
+        store.upsert(
+          propKey = propKey,
+          originalText = originalText,
+          calibratedText = calibratedText,
+          timestamp = System.currentTimeMillis()
+        )
+      }
+      regenerateEntries()
+      _uiEvents.send(UiEvent.ShowSnackbar(app.getString(R.string.calibration_save_done)))
+    }
+  }
+
+  fun getCalibration(propKey: String): CalibrationEntry? {
+    return calibrationStoreSnapshot().get(propKey)
+  }
+
+  fun clearCalibrations() {
+    viewModelScope.launch(Dispatchers.IO) {
+      mutateCalibrationStore { store -> store.clear() }
+      regenerateEntries()
+      _uiEvents.send(UiEvent.ShowSnackbar(app.getString(R.string.calibration_clear_done)))
+    }
+  }
+
+  fun importCalibrations(content: String) {
+    viewModelScope.launch(Dispatchers.IO) {
+      try {
+        val imported = calibrationRepository.importContent(content)
+        if (imported.isEmpty()) {
+          _uiEvents.send(UiEvent.ShowSnackbar(app.getString(R.string.calibration_import_empty)))
+          return@launch
+        }
+        val currentStore = calibrationStoreSnapshot()
+        if (currentStore.count == 0) {
+          // 本地为空，直接合并无需对比
+          mutateCalibrationStore { store -> store.merge(imported) }
+          regenerateEntries()
+          _uiEvents.send(UiEvent.ShowSnackbar(
+            app.getString(R.string.calibration_import_done, imported.size)
+          ))
+          return@launch
+        }
+        val diff = currentStore.diff(imported)
+        pendingCalibrationImport.value = PendingCalibrationImport(imported, diff)
+      } catch (_: Exception) {
+        _uiEvents.send(UiEvent.ShowSnackbar(app.getString(R.string.calibration_import_failed)))
+      }
+    }
+  }
+
+  fun confirmCalibrationMerge(selectedKeys: Set<String>) {
+    val pending = pendingCalibrationImport.value ?: return
+    viewModelScope.launch(Dispatchers.IO) {
+      mutateCalibrationStore { store ->
+        store.mergeSelected(pending.incoming, selectedKeys)
+      }
+      regenerateEntries()
+      pendingCalibrationImport.value = null
+      _uiEvents.send(UiEvent.ShowSnackbar(
+        app.getString(R.string.calibration_merge_done, selectedKeys.size)
+      ))
+    }
+  }
+
+  fun cancelCalibrationImport() {
+    pendingCalibrationImport.value = null
+  }
+
+  fun exportCalibrations(): ByteArray {
+    return calibrationRepository.exportJson(calibrationStoreSnapshot())
+  }
+
+  fun notifyCalibrationExported() {
+    viewModelScope.launch {
+      _uiEvents.send(UiEvent.ShowSnackbar(app.getString(R.string.calibration_export_done)))
+    }
+  }
+
+  fun notifyCalibrationImportFailed() {
+    viewModelScope.launch {
+      _uiEvents.send(UiEvent.ShowSnackbar(app.getString(R.string.calibration_import_failed)))
+    }
+  }
+
+  fun markNoTranslationNeeded(key: String, sourceValue: String) {
+    stageChange(key, sourceValue)
+    val newSet = _noTranslationNeeded.value + key
+    _noTranslationNeeded.value = newSet
+    _scopedWorkspaceState.update { workspace ->
+      workspace.withNoTranslationNeeded(activeEditScope(), newSet)
+    }
+  }
+
+  fun unmarkNoTranslationNeeded(key: String) {
+    val newSet = _noTranslationNeeded.value - key
+    _noTranslationNeeded.value = newSet
+    _scopedWorkspaceState.update { workspace ->
+      workspace.withNoTranslationNeeded(activeEditScope(), newSet)
     }
   }
 
@@ -437,6 +576,7 @@ class TranslatorViewModel(application: Application) : AndroidViewModel(applicati
     _stagedChanges.value = workspace.stagedChanges(scope)
     _stagedDeletions.value = workspace.stagedDeletions(scope)
     _createdLanguages.value = workspace.createdLanguages(groupName)
+    _noTranslationNeeded.value = workspace.noTranslationNeeded(scope)
   }
 
   private fun updateActiveStagedChanges(newChanges: Map<String, String>) {
@@ -577,9 +717,18 @@ class TranslatorViewModel(application: Application) : AndroidViewModel(applicati
   }
 
   fun setSearchQuery(query: String) {
+    val wasBlank = searchQuery.value.isBlank()
+    val nowBlank = query.isBlank()
+    if (wasBlank && !nowBlank) {
+      _pageBeforeSearch = currentPage.value
+    }
     searchQuery.value = query
-    currentPage.value = 1
-    _currentSearchResultIndex.value = if (query.isBlank()) -1 else 0
+    if (nowBlank) {
+      currentPage.value = _pageBeforeSearch
+    } else {
+      currentPage.value = 1
+    }
+    _currentSearchResultIndex.value = if (nowBlank) -1 else 0
   }
   fun setReplaceQuery(query: String) { replaceQuery.value = query }
   fun setCaseSensitive(isSensitive: Boolean) {
@@ -600,6 +749,9 @@ class TranslatorViewModel(application: Application) : AndroidViewModel(applicati
   }
   fun nextPage() { if (currentPage.value < totalPages.value) currentPage.value++ }
   fun previousPage() { if (currentPage.value > 1) currentPage.value-- }
+  fun goToPage(page: Int) {
+    currentPage.value = page.coerceAtLeast(1)
+  }
   fun setShowAboutDialog(show: Boolean) { _showAboutDialog.value = show }
   fun setThemeColor(theme: ThemeColor) {
     _themeColor.value = theme
@@ -1010,13 +1162,34 @@ class TranslatorViewModel(application: Application) : AndroidViewModel(applicati
 
   fun showDictionaryPreview() {
     dictionaryPreviewQuery.value = ""
+    dictionaryPreviewTab.value = 0
     dictionaryPreviewEntries.value = dictionaryManager.getPreviewEntries("")
-    isDictionaryPreviewVisible.value = true
   }
 
   fun hideDictionaryPreview() {
-    isDictionaryPreviewVisible.value = false
     dictionaryPreviewQuery.value = ""
+  }
+
+  fun setDictionaryPreviewTab(tab: Int) {
+    dictionaryPreviewTab.value = tab
+  }
+
+  fun reviewDictionaryEntry(rawKey: String) {
+    viewModelScope.launch(Dispatchers.IO) {
+      dictionaryManager.reviewPreviewEntry(rawKey)
+      dictionaryManager.save()
+      dictionaryPreviewEntries.value = dictionaryManager.getPreviewEntries(dictionaryPreviewQuery.value)
+      _uiEvents.send(UiEvent.ShowSnackbar(app.getString(R.string.dict_preview_review_done)))
+    }
+  }
+
+  fun unreviewDictionaryEntry(rawKey: String) {
+    viewModelScope.launch(Dispatchers.IO) {
+      dictionaryManager.unreviewPreviewEntry(rawKey)
+      dictionaryManager.save()
+      dictionaryPreviewEntries.value = dictionaryManager.getPreviewEntries(dictionaryPreviewQuery.value)
+      _uiEvents.send(UiEvent.ShowSnackbar(app.getString(R.string.dict_preview_unreview_done)))
+    }
   }
 
   fun setDictionaryPreviewQuery(query: String) {
@@ -1141,8 +1314,9 @@ class TranslatorViewModel(application: Application) : AndroidViewModel(applicati
       val group = _languageGroups.value.find { it.name == groupName }
       if (group == null) return@launch
 
-      // A4: Validate language code (with legacy code support)
-      val legacyResolved = legacyLangCodes[langCode.lowercase()] ?: langCode
+      // 预处理：下划线转连字符（zh_CN → zh-CN）
+      val preprocessed = langCode.replace('_', '-')
+      val legacyResolved = legacyLangCodes[preprocessed.lowercase()] ?: preprocessed
       val locale = java.util.Locale.forLanguageTag(legacyResolved)
       if (locale.language.isEmpty() || locale.language == "und" ||
           (!isoLanguages.contains(locale.language) && !isoLanguages.contains(langCode.lowercase()))) {
@@ -1150,7 +1324,6 @@ class TranslatorViewModel(application: Application) : AndroidViewModel(applicati
         return@launch
       }
 
-      // A4: Normalize
       val normalizedCode = locale.toLanguageTag()
 
       if (group.languages.containsKey(normalizedCode)) {
@@ -1161,7 +1334,6 @@ class TranslatorViewModel(application: Application) : AndroidViewModel(applicati
       val newFileName = "${groupName}_${normalizedCode}.properties"
       val newProps = Properties()
 
-      // Copy entries from source language if specified
       if (copyFromLang != null) {
         val sourceData = group.languages[copyFromLang]
         if (sourceData != null) {
@@ -1179,7 +1351,8 @@ class TranslatorViewModel(application: Application) : AndroidViewModel(applicati
       availableLanguages.value = AggregateLanguageGroup.availableLanguages(_languageGroups.value, selectedGroupName.value)
       updateCreatedLanguagesForGroup(groupName, _createdLanguages.value + normalizedCode)
 
-      if (sourceLangCode.value != normalizedCode) {
+      // 确保选中并刷新
+      if (sourceLangCode.value != null && sourceLangCode.value != normalizedCode) {
         selectTargetLanguage(normalizedCode)
       }
 
@@ -1555,6 +1728,7 @@ class TranslatorViewModel(application: Application) : AndroidViewModel(applicati
     _stagedChanges.value = emptyMap()
     _stagedDeletions.value = emptySet()
     _createdLanguages.value = emptySet()
+    _noTranslationNeeded.value = emptySet()
     _scopedWorkspaceState.value = ScopedWorkspaceState()
     resetSearchState()
   }
@@ -1572,6 +1746,7 @@ class TranslatorViewModel(application: Application) : AndroidViewModel(applicati
 
     regenerateJob?.cancel()
     regenerateJob = viewModelScope.launch(Dispatchers.Default) {
+      val calibrationStore = calibrationStoreSnapshot()
       val sourceProps = group.languages[sourceCode]?.properties ?: Properties()
       val targetProps = group.languages[targetCode]?.properties ?: Properties()
 
@@ -1582,12 +1757,17 @@ class TranslatorViewModel(application: Application) : AndroidViewModel(applicati
       var missingCount = 0
       var deletedCount = 0
       var diffCount = 0
+      val noTransNeeded = _noTranslationNeeded.value
 
       // A3: Collect deleted items for the DELETED view
       val deletedItemList = mutableListOf<DeletedItem>()
 
       val newEntries = sortedKeys.map { key ->
-        val sourceValue = sourceProps.getProperty(key, "")
+        val rawSourceValue = sourceProps.getProperty(key, "")
+        val calibration = calibrationStore.get(key)
+        val sourceValue = calibration?.calibratedText ?: rawSourceValue
+        val isCalibrated = calibration != null
+        val originalSourceValue = if (isCalibrated) rawSourceValue else null
         val isMissingInFile = !targetProps.containsKey(key) && sourceProps.containsKey(key)
         val isDeletedEntry = targetProps.containsKey(key) && !sourceProps.containsKey(key)
         val isStaged = _stagedChanges.value.containsKey(key)
@@ -1616,7 +1796,7 @@ class TranslatorViewModel(application: Application) : AndroidViewModel(applicati
         if (isDiff) diffCount++
 
         val isIdentical = sourceValue == finalTargetValue && finalTargetValue.isNotBlank()
-        val isUntranslated = finalTargetValue.isBlank() || isIdentical
+        val isUntranslated = (finalTargetValue.isBlank() || isIdentical) && key !in noTransNeeded
 
         TranslationEntry(
           key = key,
@@ -1630,7 +1810,10 @@ class TranslatorViewModel(application: Application) : AndroidViewModel(applicati
           isDeleted = isDeletedEntry && !isStagedDeletion,
           isDiff = isDiff,
           dictValue = dictEntry?.translation,
-          dictSourceValue = dictEntry?.sourceText
+          dictSourceValue = dictEntry?.sourceText,
+          isCalibrated = isCalibrated,
+          originalSourceValue = originalSourceValue,
+          isNoTranslationNeeded = key in noTransNeeded
         )
       }
       _allEntries.value = newEntries
@@ -1685,12 +1868,20 @@ class TranslatorViewModel(application: Application) : AndroidViewModel(applicati
   }
 
   private fun loadProperties(content: String): Properties {
+    val cleaned = content.removePrefix("\uFEFF")
     val props = Properties()
     try {
-      props.load(StringReader(content))
+      props.load(StringReader(cleaned))
     } catch (_: IllegalArgumentException) {
-      val sanitized = content.replace(Regex("""\x5Cu(?![0-9a-fA-F]{4})"""), "\\\\u")
+      val sanitized = cleaned.replace(Regex("""\x5Cu(?![0-9a-fA-F]{4})"""), "\\\\u")
       props.load(StringReader(sanitized))
+    }
+    val bomKeys = props.keys.mapNotNull { it as? String }.filter { it.startsWith("\uFEFF") }
+    for (bomKey in bomKeys) {
+      val value = props.getProperty(bomKey)
+      val cleanKey = bomKey.removePrefix("\uFEFF")
+      props.remove(bomKey)
+      if (!props.containsKey(cleanKey)) props.setProperty(cleanKey, value)
     }
     return props
   }
@@ -1766,6 +1957,19 @@ class TranslatorViewModel(application: Application) : AndroidViewModel(applicati
     _uiEvents.send(UiEvent.ShowSnackbar(app.getString(R.string.dict_import_done, result.importedCount)))
   }
 
+  private fun calibrationStoreSnapshot(): CalibrationStore = calibrationStoreState.snapshot()
+
+  private suspend fun mutateCalibrationStore(
+    transform: (CalibrationStore) -> CalibrationStore
+  ): CalibrationStore {
+    return calibrationMutationMutex.withLock {
+      val updatedStore = calibrationStoreState.update(transform)
+      calibrationRepository.save(updatedStore)
+      calibrationCount.value = updatedStore.count
+      updatedStore
+    }
+  }
+
   private fun setCurrentSearchResultIndex(index: Int) {
     val count = searchResultCount.value
     if (count <= 0) {
@@ -1785,6 +1989,7 @@ class TranslatorViewModel(application: Application) : AndroidViewModel(applicati
     searchResultCount.value = 0
     _currentSearchResultIndex.value = -1
     currentSearchResultKey.value = null
+    _pageBeforeSearch = 1
     currentPage.value = 1
   }
 

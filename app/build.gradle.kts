@@ -12,8 +12,8 @@ android {
         applicationId = "com.example.pdtranslator"
         minSdk = 24
         targetSdk = 34
-        versionCode = 14
-        versionName = "0.2.0"
+        versionCode = 16
+        versionName = "0.2.2"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
