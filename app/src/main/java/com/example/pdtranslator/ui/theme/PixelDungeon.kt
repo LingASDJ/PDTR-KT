@@ -1052,6 +1052,29 @@ internal fun brickRowPlan(
   )
 }
 
+internal object PixelDungeonWallDebugApi {
+  fun brickTextureSpec(screenWidthPx: Int, screenHeightPx: Int): BrickTextureSpec {
+    return com.example.pdtranslator.ui.theme.brickTextureSpec(screenWidthPx, screenHeightPx)
+  }
+
+  fun brickRowOffset(row: Int, hour: Int, layoutSeed: Int = 0): Int {
+    return com.example.pdtranslator.ui.theme.brickRowOffset(row, hour, layoutSeed)
+  }
+
+  fun resolveWallTheme(hour: Int): ResolvedWallTheme {
+    return com.example.pdtranslator.ui.theme.resolveWallTheme(hour)
+  }
+
+  fun brickRowPlan(
+    row: Int,
+    hour: Int,
+    theme: ResolvedWallTheme = resolveWallTheme(hour),
+    layoutSeed: Int = 0
+  ): BrickRowPlan {
+    return com.example.pdtranslator.ui.theme.brickRowPlan(row, hour, theme, layoutSeed)
+  }
+}
+
 private fun generateBrickBitmap(w: Int, h: Int, palette: ZonePalette, hour: Int = 0): ImageBitmap {
   val bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
   val theme = resolveWallTheme(hour)

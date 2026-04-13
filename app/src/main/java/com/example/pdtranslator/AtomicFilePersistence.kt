@@ -35,3 +35,9 @@ fun replaceFileFromTemp(tempFile: File, targetFile: File) {
     }
   }
 }
+
+object AtomicFilePersistenceOps {
+  fun replaceFromTemp(tempFile: File, targetFile: File) {
+    replaceFileFromTemp(tempFile, targetFile)
+  }
+}

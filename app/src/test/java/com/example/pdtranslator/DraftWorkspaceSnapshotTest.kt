@@ -1,7 +1,10 @@
 package com.example.pdtranslator
 
+import com.google.gson.Gson
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.util.Properties
 
@@ -60,6 +63,32 @@ class DraftWorkspaceSnapshotTest {
   }
 
   @Test
+  fun `captures original template for created languages`() {
+    val workspace = ScopedWorkspaceState()
+      .withCreatedLanguages("actors", setOf("fr"))
+
+    val actorsBase = Properties().apply { setProperty("actor.hero", "Hero") }
+    val actorsFr = Properties().apply { setProperty("actor.hero", "Heros") }
+    val template = "# actors section\nactor.hero=Heros\n"
+    val groups = listOf(
+      LanguageGroup(
+        name = "actors",
+        languages = mapOf(
+          "base" to LanguageData("actors.properties", actorsBase),
+          "fr" to LanguageData("actors_fr.properties", actorsFr, originalContent = template)
+        )
+      )
+    )
+
+    val snapshot = DraftWorkspaceSnapshot.capture(workspace, groups)
+    val json = Gson().toJson(snapshot)
+
+    assertEquals(template, snapshot.createdLanguageOriginalContent("actors", "fr"))
+    assertTrue(json.contains("\"originalContents\""))
+    assertTrue(json.contains("# actors section"))
+  }
+
+  @Test
   fun `restores scoped workspace state from draft snapshot`() {
     val actorsScope = EditScope(groupName = "actors", sourceLangCode = "base", targetLangCode = "zh-CN")
     val itemsScope = EditScope(groupName = "items", sourceLangCode = "base", targetLangCode = "ja")
@@ -83,7 +112,8 @@ class DraftWorkspaceSnapshotTest {
       createdLanguagesByGroup = listOf(
         DraftCreatedLanguageSnapshot(
           groupName = "actors",
-          languages = mapOf("fr" to mapOf("actor.hero" to "Heros"))
+          languages = mapOf("fr" to mapOf("actor.hero" to "Heros")),
+          originalContents = mapOf("fr" to "# actors section\nactor.hero=Heros\n")
         )
       )
     )
@@ -99,6 +129,7 @@ class DraftWorkspaceSnapshotTest {
     val restoredActors = snapshot.createdLanguages("actors")
     assertNotNull(restoredActors["fr"])
     assertEquals("Heros", restoredActors["fr"]?.get("actor.hero"))
+    assertEquals("# actors section\nactor.hero=Heros\n", snapshot.createdLanguageOriginalContent("actors", "fr"))
   }
 
   @Test
@@ -122,5 +153,6 @@ class DraftWorkspaceSnapshotTest {
     assertEquals(mapOf("actor.hero" to "英雄"), snapshot.scope(scope)?.stagedChanges)
     assertEquals(setOf("actor.villain"), snapshot.scope(scope)?.stagedDeletions)
     assertEquals("Heros", snapshot.createdLanguages("actors")["fr"]?.get("actor.hero"))
+    assertNull(snapshot.createdLanguageOriginalContent("actors", "fr"))
   }
 }

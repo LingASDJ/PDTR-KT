@@ -23,7 +23,7 @@ object PropertiesWriter {
     }
   }
 
-  private fun escapeKey(key: String): String = buildString {
+  internal fun escapeKey(key: String): String = buildString {
     for (ch in key) {
       when (ch) {
         ' ', '=', ':', '#', '!' -> { append('\\'); append(ch) }
@@ -36,7 +36,7 @@ object PropertiesWriter {
     }
   }
 
-  private fun escapeValue(value: String): String = buildString {
+  internal fun escapeValue(value: String): String = buildString {
     var leadingSpace = true
     for (ch in value) {
       when {

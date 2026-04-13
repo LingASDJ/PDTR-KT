@@ -18,7 +18,8 @@ data class DraftScopeSnapshot(
 
 data class DraftCreatedLanguageSnapshot(
   val groupName: String,
-  val languages: Map<String, Map<String, String>>
+  val languages: Map<String, Map<String, String>>,
+  val originalContents: Map<String, String>? = null
 )
 
 data class DraftWorkspaceSnapshot(
@@ -35,6 +36,13 @@ data class DraftWorkspaceSnapshot(
 
   fun createdLanguages(groupName: String): Map<String, Map<String, String>> {
     return createdLanguagesByGroup.firstOrNull { it.groupName == groupName }?.languages.orEmpty()
+  }
+
+  fun createdLanguageOriginalContent(groupName: String, langCode: String): String? {
+    return createdLanguagesByGroup
+      .firstOrNull { it.groupName == groupName }
+      ?.originalContents
+      ?.get(langCode)
   }
 
   fun toScopedWorkspaceState(): ScopedWorkspaceState {
@@ -76,15 +84,22 @@ data class DraftWorkspaceSnapshot(
         .map { (groupName, codes) ->
           val group = groupsByName[groupName]
           val languages = linkedMapOf<String, Map<String, String>>()
+          val originalContents = linkedMapOf<String, String>()
           codes.toList().sorted().forEach { langCode ->
-            val props = group?.languages?.get(langCode)?.properties
+            val languageData = group?.languages?.get(langCode)
+            val props = languageData?.properties
             val values = linkedMapOf<String, String>()
             props?.stringPropertyNames()?.sorted()?.forEach { key ->
               values[key] = props.getProperty(key, "")
             }
             languages[langCode] = values
+            languageData?.originalContent?.let { originalContents[langCode] = it }
           }
-          DraftCreatedLanguageSnapshot(groupName = groupName, languages = languages)
+          DraftCreatedLanguageSnapshot(
+            groupName = groupName,
+            languages = languages,
+            originalContents = originalContents.takeIf { it.isNotEmpty() }
+          )
         }
 
       return DraftWorkspaceSnapshot(scopes = scopes, createdLanguagesByGroup = createdLanguagesByGroup)

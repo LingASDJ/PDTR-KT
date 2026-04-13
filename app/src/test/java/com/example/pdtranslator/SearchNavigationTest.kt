@@ -1,5 +1,4 @@
 package com.example.pdtranslator
-
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
@@ -14,7 +13,7 @@ class SearchNavigationTest {
       translationEntry("armor")
     )
 
-    assertEquals(1, findSearchResultScrollIndex(entries, "weapon"))
+    assertEquals(1, SearchNavigationOps.findScrollIndex(entries, "weapon"))
   }
 
   @Test
@@ -24,8 +23,8 @@ class SearchNavigationTest {
       translationEntry("weapon")
     )
 
-    assertNull(findSearchResultScrollIndex(entries, "armor"))
-    assertNull(findSearchResultScrollIndex(entries, null))
+    assertNull(SearchNavigationOps.findScrollIndex(entries, "armor"))
+    assertNull(SearchNavigationOps.findScrollIndex(entries, null))
   }
 
   @Test
@@ -37,8 +36,8 @@ class SearchNavigationTest {
       translationEntry("weapon.axe")
     )
 
-    assertEquals(4, findGroupedSearchResultScrollIndex(entries, "weapon.sword"))
-    assertEquals(1, findGroupedSearchResultScrollIndex(entries, "magic.fire"))
+    assertEquals(4, SearchNavigationOps.findGroupedScrollIndex(entries, "weapon.sword"))
+    assertEquals(1, SearchNavigationOps.findGroupedScrollIndex(entries, "magic.fire"))
   }
 
   @Test
@@ -52,7 +51,7 @@ class SearchNavigationTest {
 
     assertEquals(
       2,
-      findGroupedSearchResultScrollIndex(
+      SearchNavigationOps.findGroupedScrollIndex(
         entries = entries,
         currentSearchResultKey = "weapon.sword",
         collapsedGroups = setOf("magic")
@@ -69,7 +68,7 @@ class SearchNavigationTest {
 
     assertEquals(
       setOf("magic"),
-      revealCurrentSearchResultGroup(
+      SearchNavigationOps.revealGroup(
         collapsedGroups = setOf("magic", "weapon"),
         entries = entries,
         currentSearchResultKey = "weapon.sword"
@@ -86,7 +85,7 @@ class SearchNavigationTest {
 
     assertEquals(
       setOf("magic", "weapon"),
-      revealCurrentSearchResultGroup(
+      SearchNavigationOps.revealGroup(
         collapsedGroups = setOf("magic", "weapon"),
         entries = entries,
         currentSearchResultKey = "armor.shield"

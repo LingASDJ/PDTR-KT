@@ -3,6 +3,7 @@ package com.example.pdtranslator
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -17,6 +18,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Palette
@@ -44,8 +46,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import com.example.pdtranslator.engine.EngineConfig
-import com.example.pdtranslator.ui.theme.currentZoneName
-import com.example.pdtranslator.ui.theme.rememberTimeTick
+import kotlinx.coroutines.delay
+import java.util.Calendar
 
 @Composable
 fun SettingsScreen(
@@ -56,6 +58,7 @@ fun SettingsScreen(
 ) {
     val showAboutDialog by viewModel.showAboutDialog.collectAsState()
     val selectedTheme by viewModel.themeColor.collectAsState()
+    val preserveOriginalFormatOnExport by viewModel.preserveOriginalFormatOnExport.collectAsState()
     var showLanguageDialog by remember { mutableStateOf(false) }
     var showThemeColorDialog by remember { mutableStateOf(false) }
     var showEngineDialog by remember { mutableStateOf(false) }
@@ -90,6 +93,13 @@ fun SettingsScreen(
         item { LanguageSetting(isPD) { showLanguageDialog = true } }
         item { ThemeColorSetting(isPD) { showThemeColorDialog = true } }
         item { TranslationEngineSetting(isPD) { showEngineDialog = true } }
+        item {
+            ExportPreserveFormatSetting(
+                isPD = isPD,
+                checked = preserveOriginalFormatOnExport,
+                onCheckedChange = viewModel::setPreserveOriginalFormatOnExport
+            )
+        }
 
         item { Spacer(modifier = Modifier.padding(vertical = 8.dp)) }
 
@@ -103,9 +113,9 @@ fun SettingsScreen(
             item { Spacer(modifier = Modifier.padding(vertical = 8.dp)) }
             item { SectionTitle(stringResource(R.string.pd_dungeon_section)) }
             item {
-                val tick = rememberTimeTick()
-                val zoneName = currentZoneName()
+                val tick = rememberSettingsTimeTick()
                 val hour = tick / 60
+                val zoneName = settingsZoneName(hour)
                 val depth = (hour + 1).coerceIn(1, 26)
                 SettingItemPd(
                     iconRes = R.drawable.ic_pd_map,
@@ -159,6 +169,123 @@ fun SettingItemPd(iconRes: Int, title: String, subtitle: String, onClick: () -> 
             Text(title, style = MaterialTheme.typography.bodyLarge)
             Text(subtitle, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
+    }
+}
+
+@Composable
+private fun rememberSettingsTimeTick(): Int {
+    val cal = Calendar.getInstance()
+    var tick by remember { mutableStateOf(cal.get(Calendar.HOUR_OF_DAY) * 60 + cal.get(Calendar.MINUTE)) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            delay(60_000L)
+            val now = Calendar.getInstance()
+            tick = now.get(Calendar.HOUR_OF_DAY) * 60 + now.get(Calendar.MINUTE)
+        }
+    }
+    return tick
+}
+
+private fun settingsZoneName(hour: Int): String {
+    return when (hour) {
+        0 -> "恶魔大厅深层 Deep Demon Halls"
+        1 -> "燃烧拳魔 Burning Fist"
+        2 -> "腐烂拳魔 Rotting Fist"
+        3 -> "冰霜拳魔 Ice Fist"
+        4 -> "下水道 Sewers"
+        5 -> "下水道BOSS Goo"
+        6 -> "花园 Garden"
+        7 -> "监狱 Prison"
+        8 -> "监狱牢房 Prison Cells"
+        9 -> "天狗 Tengu"
+        10 -> "洞窟 Caves"
+        11 -> "矿洞深处 Deep Mines"
+        12 -> "水晶洞窟 Crystal Caves"
+        13 -> "矮人城 Dwarf City"
+        14 -> "矮人城中心 City Center"
+        15 -> "矮人国王 Dwarf King"
+        16 -> "恶魔大厅 Demon Halls"
+        17 -> "魔眼层 Evil Eyes"
+        18 -> "蝎子巢窟 Scorpio Nest"
+        19 -> "犹格索托斯 Yog-Dzewa"
+        20 -> "光明拳魔 Bright Fist"
+        21 -> "暗影拳魔 Dark Fist"
+        22 -> "锈蚀拳魔 Rusted Fist"
+        23 -> "最终之层 Last Level"
+        else -> "地牢 Dungeon"
+    }
+}
+
+@Composable
+fun SettingSwitchItem(
+    icon: ImageVector,
+    title: String,
+    subtitle: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onCheckedChange(!checked) }
+            .padding(vertical = 16.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(end = 72.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(icon, contentDescription = title, modifier = Modifier.padding(end = 16.dp))
+            Column {
+                Text(title, style = MaterialTheme.typography.bodyLarge)
+                Text(subtitle, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+        Switch(
+            checked = checked,
+            onCheckedChange = onCheckedChange,
+            modifier = Modifier.align(Alignment.CenterEnd)
+        )
+    }
+}
+
+@Composable
+fun SettingSwitchItemPd(
+    iconRes: Int,
+    title: String,
+    subtitle: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onCheckedChange(!checked) }
+            .padding(vertical = 16.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(end = 72.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                painterResource(iconRes),
+                contentDescription = title,
+                modifier = Modifier.padding(end = 16.dp).size(24.dp),
+                tint = MaterialTheme.colorScheme.primary
+            )
+            Column {
+                Text(title, style = MaterialTheme.typography.bodyLarge)
+                Text(subtitle, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+        Switch(
+            checked = checked,
+            onCheckedChange = onCheckedChange,
+            modifier = Modifier.align(Alignment.CenterEnd)
+        )
     }
 }
 
@@ -228,6 +355,31 @@ fun ThemeColorSetting(isPD: Boolean = false, onClick: () -> Unit) {
 fun TranslationEngineSetting(isPD: Boolean = false, onClick: () -> Unit) {
     if (isPD) SettingItemPd(R.drawable.ic_pd_wand, stringResource(R.string.settings_item_translation_engine), stringResource(R.string.settings_item_translation_engine_subtitle), onClick)
     else SettingItem(Icons.Default.Translate, stringResource(R.string.settings_item_translation_engine), stringResource(R.string.settings_item_translation_engine_subtitle), onClick)
+}
+
+@Composable
+fun ExportPreserveFormatSetting(
+    isPD: Boolean = false,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit
+) {
+    if (isPD) {
+        SettingSwitchItemPd(
+            iconRes = R.drawable.ic_pd_scroll,
+            title = stringResource(R.string.settings_item_export_preserve_format),
+            subtitle = stringResource(R.string.settings_item_export_preserve_format_subtitle),
+            checked = checked,
+            onCheckedChange = onCheckedChange
+        )
+    } else {
+        SettingSwitchItem(
+            icon = Icons.Default.Description,
+            title = stringResource(R.string.settings_item_export_preserve_format),
+            subtitle = stringResource(R.string.settings_item_export_preserve_format_subtitle),
+            checked = checked,
+            onCheckedChange = onCheckedChange
+        )
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
