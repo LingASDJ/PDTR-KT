@@ -56,6 +56,8 @@
     <string name="settings_item_theme_color_subtitle">自定义应用的主题颜色</string>
     <string name="settings_item_translation_engine">翻译引擎</string>
     <string name="settings_item_translation_engine_subtitle">选择用于在线翻译的服务</string>
+    <string name="settings_item_export_preserve_format">导出时保留原始格式</string>
+    <string name="settings_item_export_preserve_format_subtitle">导出时保留已导入 .properties 的原顺序、空行、注释和未改动文本布局</string>
     <string name="settings_item_source_code_license">源代码与许可</string>
     <string name="settings_item_source_code_license_subtitle">查看应用使用的开源库</string>
     <string name="settings_item_about_us">关于我们</string>

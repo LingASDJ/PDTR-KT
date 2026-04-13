@@ -26,6 +26,7 @@ import java.io.BufferedReader
 import java.io.InputStreamReader
 import java.io.OutputStreamWriter
 import java.io.StringReader
+import java.io.StringWriter
 import java.util.Properties
 import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
@@ -73,7 +74,11 @@ data class NetworkSuggestionState(
   val results: List<TranslationResult>
 )
 
-data class LanguageData(val fileName: String, val properties: Properties)
+data class LanguageData(
+  val fileName: String,
+  val properties: Properties,
+  val originalContent: String? = null
+)
 
 data class LanguageGroup(
   val name: String,
@@ -98,6 +103,9 @@ enum class ThemeColor {
 class TranslatorViewModel(application: Application) : AndroidViewModel(application) {
 
   companion object {
+    private const val PREF_THEME_COLOR = "theme_color"
+    private const val PREF_PRESERVE_ORIGINAL_FORMAT_ON_EXPORT = "preserve_original_format_on_export"
+
     // Include both old and new ISO 639 codes for complete coverage
     private val isoLanguages: Set<String> by lazy {
       val base = java.util.Locale.getISOLanguages().toMutableSet()
@@ -143,6 +151,7 @@ class TranslatorViewModel(application: Application) : AndroidViewModel(applicati
   private val _scopedWorkspaceState = MutableStateFlow(ScopedWorkspaceState())
   private val _showAboutDialog = MutableStateFlow(false)
   private val _themeColor = MutableStateFlow(loadSavedThemeColor())
+  private val _preserveOriginalFormatOnExport = MutableStateFlow(loadPreserveOriginalFormatOnExport())
   private val _isSearchCardVisible = MutableStateFlow(true)
   private val _missingEntriesCount = MutableStateFlow(0)
   private val _deletedEntriesCount = MutableStateFlow(0)
@@ -244,6 +253,7 @@ class TranslatorViewModel(application: Application) : AndroidViewModel(applicati
   val isSaveEnabled = MutableStateFlow(false)
   val showAboutDialog = _showAboutDialog.asStateFlow()
   val themeColor = _themeColor.asStateFlow()
+  val preserveOriginalFormatOnExport = _preserveOriginalFormatOnExport.asStateFlow()
 
   init {
     viewModelScope.launch(Dispatchers.Default) {
@@ -755,7 +765,11 @@ class TranslatorViewModel(application: Application) : AndroidViewModel(applicati
   fun setShowAboutDialog(show: Boolean) { _showAboutDialog.value = show }
   fun setThemeColor(theme: ThemeColor) {
     _themeColor.value = theme
-    prefs.edit().putString("theme_color", theme.name).apply()
+    prefs.edit().putString(PREF_THEME_COLOR, theme.name).apply()
+  }
+  fun setPreserveOriginalFormatOnExport(enabled: Boolean) {
+    _preserveOriginalFormatOnExport.value = enabled
+    prefs.edit().putBoolean(PREF_PRESERVE_ORIGINAL_FORMAT_ON_EXPORT, enabled).apply()
   }
   fun toggleSearchCardVisibility() { _isSearchCardVisible.value = !_isSearchCardVisible.value }
 
@@ -921,7 +935,7 @@ class TranslatorViewModel(application: Application) : AndroidViewModel(applicati
                   val props = loadProperties(content)
                   val langMap = groups.getOrPut(baseName) { mutableMapOf() }
                   if (langMap.containsKey(langCode)) overwritten++
-                  langMap[langCode] = LanguageData(entryName, props)
+                  langMap[langCode] = LanguageData(entryName, props, originalContent = content)
                   success++
                 } catch (e: Exception) {
                   Log.w("TranslatorVM", "Failed to parse ZIP entry: $entryName", e)
@@ -950,7 +964,7 @@ class TranslatorViewModel(application: Application) : AndroidViewModel(applicati
         val props = loadProperties(content)
         val langMap = groups.getOrPut(baseName) { mutableMapOf() }
         val wasOverwrite = langMap.containsKey(langCode)
-        langMap[langCode] = LanguageData(fileName, props)
+        langMap[langCode] = LanguageData(fileName, props, originalContent = content)
         if (wasOverwrite) LoadResult.OVERWRITE else LoadResult.SUCCESS
       } ?: LoadResult.FAIL
     } catch (e: Exception) {
@@ -1007,7 +1021,7 @@ class TranslatorViewModel(application: Application) : AndroidViewModel(applicati
 
   fun selectDictionary(id: String) {
     dictionarySelectionRunner.launch {
-      selectDictionaryPersisted(
+      DictionarySelectionAction.selectPersisted(
         id = id,
         persistSelection = { selectedId ->
           dictionaryManager.selectDictionary(selectedId)
@@ -1333,16 +1347,22 @@ class TranslatorViewModel(application: Application) : AndroidViewModel(applicati
 
       val newFileName = "${groupName}_${normalizedCode}.properties"
       val newProps = Properties()
+      var originalContent: String? = null
 
       if (copyFromLang != null) {
         val sourceData = group.languages[copyFromLang]
         if (sourceData != null) {
           newProps.putAll(sourceData.properties)
+          originalContent = sourceData.originalContent
         }
       }
 
       val newLanguages = group.languages.toMutableMap()
-      newLanguages[normalizedCode] = LanguageData(newFileName, newProps)
+      newLanguages[normalizedCode] = LanguageData(
+        fileName = newFileName,
+        properties = newProps,
+        originalContent = originalContent
+      )
       val newGroup = group.copy(languages = newLanguages)
 
       _languageGroups.update { groups ->
@@ -1409,7 +1429,7 @@ class TranslatorViewModel(application: Application) : AndroidViewModel(applicati
 
                   zos.putNextEntry(ZipEntry(langData.fileName))
                   val writer = OutputStreamWriter(zos, "UTF-8")
-                  PropertiesWriter.write(finalProps, writer)
+                  writer.write(renderPropertiesForExport(langData, finalProps))
                   writer.flush()
                   zos.closeEntry()
                 }
@@ -1542,7 +1562,11 @@ class TranslatorViewModel(application: Application) : AndroidViewModel(applicati
                 val newFileName = "${group.name}_${langCode}.properties"
                 val props = Properties()
                 propsMap.forEach { (key, value) -> props.setProperty(key, value) }
-                newLanguages[langCode] = LanguageData(newFileName, props)
+                newLanguages[langCode] = LanguageData(
+                  fileName = newFileName,
+                  properties = props,
+                  originalContent = snapshot.createdLanguageOriginalContent(group.name, langCode)
+                )
               }
             }
             group.copy(languages = newLanguages)
@@ -1994,8 +2018,23 @@ class TranslatorViewModel(application: Application) : AndroidViewModel(applicati
   }
 
   private fun loadSavedThemeColor(): ThemeColor {
-    val raw = prefs.getString("theme_color", ThemeColor.PIXEL_DUNGEON.name) ?: ThemeColor.PIXEL_DUNGEON.name
+    val raw = prefs.getString(PREF_THEME_COLOR, ThemeColor.PIXEL_DUNGEON.name) ?: ThemeColor.PIXEL_DUNGEON.name
     return runCatching { ThemeColor.valueOf(raw) }.getOrDefault(ThemeColor.PIXEL_DUNGEON)
+  }
+
+  private fun loadPreserveOriginalFormatOnExport(): Boolean {
+    return prefs.getBoolean(PREF_PRESERVE_ORIGINAL_FORMAT_ON_EXPORT, true)
+  }
+
+  private fun renderPropertiesForExport(langData: LanguageData, finalProps: Properties): String {
+    val template = langData.originalContent
+    if (_preserveOriginalFormatOnExport.value && template != null) {
+      return PropertiesTemplateWriter.render(template, finalProps)
+    }
+
+    val writer = StringWriter()
+    PropertiesWriter.write(finalProps, writer)
+    return writer.toString()
   }
 
   fun getLanguageDisplayName(code: String, context: Context): String {

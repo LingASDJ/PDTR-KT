@@ -19,7 +19,7 @@ class DictionarySelectionActionTest {
     val events = mutableListOf<String>()
     var observedDispatcher: CoroutineDispatcher? = null
 
-    selectDictionaryPersisted(
+    DictionarySelectionAction.selectPersisted(
       id = "boss_terms",
       ioDispatcher = ioDispatcher,
       persistSelection = { id ->

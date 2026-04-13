@@ -63,6 +63,8 @@
     <string name="settings_item_theme_color_subtitle">Customize the theme color of the app</string>
     <string name="settings_item_translation_engine">Translation Engine</string>
     <string name="settings_item_translation_engine_subtitle">Choose the online service for translation</string>
+    <string name="settings_item_export_preserve_format">Preserve original format on export</string>
+    <string name="settings_item_export_preserve_format_subtitle">Keep imported .properties order, blank lines, comments, and untouched text layout when exporting</string>
     <string name="settings_item_source_code_license">Source Code License</string>
     <string name="settings_item_source_code_license_subtitle">View the open source libraries used by the app</string>
     <string name="settings_item_about_us">About Us</string>

@@ -1,5 +1,4 @@
 package com.example.pdtranslator
-
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Test
@@ -14,7 +13,7 @@ class AtomicFilePersistenceTest {
       val target = File(dir, "dictionary.json").apply { writeText("old", Charsets.UTF_8) }
       val temp = File(dir, "dictionary.json.tmp").apply { writeText("new", Charsets.UTF_8) }
 
-      replaceFileFromTemp(temp, target)
+      AtomicFilePersistenceOps.replaceFromTemp(temp, target)
 
       assertEquals("new", target.readText(Charsets.UTF_8))
       assertFalse(temp.exists())

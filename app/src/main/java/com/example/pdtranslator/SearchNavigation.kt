@@ -55,3 +55,25 @@ fun entryPrefix(key: String): String {
   val dotIndex = key.indexOf('.')
   return if (dotIndex > 0) key.substring(0, dotIndex) else key
 }
+
+object SearchNavigationOps {
+  fun findScrollIndex(entries: List<TranslationEntry>, currentSearchResultKey: String?): Int? {
+    return findSearchResultScrollIndex(entries, currentSearchResultKey)
+  }
+
+  fun findGroupedScrollIndex(
+    entries: List<TranslationEntry>,
+    currentSearchResultKey: String?,
+    collapsedGroups: Set<String> = emptySet()
+  ): Int? {
+    return findGroupedSearchResultScrollIndex(entries, currentSearchResultKey, collapsedGroups)
+  }
+
+  fun revealGroup(
+    collapsedGroups: Set<String>,
+    entries: List<TranslationEntry>,
+    currentSearchResultKey: String?
+  ): Set<String> {
+    return revealCurrentSearchResultGroup(collapsedGroups, entries, currentSearchResultKey)
+  }
+}
